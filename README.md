@@ -1,3 +1,8 @@
+[![crates.io](https://img.shields.io/crates/v/libfranka-rs.svg)](https://crates.io/crates/libfranka-rs)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/marcbone/libfranka-rs/Rust)
+[![crates.io](https://img.shields.io/crates/l/libfranka-rs.svg)](https://crates.io/crates/libfranka-rs)
+[![crates.io](https://img.shields.io/crates/d/libfranka-rs.svg)](https://crates.io/crates/libfranka-rs)
+[![docs.rs](https://docs.rs/libfranka-rs/badge.svg)](https://docs.rs/libfranka-rs)
 # libfranka-rs
 libfranka-rs is an **unofficial** port of [libfranka](https://github.com/frankaemika/libfranka) written in Rust.
 This library can interact with research versions of Franka Emika Robots.
