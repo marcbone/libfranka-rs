@@ -1,12 +1,13 @@
 [package]
 name = "libfranka-rs"
-version = "0.8.0-alpha"
+version = "0.8.0-alpha-1"
 authors = ["Marco Boneberger <m.boneberger@tu-bs.de>"]
 edition = "2018"
 license = "EUPL-1.2"
 description = "Library to control Franka Emika robots"
 categories = ["science::robotics"]
 keywords = ["franka", "emika", "real-time", "panda", "libfranka"]
+repository = "https://github.com/marcbone/libfranka-rs"
 readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
