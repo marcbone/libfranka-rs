@@ -29,7 +29,7 @@ struct CommandLineArguments {
     pub franka_ip_mirror: String,
 }
 
-const NULL_SPACE_VELOCITY_SCALING: f64 = 3.;
+const NULLSPACE_TORQUE_SCALING: f64 = 5.;
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::from_args();
     let translational_stiffness = 400.;
@@ -142,13 +142,12 @@ fn main() -> FrankaResult<()> {
                         * Vector3::new(error_quaternion.i, error_quaternion.j, error_quaternion.k)),
                 );
             }
-            let jacobian_inv = jacobian.pseudo_inverse(0.001).unwrap();
-            let null_space_projection = Matrix7::identity() - jacobian_inv * jacobian;
-            let null_space_q_dot = NULL_SPACE_VELOCITY_SCALING * null_space_projection * (home - q);
-            let tau_task: Vector7 = jacobian.transpose()
-                * (-stiffness * error - damping * (jacobian * dq))
-                + null_space_q_dot;
-            let tau_d: Vector7 = tau_task + coriolis;
+            let nullspace_projection = Matrix7::identity()
+                - jacobian.transpose() * jacobian.transpose().pseudo_inverse(0.001).unwrap();
+            let tau_nullspace = nullspace_projection * NULLSPACE_TORQUE_SCALING * (home - q);
+            let tau_task: Vector7 =
+                jacobian.transpose() * (-stiffness * error - damping * (jacobian * dq));
+            let tau_d: Vector7 = tau_task + tau_nullspace + coriolis;
 
             tau_d.into()
         },
