@@ -91,7 +91,7 @@ If this is your first time using Rust, I recommend reading the [Rust Book](https
 
 If you have Rust installed and just want to play with the examples, you can also run:
 ```bash
-cargo install libfranka-rs --examples
+cargo install libfranka-rs --examples --version 0.8.0-alpha-2
 generate_joint_position_motion <ip_of_your_robot>
 ```
 
@@ -110,7 +110,7 @@ communication_test example to verify that your setup is correct.
 ### How to use libfranka-rs
 If you want to use libfranka-rs in your project, you have to add
 ```toml
-libfranka-rs = 0.8
+libfranka-rs = 0.8.0-alpha-2
 ```
 to your Cargo.toml file.
 libfranka-rs version numbers are structured as MAJOR.MINOR.PATCH. The Major and Minor versions match the original libfranka
