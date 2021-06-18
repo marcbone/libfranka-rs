@@ -752,7 +752,6 @@ mod tests {
             &last_cmd_velocity,
             &last_cmd_acceleration,
         );
-        // cartesian_pose_limited.iter().zip(cartesian_pose_into_limits.iter()).for_each(|(&x, &y)| println!("{} {}", x, y));
         cartesian_pose_limited
             .iter()
             .zip(cartesian_pose_into_limits.iter())
@@ -793,7 +792,6 @@ mod tests {
             &last_cmd_velocity,
             &last_cmd_acceleration,
         );
-        // cartesian_pose_limited.iter().zip(cartesian_pose_into_limits.iter()).for_each(|(&x, &y)| println!("{} {}", x, y));
         cartesian_pose_limited
             .iter()
             .zip(cartesian_pose_into_limits.iter())

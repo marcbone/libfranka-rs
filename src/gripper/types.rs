@@ -69,12 +69,6 @@ impl CommandHeader {
     }
 }
 
-// struct RequestBase<T> {
-//
-// }
-// struct ResponseBase<T>{
-//     status : Status,
-// }
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct ConnectRequest {

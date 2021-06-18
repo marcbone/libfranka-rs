@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-// use crate::robot::robot_impl::{CommandException, FrankaResult};
 use crate::exception::FrankaResult;
 use crate::robot::control_types::RealtimeConfig;
 use crate::robot::robot_state::RobotState;

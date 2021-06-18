@@ -64,8 +64,6 @@ pub fn cartesian_low_pass_filter(
         .for_each(|(i, j)| assert!(i.is_finite() && j.is_finite()));
     let mut transform = array_to_isometry(&y);
     let transform_last = array_to_isometry(&y_last);
-    // let mut orientation = transform.rotation;
-    // let orientation_last = transform.rotation;
     let gain = sample_time / (sample_time + (1.0 / (2.0 * PI * cutoff_frequency)));
     transform.translation.vector =
         gain * transform.translation.vector + (1. - gain) * transform_last.translation.vector;
@@ -96,8 +94,6 @@ mod tests {
     fn low_pass_cartesian_test() {
         let sample_time = 0.001;
         let cutoff_frequency = 100.;
-        // let y = [0.9999903734042686, 0.000000010688512130929695, -0.0000000038600565380547064, 0.0, 0.000000010688512130929695, -0.9999903734042686, 0.000000001402494408653832, 0.0, -0.00000000386009369835821, -0.000000001402507951289548, -1.0, 0.0, 0.30689056676830223, 0.0000000030382738099574655, 0.48688205090223136, 1.0];
-        // let y_last = [0.9999903734042686, 0.000000010688512130929695, -0.0000000038600565380547064, 0.0, 0.000000010688512130929695, -0.9999903734042686, 0.000000001402494408653832, 0.0, -0.00000000386009369835821, -0.000000001402507951289548, -1.0, 0.0, 0.30689056676830223, 0.0000000030382738099574655, 0.48688205090223136, 1.0];
         let y = [
             0.9999903734042686,
             0.0000000002540163079878255,

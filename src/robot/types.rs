@@ -178,12 +178,6 @@ impl RoboErrorHelperStruct {
             out[i + 32] = val;
         }
         out
-        // let mut out:[bool;37] = [false;37];
-        // let mut slice1 =&mut out[0..32];
-        // slice1 = &mut self.errors1.clone()[..];
-        // let mut slice2 =&mut out[32..];
-        // slice2 = &mut self.errors2.clone()[..];
-        // out
     }
     pub fn combine_reflex_reasons(&self) -> [bool; 37] {
         let mut out = [false; 37];

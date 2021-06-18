@@ -444,7 +444,6 @@ mod tests {
     fn gripper_stop_test() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
             let mut mock_gripper = GripperMockServer::new(kVersion);
-            // let m = self::MockGripperMockServer::new();
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {

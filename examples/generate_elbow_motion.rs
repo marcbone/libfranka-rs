@@ -53,7 +53,6 @@ fn main() -> FrankaResult<()> {
         let mut elbow = initial_elbow;
         elbow[0] += angle;
         let out = CartesianPose::new(initial_pose, Some(elbow));
-        // println!("{:?}", out);
         if time >= 10.0 {
             println!("Finished motion, shutting down example");
             return out.motion_finished();

@@ -339,7 +339,6 @@ impl Robot {
             .robimpl
             .network
             .tcp_blocking_receive_response(command_id);
-        // println!("{:?}", response);
         handle_getter_setter_status(response.status)
     }
 

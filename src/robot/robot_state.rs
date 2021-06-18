@@ -379,10 +379,7 @@ fn combine_inertia_tensor(
     let center_of_mass_total = Vector3::from_column_slice(&F_x_Ctotal);
 
     let mut inertia_ee = Matrix3::from_column_slice(&I_ee);
-    // let mut inertia_ee_flange = Matrix3::zeros();
     let mut inertia_load = Matrix3::from_column_slice(&I_load);
-    // let  mut inertia_load_flange: Matrix3<f64> = Matrix3::zeros();
-    // let mut inertia_total_flange: Matrix3<f64> = Matrix3::zeros();
 
     if m_ee == 0. {
         inertia_ee = Matrix3::zeros();
@@ -473,7 +470,6 @@ mod tests {
             .zip(expected.iter())
             .take(3)
             .for_each(|(&x, &y)| assert!((x - y).abs() < 1e-14));
-        // i_total.iter().zip(expected.iter()).for_each(|(&x, &y)| println!("{}",x));
     }
 
     #[test]

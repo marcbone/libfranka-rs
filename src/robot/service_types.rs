@@ -553,17 +553,6 @@ pub struct SetterResponse {
 }
 
 pub type AutomaticErrorRecoveryRequestWithHeader = RobotCommandHeader;
-// #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-// #[repr(packed)]
-// pub struct AutomaticErrorRecoveryRequestWithHeader {
-//     pub header: RobotCommandHeader,
-// }
-//
-// impl MessageCommand for AutomaticErrorRecoveryRequestWithHeader {
-//     fn get_command_message_id(&self) -> u32 {
-//         self.header.get_command_message_id()
-//     }
-// }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AutomaticErrorRecoveryResponse {

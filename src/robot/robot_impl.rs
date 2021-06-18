@@ -179,9 +179,7 @@ impl RobotImpl {
     ) -> FrankaResult<Option<RobotCommand>> {
         let motion_is_some = motion_command.is_some();
         let controller_is_some = control_command.is_some();
-        // println!("motion {} controller {}",motion_is_some,controller_is_some);
         if motion_is_some || controller_is_some {
-            // let out_id = self.message_id;
             if motion_is_some
                 && self.current_move_motion_generator_mode == MotionGeneratorMode::kIdle
             {
@@ -216,7 +214,6 @@ impl RobotImpl {
                     motion: motion_command.unwrap().clone().pack(),
                     control: ControllerCommand { tau_J_d: [0.; 7] }.pack(),
                 };
-                // println!("send udp");
                 return match self.network.udp_send(&command) {
                     Ok(_) => Ok(Some(command)),
                     Err(e) => Err(FrankaException::NetworkException {

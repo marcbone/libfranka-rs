@@ -321,7 +321,6 @@ mod test {
     use crate::model::ModelLibrary;
     use std::path::Path;
 
-    // use super::*;
     #[test]
     fn can_generate_model_exception() {
         match ModelLibrary::new(Path::new("/dev/null"), None) {

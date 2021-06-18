@@ -197,14 +197,12 @@ mod test {
     use std::time::Duration;
 
     fn slice_compare(a: &[f64], b: &[f64], thresh: f64) {
-        // assert_eq!(a.len(), b.len());
         for i in 0..a.len() {
             float_compare(a[i], b[i], thresh);
         }
     }
 
     fn float_compare(a: f64, b: f64, thresh: f64) {
-        // println!("{} {}", a, b);
         assert!((a - b).abs() < thresh);
     }
 
