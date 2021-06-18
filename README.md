@@ -109,7 +109,7 @@ communication_test example to verify that your setup is correct.
 
 ### How to use libfranka-rs
 If you want to use libfranka-rs in your project, you have to add
-```toml
+```text
 libfranka-rs = 0.8.0-alpha-2
 ```
 to your Cargo.toml file.
