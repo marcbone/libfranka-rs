@@ -24,7 +24,7 @@ use crate::robot::types::{
 use std::fs::remove_file;
 use std::path::Path;
 
-pub const kVersion: u16 = 4;
+pub const VERSION: u16 = 4;
 
 pub struct RobotImpl {
     pub network: Network,
@@ -40,33 +40,33 @@ pub struct RobotImpl {
 
 fn handle_command_response_move(response: &MoveResponse) -> Result<(), FrankaException> {
     match response.status {
-        MoveStatus::kSuccess => Ok(()),
-        MoveStatus::kMotionStarted => {
+        MoveStatus::Success => Ok(()),
+        MoveStatus::MotionStarted => {
             //todo handle motion_generator_running == true
             Ok(())
         }
-        MoveStatus::kEmergencyAborted => Err(create_command_exception(
+        MoveStatus::EmergencyAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: User Stop pressed!",
         )),
-        MoveStatus::kReflexAborted => Err(create_command_exception(
+        MoveStatus::ReflexAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: motion aborted by reflex!",
         )),
-        MoveStatus::kInputErrorAborted => Err(create_command_exception(
+        MoveStatus::InputErrorAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: invalid input provided!",
         )),
-        MoveStatus::kCommandNotPossibleRejected => Err(create_command_exception(
+        MoveStatus::CommandNotPossibleRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: command not possible in the current mode!",
         )),
-        MoveStatus::kStartAtSingularPoseRejected => Err(create_command_exception(
+        MoveStatus::StartAtSingularPoseRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: cannot start at singular pose!",
         )),
-        MoveStatus::kInvalidArgumentRejected => Err(create_command_exception(
+        MoveStatus::InvalidArgumentRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: maximum path deviation out of range!",
         )),
-        MoveStatus::kPreempted => Err(create_command_exception(
+        MoveStatus::Preempted => Err(create_command_exception(
             "libfranka-rs: Move command preempted!",
         )),
-        MoveStatus::kAborted => Err(create_command_exception(
+        MoveStatus::Aborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted!",
         )),
     }
@@ -74,17 +74,17 @@ fn handle_command_response_move(response: &MoveResponse) -> Result<(), FrankaExc
 
 fn handle_command_response_stop(response: &StopMoveResponse) -> Result<(), FrankaException> {
     match response.status {
-        StopMoveStatus::kSuccess => Ok(()),
-        StopMoveStatus::kEmergencyAborted => Err(create_command_exception(
+        StopMoveStatus::Success => Ok(()),
+        StopMoveStatus::EmergencyAborted => Err(create_command_exception(
             "libfranka-rs: Stop command aborted: User Stop pressed!",
         )),
-        StopMoveStatus::kReflexAborted => Err(create_command_exception(
+        StopMoveStatus::ReflexAborted => Err(create_command_exception(
             "libfranka-rs: Stop command aborted: motion aborted by reflex!",
         )),
-        StopMoveStatus::kCommandNotPossibleRejected => Err(create_command_exception(
+        StopMoveStatus::CommandNotPossibleRejected => Err(create_command_exception(
             "libfranka-rs: Stop command rejected: command not possible in the current mode!",
         )),
-        StopMoveStatus::kAborted => Err(create_command_exception(
+        StopMoveStatus::Aborted => Err(create_command_exception(
             "libfranka-rs: Stop command aborted!",
         )),
     }
@@ -96,8 +96,8 @@ impl RobotImpl {
         log_size: usize,
         realtime_config: RealtimeConfig,
     ) -> FrankaResult<Self> {
-        let current_move_generator_mode = MotionGeneratorMode::kIdle;
-        let controller_mode = ControllerMode::kOther;
+        let current_move_generator_mode = MotionGeneratorMode::Idle;
+        let controller_mode = ControllerMode::Other;
         let logger = Logger::new(log_size);
         let mut robot_impl = RobotImpl {
             network,
@@ -121,7 +121,7 @@ impl RobotImpl {
     fn connect_robot(&mut self) -> Result<(), FrankaException> {
         let connect_command = ConnectRequestWithHeader {
             header: self.network.create_header_for_robot(
-                RobotCommandEnum::kConnect,
+                RobotCommandEnum::Connect,
                 size_of::<ConnectRequestWithHeader>(),
             ),
             request: ConnectRequest::new(self.network.get_udp_port()),
@@ -130,13 +130,13 @@ impl RobotImpl {
         let connect_response: ConnectResponse =
             self.network.tcp_blocking_receive_response(command_id);
         match connect_response.status {
-            ConnectStatus::kSuccess => {
+            ConnectStatus::Success => {
                 self.ri_version = Some(connect_response.version);
                 Ok(())
             }
             _ => Err(FrankaException::IncompatibleLibraryVersionError {
                 server_version: connect_response.version,
-                library_version: kVersion,
+                library_version: VERSION,
             }),
         }
     }
@@ -181,17 +181,17 @@ impl RobotImpl {
         let controller_is_some = control_command.is_some();
         if motion_is_some || controller_is_some {
             if motion_is_some
-                && self.current_move_motion_generator_mode == MotionGeneratorMode::kIdle
+                && self.current_move_motion_generator_mode == MotionGeneratorMode::Idle
             {
                 return Err(FrankaException::NoMotionGeneratorRunningError);
             }
             if controller_is_some
-                && self.current_move_controller_mode.unwrap() != ControllerMode::kExternalController
+                && self.current_move_controller_mode.unwrap() != ControllerMode::ExternalController
             {
                 return Err(FrankaException::NoControllerRunningError);
             }
-            if self.current_move_motion_generator_mode != MotionGeneratorMode::kIdle
-                && self.current_move_controller_mode.unwrap() == ControllerMode::kExternalController
+            if self.current_move_motion_generator_mode != MotionGeneratorMode::Idle
+                && self.current_move_controller_mode.unwrap() == ControllerMode::ExternalController
                 && (!motion_is_some || !controller_is_some)
             {
                 return Err(FrankaException::PartialCommandError);
@@ -226,10 +226,10 @@ impl RobotImpl {
         Ok(None)
     }
     fn motion_generator_running(&self) -> bool {
-        self.motion_generator_mode.unwrap() != MotionGeneratorMode::kIdle
+        self.motion_generator_mode.unwrap() != MotionGeneratorMode::Idle
     }
     fn controller_running(&self) -> bool {
-        self.controller_mode == ControllerMode::kExternalController
+        self.controller_mode == ControllerMode::ExternalController
     }
     pub fn load_model(&mut self, persistent: bool) -> FrankaResult<Model> {
         let model_file = Path::new("/tmp/model.so");
@@ -255,7 +255,7 @@ impl RobotImpl {
     ) -> FrankaResult<u32> {
         let connect_command = MoveRequestWithHeader {
             header: self.network.create_header_for_robot(
-                RobotCommandEnum::kMove,
+                RobotCommandEnum::Move,
                 size_of::<MoveRequestWithHeader>(),
             ),
             request: MoveRequest::new(
@@ -273,7 +273,7 @@ impl RobotImpl {
     fn execute_stop_command(&mut self) -> FrankaResult<u32> {
         let command = StopMoveRequestWithHeader {
             header: self.network.create_header_for_robot(
-                RobotCommandEnum::kStopMove,
+                RobotCommandEnum::StopMove,
                 size_of::<StopMoveRequestWithHeader>(),
             ),
         };
@@ -296,15 +296,15 @@ impl RobotControl for RobotImpl {
             panic!("libfranka-rs robot: Attempted to start multiple motions!");
         }
         self.current_move_motion_generator_mode = match motion_generator_mode {
-            MoveMotionGeneratorMode::kJointPosition => MotionGeneratorMode::kJointPosition,
-            MoveMotionGeneratorMode::kJointVelocity => MotionGeneratorMode::kJointVelocity,
-            MoveMotionGeneratorMode::kCartesianPosition => MotionGeneratorMode::kCartesianPosition,
-            MoveMotionGeneratorMode::kCartesianVelocity => MotionGeneratorMode::kCartesianVelocity,
+            MoveMotionGeneratorMode::JointPosition => MotionGeneratorMode::JointPosition,
+            MoveMotionGeneratorMode::JointVelocity => MotionGeneratorMode::JointVelocity,
+            MoveMotionGeneratorMode::CartesianPosition => MotionGeneratorMode::CartesianPosition,
+            MoveMotionGeneratorMode::CartesianVelocity => MotionGeneratorMode::CartesianVelocity,
         };
         self.current_move_controller_mode = match controller_mode {
-            MoveControllerMode::kJointImpedance => Some(ControllerMode::kJointImpedance),
-            MoveControllerMode::kExternalController => Some(ControllerMode::kExternalController),
-            MoveControllerMode::kCartesianImpedance => Some(ControllerMode::kCartesianImpedance),
+            MoveControllerMode::JointImpedance => Some(ControllerMode::JointImpedance),
+            MoveControllerMode::ExternalController => Some(ControllerMode::ExternalController),
+            MoveControllerMode::CartesianImpedance => Some(ControllerMode::CartesianImpedance),
         };
         let move_command_id = self.execute_move_command(
             &controller_mode,
@@ -349,8 +349,8 @@ impl RobotControl for RobotImpl {
         control_command: Option<&ControllerCommand>,
     ) -> FrankaResult<()> {
         if !self.motion_generator_running() && !self.controller_running() {
-            self.current_move_motion_generator_mode = MotionGeneratorMode::kIdle;
-            self.current_move_controller_mode = Some(ControllerMode::kOther);
+            self.current_move_motion_generator_mode = MotionGeneratorMode::Idle;
+            self.current_move_controller_mode = Some(ControllerMode::Other);
             return Ok(());
         }
         if motion_command.is_none() {
@@ -367,7 +367,7 @@ impl RobotControl for RobotImpl {
         }
         let robot_state = robot_state.unwrap();
         let response: MoveResponse = self.network.tcp_blocking_receive_response(motion_id);
-        if response.status == MoveStatus::kReflexAborted {
+        if response.status == MoveStatus::ReflexAborted {
             return Err(create_control_exception(
                 String::from("Motion finished commanded, but the robot is still moving!"),
                 &response.status,
@@ -389,8 +389,8 @@ impl RobotControl for RobotImpl {
                 panic!("this should be an command exception but it is not")
             }
         }
-        self.current_move_motion_generator_mode = MotionGeneratorMode::kIdle;
-        self.current_move_controller_mode = Some(ControllerMode::kOther);
+        self.current_move_motion_generator_mode = MotionGeneratorMode::Idle;
+        self.current_move_controller_mode = Some(ControllerMode::Other);
         Ok(())
     }
 
@@ -410,8 +410,8 @@ impl RobotControl for RobotImpl {
         self.network
             .tcp_receive_response(motion_id, |_x: MoveResponse| Ok(()))
             .expect("This should be impossible as the handler always returns Ok(())");
-        self.current_move_motion_generator_mode = MotionGeneratorMode::kIdle;
-        self.current_move_controller_mode = Some(ControllerMode::kOther);
+        self.current_move_motion_generator_mode = MotionGeneratorMode::Idle;
+        self.current_move_controller_mode = Some(ControllerMode::Other);
     }
 
     fn update(
@@ -436,7 +436,7 @@ impl RobotControl for RobotImpl {
         robot_state: &RobotState,
         motion_id: u32,
     ) -> FrankaResult<()> {
-        if robot_state.robot_mode != RobotMode::kMove
+        if robot_state.robot_mode != RobotMode::Move
             || self.motion_generator_mode.unwrap() != self.current_move_motion_generator_mode
             || self.controller_mode != self.current_move_controller_mode.unwrap()
         {
@@ -458,7 +458,7 @@ impl RobotControl for RobotImpl {
 
 impl MotionGeneratorTrait for RobotImpl {
     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-        MoveMotionGeneratorMode::kJointVelocity
+        MoveMotionGeneratorMode::JointVelocity
     }
 }
 
@@ -469,7 +469,7 @@ fn create_control_exception(
     log: Vec<Record>,
 ) -> FrankaException {
     let mut exception_string = String::from(&message);
-    if move_status == &MoveStatus::kReflexAborted {
+    if move_status == &MoveStatus::ReflexAborted {
         exception_string += " ";
         exception_string += reflex_reasons.to_string().as_str();
         if log.len() >= 2 {

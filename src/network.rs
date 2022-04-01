@@ -178,8 +178,8 @@ impl Network {
         let lib_response: LoadModelLibraryResponse =
             deserialize(&response_bytes[0..size_of::<LoadModelLibraryResponse>()]);
         match lib_response.status {
-            LoadModelLibraryStatus::kSuccess => {}
-            LoadModelLibraryStatus::kError => {
+            LoadModelLibraryStatus::Success => {}
+            LoadModelLibraryStatus::Error => {
                 return Err(FrankaException::ModelException {
                     message: "libfranka-rs: Server reports error when loading model library."
                         .to_string(),

@@ -22,12 +22,12 @@ impl LibraryDownloader {
         if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
             let command = LoadModelLibraryRequestWithHeader {
                 header: network.create_header_for_robot(
-                    RobotCommandEnum::kLoadModelLibrary,
+                    RobotCommandEnum::LoadModelLibrary,
                     size_of::<LoadModelLibraryRequestWithHeader>(),
                 ),
                 request: LoadModelLibraryRequest {
-                    architecture: LoadModelLibraryArchitecture::kX64,
-                    system: LoadModelLibrarySystem::kLinux,
+                    architecture: LoadModelLibraryArchitecture::X64,
+                    system: LoadModelLibrarySystem::Linux,
                 },
             };
             let command_id: u32 = network.tcp_send_request(command);

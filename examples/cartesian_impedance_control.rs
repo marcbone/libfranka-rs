@@ -69,7 +69,7 @@ fn main() -> FrankaResult<()> {
     let result = robot.control_torques(
         |state: &RobotState, _step: &Duration| -> Torques {
             let coriolis: Vector7 = model.coriolis_from_state(&state).into();
-            let jacobian_array = model.zero_jacobian_from_state(&Frame::kEndEffector, &state);
+            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);
             let _q = Vector7::from_column_slice(&state.q);
             let dq = Vector7::from_column_slice(&state.dq);

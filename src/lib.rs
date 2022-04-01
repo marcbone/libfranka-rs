@@ -66,7 +66,7 @@
 //! # Ok(())
 //! # }
 //! ```
-//! connects with the robot. You can either provide an IP Adress or a hostname. The other options
+//! connects with the robot. You can either provide an IP Address or a hostname. The other options
 //! are for setting the RealtimeConfig and the logger size. But we are happy with the defaults so
 //! we set them to none. With the "?" we forward eventual errors like "Connection refused" for example
 //!
@@ -97,7 +97,7 @@
 //! ```
 //! Here we define a variable for the initial joint position. You cannot set the right values
 //! here because they will change until you are in the control loop. Therefore it is necessary
-//! sepcify them at the first time the controll loop is executed like here:
+//! specify them at the first time the control loop is executed like here:
 //! ```no_run
 //! #  use franka::{JointPositions, RobotState};
 //! #  let mut initial_position = JointPositions::new([0.0; 7]);
@@ -121,7 +121,7 @@
 //! out.q[6] += delta_angle;
 //! ```
 //! Here we define our desired JointPositions. It is important that we provide a smooth signal
-//! to the robot, therfore we use a cosine function. Without it we would get a CommandException
+//! to the robot, therefore we use a cosine function. Without it we would get a CommandException
 //! while running.
 //!
 //! ```no_run
@@ -136,7 +136,7 @@
 //! out
 //! # }
 //! ```
-//! Unitl 5 seconds have passed we just return our JointPositions. As we want to stop the control
+//! Until 5 seconds have passed we just return our JointPositions. As we want to stop the control
 //! loop after 5 seconds. We tell the robot that this is our last command and that we want to exit
 //! the control loop.
 //!
@@ -146,7 +146,7 @@
 //! let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {...}
 //! ```
 //! Our callback Takes a immutable Reference to a RobotState and a  immutable reference to the passed time
-//! since the callback was exectued the last time (the time is zero at the first call of the function)
+//! since the callback was executed the last time (the time is zero at the first call of the function)
 //! and returns JointPositions.
 //!
 //! With this callback we can now control the joint positions of the robot:
@@ -160,10 +160,9 @@
 //! robot.control_joint_positions(callback, None, None, None)
 //! # }
 //! ```
-//! There are optional arguments for specifing the Controller mode, rate limiting and the cutoff frequency.
+//! There are optional arguments for specifying the Controller mode, rate limiting and the cutoff frequency.
 //! As we are happy with the defaults we set them to None. Note that this function returns a FrankaResult.
 //! As it is the last statement of the main method we do not have to forward the error with a "?".
-#![allow(non_upper_case_globals)]
 pub mod exception;
 pub mod gripper;
 mod network;
@@ -178,8 +177,8 @@ pub use gripper::Gripper;
 pub use model::Frame;
 pub use model::Model;
 pub use robot::control_types::*;
-pub use robot::low_pass_filter::kDefaultCutoffFrequency;
-pub use robot::low_pass_filter::kMaxCutoffFrequency;
+pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
+pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
 pub use robot::robot_state::RobotState;
 pub use robot::Robot;
 pub use utils::*;

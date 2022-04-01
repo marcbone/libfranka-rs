@@ -14,51 +14,50 @@ pub(crate) mod library_downloader;
 mod model_library;
 
 /// Enumerates the seven joints, the flange, and the end effector of a robot.
-#[allow(non_camel_case_types)]
 pub enum Frame {
-    kJoint1,
-    kJoint2,
-    kJoint3,
-    kJoint4,
-    kJoint5,
-    kJoint6,
-    kJoint7,
-    kFlange,
-    kEndEffector,
-    kStiffness,
+    Joint1,
+    Joint2,
+    Joint3,
+    Joint4,
+    Joint5,
+    Joint6,
+    Joint7,
+    Flange,
+    EndEffector,
+    Stiffness,
 }
 
 impl fmt::Display for Frame {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Frame::kJoint1 => {
+            Frame::Joint1 => {
                 write!(f, "Joint 1")
             }
-            Frame::kJoint2 => {
+            Frame::Joint2 => {
                 write!(f, "Joint 2")
             }
-            Frame::kJoint3 => {
+            Frame::Joint3 => {
                 write!(f, "Joint 3")
             }
-            Frame::kJoint4 => {
+            Frame::Joint4 => {
                 write!(f, "Joint 4")
             }
-            Frame::kJoint5 => {
+            Frame::Joint5 => {
                 write!(f, "Joint 5")
             }
-            Frame::kJoint6 => {
+            Frame::Joint6 => {
                 write!(f, "Joint 6")
             }
-            Frame::kJoint7 => {
+            Frame::Joint7 => {
                 write!(f, "Joint 7")
             }
-            Frame::kFlange => {
+            Frame::Flange => {
                 write!(f, "Flange")
             }
-            Frame::kEndEffector => {
+            Frame::EndEffector => {
                 write!(f, "End-Effector")
             }
-            Frame::kStiffness => {
+            Frame::Stiffness => {
                 write!(f, "Stiffness")
             }
         }
@@ -127,16 +126,16 @@ impl Model {
     ) -> [f64; 16] {
         let mut output = [0.; 16];
         match frame {
-            Frame::kJoint1 => self.library.joint1(q, &mut output),
-            Frame::kJoint2 => self.library.joint2(q, &mut output),
-            Frame::kJoint3 => self.library.joint3(q, &mut output),
-            Frame::kJoint4 => self.library.joint4(q, &mut output),
-            Frame::kJoint5 => self.library.joint5(q, &mut output),
-            Frame::kJoint6 => self.library.joint6(q, &mut output),
-            Frame::kJoint7 => self.library.joint7(q, &mut output),
-            Frame::kFlange => self.library.flange(q, &mut output),
-            Frame::kEndEffector => self.library.ee(q, F_T_EE, &mut output),
-            Frame::kStiffness => {
+            Frame::Joint1 => self.library.joint1(q, &mut output),
+            Frame::Joint2 => self.library.joint2(q, &mut output),
+            Frame::Joint3 => self.library.joint3(q, &mut output),
+            Frame::Joint4 => self.library.joint4(q, &mut output),
+            Frame::Joint5 => self.library.joint5(q, &mut output),
+            Frame::Joint6 => self.library.joint6(q, &mut output),
+            Frame::Joint7 => self.library.joint7(q, &mut output),
+            Frame::Flange => self.library.flange(q, &mut output),
+            Frame::EndEffector => self.library.ee(q, F_T_EE, &mut output),
+            Frame::Stiffness => {
                 let tmp: Matrix4<f64> =
                     Matrix4::from_column_slice(F_T_EE) * Matrix4::from_column_slice(EE_T_K);
                 let mut stiffness_f_t_ee = [0.; 16];
@@ -183,16 +182,16 @@ impl Model {
     ) -> [f64; 42] {
         let mut output = [0.; 42];
         match frame {
-            Frame::kJoint1 => self.library.body_jacobian_joint1(&mut output),
-            Frame::kJoint2 => self.library.body_jacobian_joint2(q, &mut output),
-            Frame::kJoint3 => self.library.body_jacobian_joint3(q, &mut output),
-            Frame::kJoint4 => self.library.body_jacobian_joint4(q, &mut output),
-            Frame::kJoint5 => self.library.body_jacobian_joint5(q, &mut output),
-            Frame::kJoint6 => self.library.body_jacobian_joint6(q, &mut output),
-            Frame::kJoint7 => self.library.body_jacobian_joint7(q, &mut output),
-            Frame::kFlange => self.library.body_jacobian_flange(q, &mut output),
-            Frame::kEndEffector => self.library.body_jacobian_ee(q, F_T_EE, &mut output),
-            Frame::kStiffness => {
+            Frame::Joint1 => self.library.body_jacobian_joint1(&mut output),
+            Frame::Joint2 => self.library.body_jacobian_joint2(q, &mut output),
+            Frame::Joint3 => self.library.body_jacobian_joint3(q, &mut output),
+            Frame::Joint4 => self.library.body_jacobian_joint4(q, &mut output),
+            Frame::Joint5 => self.library.body_jacobian_joint5(q, &mut output),
+            Frame::Joint6 => self.library.body_jacobian_joint6(q, &mut output),
+            Frame::Joint7 => self.library.body_jacobian_joint7(q, &mut output),
+            Frame::Flange => self.library.body_jacobian_flange(q, &mut output),
+            Frame::EndEffector => self.library.body_jacobian_ee(q, F_T_EE, &mut output),
+            Frame::Stiffness => {
                 let tmp: Matrix4<f64> =
                     Matrix4::from_column_slice(F_T_EE) * Matrix4::from_column_slice(EE_T_K);
                 let mut stiffness_f_t_ee = [0.; 16];
@@ -241,16 +240,16 @@ impl Model {
     ) -> [f64; 42] {
         let mut output = [0.; 42];
         match frame {
-            Frame::kJoint1 => self.library.zero_jacobian_joint1(&mut output),
-            Frame::kJoint2 => self.library.zero_jacobian_joint2(q, &mut output),
-            Frame::kJoint3 => self.library.zero_jacobian_joint3(q, &mut output),
-            Frame::kJoint4 => self.library.zero_jacobian_joint4(q, &mut output),
-            Frame::kJoint5 => self.library.zero_jacobian_joint5(q, &mut output),
-            Frame::kJoint6 => self.library.zero_jacobian_joint6(q, &mut output),
-            Frame::kJoint7 => self.library.zero_jacobian_joint7(q, &mut output),
-            Frame::kFlange => self.library.zero_jacobian_flange(q, &mut output),
-            Frame::kEndEffector => self.library.zero_jacobian_ee(q, F_T_EE, &mut output),
-            Frame::kStiffness => {
+            Frame::Joint1 => self.library.zero_jacobian_joint1(&mut output),
+            Frame::Joint2 => self.library.zero_jacobian_joint2(q, &mut output),
+            Frame::Joint3 => self.library.zero_jacobian_joint3(q, &mut output),
+            Frame::Joint4 => self.library.zero_jacobian_joint4(q, &mut output),
+            Frame::Joint5 => self.library.zero_jacobian_joint5(q, &mut output),
+            Frame::Joint6 => self.library.zero_jacobian_joint6(q, &mut output),
+            Frame::Joint7 => self.library.zero_jacobian_joint7(q, &mut output),
+            Frame::Flange => self.library.zero_jacobian_flange(q, &mut output),
+            Frame::EndEffector => self.library.zero_jacobian_ee(q, F_T_EE, &mut output),
+            Frame::Stiffness => {
                 let tmp: Matrix4<f64> =
                     Matrix4::from_column_slice(F_T_EE) * Matrix4::from_column_slice(EE_T_K);
                 let mut stiffness_f_t_ee = [0.; 16];

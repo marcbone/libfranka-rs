@@ -46,7 +46,7 @@ pub struct MotionGenerator {
 }
 
 impl MotionGenerator {
-    const kDeltaQMotionFinished: f64 = 1e-6;
+    const DELTA_Q_MOTION_FINISHED: f64 = 1e-6;
     /// Creates a new  MotionGenerator instance for a target q.
     ///
     /// # Arguments
@@ -87,7 +87,7 @@ impl MotionGenerator {
         let delta_t_2_sync = self.t_f_sync - self.t_2_sync;
         let mut joint_motion_finished = [false; 7];
         for i in 0..7 {
-            if self.delta_q[i].abs() < MotionGenerator::kDeltaQMotionFinished {
+            if self.delta_q[i].abs() < MotionGenerator::DELTA_Q_MOTION_FINISHED {
                 delta_q_d[i] = 0.;
                 joint_motion_finished[i] = true;
             } else if t < self.t_1_sync[i] {
@@ -124,7 +124,7 @@ impl MotionGenerator {
         let mut delta_t_2_sync = Vector7::zeros();
         let sign_delta_q = Vector7::from_iterator(self.delta_q.iter().map(|&x| x.signum()));
         for i in 0..7 {
-            if self.delta_q[i].abs() > MotionGenerator::kDeltaQMotionFinished {
+            if self.delta_q[i].abs() > MotionGenerator::DELTA_Q_MOTION_FINISHED {
                 if self.delta_q[i].abs()
                     < (3.0 / 4.0 * (self.dq_max[i].powi(2) / self.ddq_max_start[i])
                         + 3. / 4. * (self.dq_max[i].powi(2) / self.ddq_max_goal[i]))
@@ -145,7 +145,7 @@ impl MotionGenerator {
         }
         let max_t_f = t_f.max();
         for i in 0..7 {
-            if self.delta_q[i].abs() > MotionGenerator::kDeltaQMotionFinished {
+            if self.delta_q[i].abs() > MotionGenerator::DELTA_Q_MOTION_FINISHED {
                 let a = 1.5 / 2. * (self.ddq_max_goal[i] + self.ddq_max_start[i]);
                 let b = -1. * max_t_f * self.ddq_max_goal[i] * self.ddq_max_start[i];
                 let c = f64::abs(self.delta_q[i]) * self.ddq_max_goal[i] * self.ddq_max_start[i];

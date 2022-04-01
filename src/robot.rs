@@ -15,7 +15,7 @@ use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, ControllerMode, Finishable, JointPositions,
     JointVelocities, RealtimeConfig, Torques,
 };
-use crate::robot::low_pass_filter::{kDefaultCutoffFrequency, kMaxCutoffFrequency};
+use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_impl::RobotImpl;
@@ -125,7 +125,7 @@ impl Robot {
     ///     // connects to the robot using real-time scheduling and a default log size of 50.
     ///     let mut robot = Robot::new("robotik-bs.de", None, None)?;
     ///     // connects to the robot without using real-time scheduling and a log size of 1.
-    ///     let mut robot = Robot::new("robotik-bs.de", RealtimeConfig::kIgnore, 1)?;
+    ///     let mut robot = Robot::new("robotik-bs.de", RealtimeConfig::Ignore, 1)?;
     ///     Ok(())
     /// }
     /// ```
@@ -137,12 +137,12 @@ impl Robot {
         realtime_config: RtConfig,
         log_size: LogSize,
     ) -> FrankaResult<Robot> {
-        let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::kEnforce);
+        let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
         let network = Network::new(
             NetworkType::Robot,
             franka_address,
-            service_types::kCommandPort,
+            service_types::COMMAND_PORT,
         )
         .map_err(|_| FrankaException::NetworkException {
             message: "Connection could not be established".to_string(),
@@ -169,7 +169,7 @@ impl Robot {
     /// }
     /// ```
     /// # Arguments
-    /// * `read_callback` - Callback function for robot state reading. The callback hast to return true aslong
+    /// * `read_callback` - Callback function for robot state reading. The callback hast to return true as long
     /// as it wants to receive further robot states.
     /// # Error
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
@@ -242,7 +242,7 @@ impl Robot {
     ) -> FrankaResult<()> {
         let command = SetCollisionBehaviorRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetCollisionBehavior,
+                RobotCommandEnum::SetCollisionBehavior,
                 size_of::<SetCollisionBehaviorRequestWithHeader>(),
             ),
             request: SetCollisionBehaviorRequest::new(
@@ -276,7 +276,7 @@ impl Robot {
     pub fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
         let command = SetJointImpedanceRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetJointImpedance,
+                RobotCommandEnum::SetJointImpedance,
                 size_of::<SetJointImpedanceRequestWithHeader>(),
             ),
             request: SetJointImpedanceRequest::new(K_theta),
@@ -303,7 +303,7 @@ impl Robot {
     pub fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
         let command = SetCartesianImpedanceRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetCartesianImpedance,
+                RobotCommandEnum::SetCartesianImpedance,
                 size_of::<SetCartesianImpedanceRequestWithHeader>(),
             ),
             request: SetCartesianImpedanceRequest::new(K_x),
@@ -329,7 +329,7 @@ impl Robot {
     pub fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
         let command = SetGuidingModeRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetGuidingMode,
+                RobotCommandEnum::SetGuidingMode,
                 size_of::<SetGuidingModeRequestWithHeader>(),
             ),
             request: SetGuidingModeRequest::new(guiding_mode, elbow),
@@ -356,7 +356,7 @@ impl Robot {
     pub fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
         let command = SetEeToKRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetEeToK,
+                RobotCommandEnum::SetEeToK,
                 size_of::<SetEeToKRequestWithHeader>(),
             ),
             request: SetEeToKRequest::new(EE_T_K),
@@ -387,7 +387,7 @@ impl Robot {
     pub fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
         let command = SetNeToEeRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetNeToEe,
+                RobotCommandEnum::SetNeToEe,
                 size_of::<SetNeToEeRequestWithHeader>(),
             ),
             request: SetNeToEeRequest::new(NE_T_EE),
@@ -422,7 +422,7 @@ impl Robot {
     ) -> FrankaResult<()> {
         let command = SetLoadRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetLoad,
+                RobotCommandEnum::SetLoad,
                 size_of::<SetLoadRequestWithHeader>(),
             ),
             request: SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
@@ -462,7 +462,7 @@ impl Robot {
     ) -> FrankaResult<()> {
         let command = SetFiltersRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kSetFilters,
+                RobotCommandEnum::SetFilters,
                 size_of::<SetFiltersRequestWithHeader>(),
             ),
             request: SetFiltersRequest::new(
@@ -489,7 +489,7 @@ impl Robot {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
         let command = self.robimpl.network.create_header_for_robot(
-            RobotCommandEnum::kAutomaticErrorRecovery,
+            RobotCommandEnum::AutomaticErrorRecovery,
             size_of::<AutomaticErrorRecoveryRequestWithHeader>(),
         );
         let command_id: u32 = self.robimpl.network.tcp_send_request(command);
@@ -498,24 +498,24 @@ impl Robot {
             .network
             .tcp_blocking_receive_response(command_id);
         match &response.status {
-            AutomaticErrorRecoveryStatus::kSuccess => Ok(()),
-            AutomaticErrorRecoveryStatus::kEmergencyAborted => Err(create_command_exception(
+            AutomaticErrorRecoveryStatus::Success => Ok(()),
+            AutomaticErrorRecoveryStatus::EmergencyAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: User Stop pressed!",
             )),
-            AutomaticErrorRecoveryStatus::kReflexAborted => Err(create_command_exception(
+            AutomaticErrorRecoveryStatus::ReflexAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: motion aborted by reflex!",
             )),
-            AutomaticErrorRecoveryStatus::kCommandNotPossibleRejected => {
+            AutomaticErrorRecoveryStatus::CommandNotPossibleRejected => {
                 Err(create_command_exception(
                     "libfranka-rs: command rejected: command not possible in current mode",
                 ))
             }
-            AutomaticErrorRecoveryStatus::kManualErrorRecoveryRequiredRejected => {
+            AutomaticErrorRecoveryStatus::ManualErrorRecoveryRequiredRejected => {
                 Err(create_command_exception(
                     "libfranka-rs: command rejected: manual error recovery required!",
                 ))
             }
-            AutomaticErrorRecoveryStatus::kAborted => {
+            AutomaticErrorRecoveryStatus::Aborted => {
                 Err(create_command_exception("libfranka-rs: command aborted!"))
             }
         }
@@ -531,7 +531,7 @@ impl Robot {
     pub fn stop(&mut self) -> FrankaResult<()> {
         let command = StopMoveRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kStopMove,
+                RobotCommandEnum::StopMove,
                 size_of::<StopMoveRequestWithHeader>(),
             ),
         };
@@ -541,16 +541,16 @@ impl Robot {
             .network
             .tcp_blocking_receive_response(command_id);
         match response.status {
-            StopMoveStatus::kSuccess => Ok(()),
-            StopMoveStatus::kCommandNotPossibleRejected | StopMoveStatus::kAborted => {
+            StopMoveStatus::Success => Ok(()),
+            StopMoveStatus::CommandNotPossibleRejected | StopMoveStatus::Aborted => {
                 Err(create_command_exception(
                     "libfranka-rs: command rejected: command not possible in current mode",
                 ))
             }
-            StopMoveStatus::kEmergencyAborted => Err(create_command_exception(
+            StopMoveStatus::EmergencyAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: User Stop pressed!",
             )),
-            StopMoveStatus::kReflexAborted => Err(create_command_exception(
+            StopMoveStatus::ReflexAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: motion aborted by reflex!",
             )),
         }
@@ -566,7 +566,7 @@ impl Robot {
     pub fn get_virtual_wall(&mut self, id: i32) -> FrankaResult<VirtualWallCuboid> {
         let command = GetCartesianLimitRequestWithHeader {
             header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::kGetCartesianLimit,
+                RobotCommandEnum::GetCartesianLimit,
                 size_of::<GetCartesianLimitRequestWithHeader>(),
             ),
             request: GetCartesianLimitRequest::new(id),
@@ -577,11 +577,11 @@ impl Robot {
             .network
             .tcp_blocking_receive_response(command_id);
         match &response.status {
-            GetterSetterStatus::kSuccess => Ok(VirtualWallCuboid::new(id, response)),
-            GetterSetterStatus::kCommandNotPossibleRejected => Err(create_command_exception(
+            GetterSetterStatus::Success => Ok(VirtualWallCuboid::new(id, response)),
+            GetterSetterStatus::CommandNotPossibleRejected => Err(create_command_exception(
                 "libfranka-rs: command rejected: command not possible in current mode",
             )),
-            GetterSetterStatus::kInvalidArgumentRejected => Err(create_command_exception(
+            GetterSetterStatus::InvalidArgumentRejected => Err(create_command_exception(
                 "libfranka-rs: command rejected: invalid argument!",
             )),
         }
@@ -599,7 +599,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     ///
     /// # Errors
@@ -642,7 +642,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     /// # Errors
     /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
@@ -684,7 +684,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     ///
     /// # Errors
@@ -727,7 +727,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     ///
     /// # Errors
@@ -771,7 +771,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     /// # Errors
     /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
@@ -814,7 +814,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     /// # Errors
     /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
@@ -858,7 +858,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     /// # Errors
     /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
@@ -902,7 +902,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
-    /// Set to [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`) to disable.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
     /// Default is 100 Hz
     /// # Errors
     /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
@@ -943,7 +943,7 @@ impl Robot {
     /// This could distort your motion!
     /// * `cutoff_frequency` - Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal. Set to
-    /// [`kMaxCutoffFrequency`](`crate::robot::low_pass_filter::kMaxCutoffFrequency`)
+    /// [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`)
     /// to disable. Default is 100 Hz
     ///
     /// # Errors
@@ -987,7 +987,7 @@ impl Robot {
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
         let limit_rate = limit_rate.unwrap_or(true);
-        let cutoff_frequency = cutoff_frequency.unwrap_or(kDefaultCutoffFrequency);
+        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::new(
             &mut self.robimpl,
             control_callback,
@@ -1007,9 +1007,9 @@ impl Robot {
         limit_rate: Option<bool>,
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
-        let controller_mode = controller_mode.unwrap_or(ControllerMode::kJointImpedance);
+        let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
         let limit_rate = limit_rate.unwrap_or(true);
-        let cutoff_frequency = cutoff_frequency.unwrap_or(kDefaultCutoffFrequency);
+        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::from_control_mode(
             &mut self.robimpl,
             controller_mode,
@@ -1041,9 +1041,9 @@ impl Robot {
         let mut motion_generator = MotionGenerator::new(speed_factor, q_goal);
         self.control_joint_positions(
             |state, time| motion_generator.generate_motion(state, time),
-            Some(ControllerMode::kJointImpedance),
+            Some(ControllerMode::JointImpedance),
             Some(true),
-            Some(kMaxCutoffFrequency),
+            Some(MAX_CUTOFF_FREQUENCY),
         )
     }
     /// Loads the model library from the robot.
@@ -1068,11 +1068,11 @@ impl Robot {
 
 fn handle_getter_setter_status(status: GetterSetterStatus) -> FrankaResult<()> {
     match status {
-        GetterSetterStatus::kSuccess => Ok(()),
-        GetterSetterStatus::kCommandNotPossibleRejected => Err(create_command_exception(
+        GetterSetterStatus::Success => Ok(()),
+        GetterSetterStatus::CommandNotPossibleRejected => Err(create_command_exception(
             "libfranka-rs: command rejected: command not possible in current mode",
         )),
-        GetterSetterStatus::kInvalidArgumentRejected => Err(create_command_exception(
+        GetterSetterStatus::InvalidArgumentRejected => Err(create_command_exception(
             "libfranka-rs: command rejected: invalid argument!",
         )),
     }
@@ -1088,13 +1088,13 @@ mod tests {
 
     use crate::exception::FrankaException;
     use crate::network::MessageCommand;
-    use crate::robot::robot_impl::kVersion;
+    use crate::robot::robot_impl::VERSION;
     use crate::robot::service_types::{
-        kCommandPort, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, GetterSetterStatus,
+        ConnectRequestWithHeader, ConnectResponse, ConnectStatus, GetterSetterStatus,
         MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode, MoveRequest,
         MoveRequestWithHeader, MoveResponse, MoveStatus, RobotCommandEnum, RobotCommandHeader,
         SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
-        SetCollisionBehaviorResponse,
+        SetCollisionBehaviorResponse, COMMAND_PORT,
     };
     use crate::robot::types::RobotStateIntern;
     use crate::{FrankaResult, JointPositions, MotionFinished, RealtimeConfig, Robot, RobotState};
@@ -1132,7 +1132,7 @@ mod tests {
 
         pub fn server_thread(&mut self, reaction: &mut MockServerReaction) {
             let hostname: &str = "127.0.0.1";
-            let address = format!("{}:{}", hostname, kCommandPort)
+            let address = format!("{}:{}", hostname, COMMAND_PORT)
                 .to_socket_addrs()
                 .unwrap()
                 .next()
@@ -1243,13 +1243,13 @@ mod tests {
         ) {
             let mut response = ConnectResponse {
                 header: RobotCommandHeader {
-                    command: RobotCommandEnum::kConnect,
+                    command: RobotCommandEnum::Connect,
                     command_id: request.get_command_message_id(),
                     size: 0,
                 },
                 status: match self.server_version == request.request.version {
-                    true => ConnectStatus::kSuccess,
-                    false => ConnectStatus::kIncompatibleLibraryVersion,
+                    true => ConnectStatus::Success,
+                    false => ConnectStatus::IncompatibleLibraryVersion,
                 },
                 version: self.server_version,
             };
@@ -1285,7 +1285,7 @@ mod tests {
                 counter += 1;
                 SetCollisionBehaviorRequestWithHeader {
                     header: RobotCommandHeader::new(
-                        RobotCommandEnum::kSetCollisionBehavior,
+                        RobotCommandEnum::SetCollisionBehavior,
                         counter,
                         size_of::<SetCollisionBehaviorRequestWithHeader>() as u32,
                     ),
@@ -1310,7 +1310,7 @@ mod tests {
         ));
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(kVersion);
+            let mut robot_server = RobotMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -1327,11 +1327,11 @@ mod tests {
                     counter += 1;
                     let mut response = SetCollisionBehaviorResponse {
                         header: RobotCommandHeader::new(
-                            RobotCommandEnum::kSetCollisionBehavior,
+                            RobotCommandEnum::SetCollisionBehavior,
                             req.header.command_id,
                             0,
                         ),
-                        status: GetterSetterStatus::kSuccess,
+                        status: GetterSetterStatus::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -1343,7 +1343,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut robot = Robot::new("127.0.0.1", None, None).expect("robot failure");
-            assert_eq!(robot.server_version(), kVersion);
+            assert_eq!(robot.server_version(), VERSION);
             for (a, b, c, d, e, f, g, h) in collision_behavior_request_values.iter() {
                 robot
                     .set_collision_behavior(*a, *b, *c, *d, *e, *f, *g, *h)
@@ -1359,13 +1359,13 @@ mod tests {
     fn fail_start_motion_test() {
         let requests = Arc::new(vec![MoveRequestWithHeader {
             header: RobotCommandHeader::new(
-                RobotCommandEnum::kMove,
+                RobotCommandEnum::Move,
                 1,
                 size_of::<MoveRequestWithHeader>() as u32,
             ),
             request: MoveRequest::new(
-                MoveControllerMode::kJointImpedance,
-                MoveMotionGeneratorMode::kJointPosition,
+                MoveControllerMode::JointImpedance,
+                MoveMotionGeneratorMode::JointPosition,
                 MoveDeviation {
                     translation: 10.,
                     rotation: 3.12,
@@ -1380,7 +1380,7 @@ mod tests {
         }]);
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(kVersion);
+            let mut robot_server = RobotMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -1397,11 +1397,11 @@ mod tests {
                     counter += 1;
                     let mut response = MoveResponse {
                         header: RobotCommandHeader::new(
-                            RobotCommandEnum::kMove,
+                            RobotCommandEnum::Move,
                             req.header.command_id,
                             0,
                         ),
-                        status: MoveStatus::kAborted,
+                        status: MoveStatus::Aborted,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -1413,7 +1413,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut robot =
-                Robot::new("127.0.0.1", RealtimeConfig::kIgnore, None).expect("robot failure");
+                Robot::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
             let mut counter = 0;
             let result = robot.control_joint_positions(
                 |_, _| {
@@ -1441,7 +1441,7 @@ mod tests {
     #[test]
     fn incompatible_library() {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(kVersion + 1);
+            let mut robot_server = RobotMockServer::new(VERSION + 1);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -1468,7 +1468,7 @@ mod tests {
     #[test]
     fn robot_read_once() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(kVersion);
+            let mut robot_server = RobotMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -1488,7 +1488,7 @@ mod tests {
     #[test]
     fn robot_read() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(kVersion);
+            let mut robot_server = RobotMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());

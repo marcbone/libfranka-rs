@@ -8,14 +8,13 @@ use std::mem::size_of;
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
 use crate::gripper::gripper_state::GripperState;
 use crate::gripper::types::{
-    kCommandPort, kVersion, Command, ConnectRequest, ConnectRequestWithHeader, ConnectResponse,
-    GraspRequest, GraspRequestWithHeader, GraspResponse, GripperStateIntern,
-    HomingRequestWithHeader, HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse,
-    Status, StopRequestWithHeader, StopResponse,
+    Command, ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
+    GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
+    HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
+    StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
 };
 use crate::network::{Network, NetworkType};
 
-//
 pub mod gripper_state;
 pub(crate) mod types;
 
@@ -35,29 +34,28 @@ impl Gripper {
     /// * [`IncompatibleLibraryVersionError`](`crate::exception::FrankaException::IncompatibleLibraryVersionError`) if this version of libfranka-rs is not supported
     pub fn new(franka_address: &str) -> FrankaResult<Gripper> {
         let mut gripper = Gripper {
-            network: Network::new(NetworkType::Gripper, franka_address, kCommandPort).map_err(
+            network: Network::new(NetworkType::Gripper, franka_address, COMMAND_PORT).map_err(
                 |e| FrankaException::NetworkException {
                     message: e.to_string(),
                 },
             )?,
             ri_version: None,
         };
-        gripper.connect_gripper(&kVersion)?;
+        gripper.connect_gripper(&VERSION)?;
         Ok(gripper)
     }
     fn connect_gripper(&mut self, ri_version: &u16) -> Result<(), FrankaException> {
         let connect_command = ConnectRequestWithHeader {
-            header: self.network.create_header_for_gripper(
-                Command::kConnect,
-                size_of::<ConnectRequestWithHeader>(),
-            ),
+            header: self
+                .network
+                .create_header_for_gripper(Command::Connect, size_of::<ConnectRequestWithHeader>()),
             request: ConnectRequest::new(self.network.get_udp_port()),
         };
         let command_id: u32 = self.network.tcp_send_request(connect_command);
         let connect_response: ConnectResponse =
             self.network.tcp_blocking_receive_response(command_id);
         match connect_response.status {
-            Status::kSuccess => {
+            Status::Success => {
                 self.ri_version = Some(connect_response.version);
                 Ok(())
             }
@@ -80,7 +78,7 @@ impl Gripper {
         let command = MoveRequestWithHeader {
             header: self
                 .network
-                .create_header_for_gripper(Command::kMove, size_of::<MoveRequestWithHeader>()),
+                .create_header_for_gripper(Command::Move, size_of::<MoveRequestWithHeader>()),
             request: MoveRequest::new(width, speed),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
@@ -100,7 +98,7 @@ impl Gripper {
     pub fn homing(&mut self) -> FrankaResult<bool> {
         let command: HomingRequestWithHeader = self
             .network
-            .create_header_for_gripper(Command::kHoming, size_of::<HomingRequestWithHeader>());
+            .create_header_for_gripper(Command::Homing, size_of::<HomingRequestWithHeader>());
         let command_id: u32 = self.network.tcp_send_request(command);
         let response: HomingResponse = self.network.tcp_blocking_receive_response(command_id);
         handle_response_status(&response.status)
@@ -115,7 +113,7 @@ impl Gripper {
     pub fn stop(&mut self) -> FrankaResult<bool> {
         let command: StopRequestWithHeader = self
             .network
-            .create_header_for_gripper(Command::kStop, size_of::<StopRequestWithHeader>());
+            .create_header_for_gripper(Command::Stop, size_of::<StopRequestWithHeader>());
         let command_id: u32 = self.network.tcp_send_request(command);
         let response: StopResponse = self.network.tcp_blocking_receive_response(command_id);
         handle_response_status(&response.status)
@@ -151,7 +149,7 @@ impl Gripper {
         let command = GraspRequestWithHeader {
             header: self
                 .network
-                .create_header_for_gripper(Command::kGrasp, size_of::<GraspRequestWithHeader>()),
+                .create_header_for_gripper(Command::Grasp, size_of::<GraspRequestWithHeader>()),
             request: GraspRequest::new(width, speed, force, epsilon_inner, epsilon_outer),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
@@ -182,12 +180,12 @@ impl Gripper {
 
 fn handle_response_status(status: &Status) -> FrankaResult<bool> {
     match status {
-        Status::kSuccess => Ok(true),
-        Status::kFail => Err(create_command_exception(
+        Status::Success => Ok(true),
+        Status::Fail => Err(create_command_exception(
             "libfranka-rs gripper: Command failed!",
         )),
-        Status::kUnsuccessful => Ok(false),
-        Status::kAborted => Err(create_command_exception(
+        Status::Unsuccessful => Ok(false),
+        Status::Aborted => Err(create_command_exception(
             "libfranka-rs gripper: Command aborted!",
         )),
     }
@@ -196,10 +194,10 @@ fn handle_response_status(status: &Status) -> FrankaResult<bool> {
 #[cfg(test)]
 mod tests {
     use crate::gripper::types::{
-        kCommandPort, kVersion, Command, CommandHeader, ConnectRequestWithHeader, ConnectResponse,
-        GraspRequest, GraspRequestWithHeader, GraspResponse, GripperStateIntern,
-        HomingRequestWithHeader, HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse,
-        Status, StopRequestWithHeader, StopResponse,
+        Command, CommandHeader, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
+        GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
+        HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
+        StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
     };
     use crate::gripper::Gripper;
     use crate::FrankaResult;
@@ -214,7 +212,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use crate::exception::FrankaException;
-    use crate::gripper::types::Status::{kFail, kSuccess};
+    use crate::gripper::types::Status::{Fail, Success};
     use crate::network::MessageCommand;
     use std::iter::FromIterator;
     use std::mem::size_of;
@@ -248,7 +246,7 @@ mod tests {
 
         pub fn server_thread(&mut self, reaction: &mut MockServerReaction) {
             let hostname: &str = "127.0.0.1";
-            let address = format!("{}:{}", hostname, kCommandPort)
+            let address = format!("{}:{}", hostname, COMMAND_PORT)
                 .to_socket_addrs()
                 .unwrap()
                 .next()
@@ -362,13 +360,13 @@ mod tests {
         ) {
             let mut response = ConnectResponse {
                 header: CommandHeader {
-                    command: Command::kConnect,
+                    command: Command::Connect,
                     command_id: request.get_command_message_id(),
                     size: 0,
                 },
                 status: match self.server_version == request.request.version {
-                    true => kSuccess,
-                    false => kFail,
+                    true => Success,
+                    false => Fail,
                 },
                 version: self.server_version,
             };
@@ -387,7 +385,7 @@ mod tests {
             counter += 1;
             MoveRequestWithHeader {
                 header: CommandHeader::new(
-                    Command::kMove,
+                    Command::Move,
                     counter,
                     size_of::<MoveRequestWithHeader>() as u32,
                 ),
@@ -402,7 +400,7 @@ mod tests {
 
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(kVersion);
+            let mut mock_gripper = GripperMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -418,8 +416,8 @@ mod tests {
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
                     let mut response = MoveResponse {
-                        header: CommandHeader::new(Command::kMove, req.header.command_id, 0),
-                        status: Status::kSuccess,
+                        header: CommandHeader::new(Command::Move, req.header.command_id, 0),
+                        status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -431,7 +429,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
-            assert_eq!(gripper.server_version(), kVersion);
+            assert_eq!(gripper.server_version(), VERSION);
             for (width, speed) in move_request_values.iter() {
                 gripper.move_gripper(*width, *speed).unwrap();
             }
@@ -443,20 +441,20 @@ mod tests {
     #[test]
     fn gripper_stop_test() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(kVersion);
+            let mut mock_gripper = GripperMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let req: StopRequestWithHeader = deserialize(&bytes).unwrap();
                     match req.command {
-                        Command::kStop => {}
+                        Command::Stop => {}
                         _ => {
                             assert!(false)
                         }
                     }
                     let mut response = StopResponse {
-                        header: CommandHeader::new(Command::kStop, req.command_id, 0),
-                        status: Status::kSuccess,
+                        header: CommandHeader::new(Command::Stop, req.command_id, 0),
+                        status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -477,20 +475,20 @@ mod tests {
     #[test]
     fn gripper_homing_test() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(kVersion);
+            let mut mock_gripper = GripperMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let req: HomingRequestWithHeader = deserialize(&bytes).unwrap();
                     match req.command {
-                        Command::kHoming => {}
+                        Command::Homing => {}
                         _ => {
                             assert!(false)
                         }
                     }
                     let mut response = HomingResponse {
-                        header: CommandHeader::new(Command::kHoming, req.command_id, 0),
-                        status: Status::kSuccess,
+                        header: CommandHeader::new(Command::Homing, req.command_id, 0),
+                        status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -521,7 +519,7 @@ mod tests {
             counter += 1;
             GraspRequestWithHeader {
                 header: CommandHeader::new(
-                    Command::kGrasp,
+                    Command::Grasp,
                     counter,
                     size_of::<GraspRequestWithHeader>() as u32,
                 ),
@@ -535,7 +533,7 @@ mod tests {
 
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(kVersion);
+            let mut mock_gripper = GripperMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -551,8 +549,8 @@ mod tests {
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
                     let mut response = GraspResponse {
-                        header: CommandHeader::new(Command::kGrasp, req.header.command_id, 0),
-                        status: Status::kSuccess,
+                        header: CommandHeader::new(Command::Grasp, req.header.command_id, 0),
+                        status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -583,7 +581,7 @@ mod tests {
     #[test]
     fn incompatible_library() {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(kVersion + 1);
+            let mut mock_gripper = GripperMockServer::new(VERSION + 1);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -612,7 +610,7 @@ mod tests {
     #[test]
     fn gripper_read_once() {
         let thread = std::thread::spawn(|| {
-            let mut server = GripperMockServer::new(kVersion);
+            let mut server = GripperMockServer::new(VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
