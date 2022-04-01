@@ -9,7 +9,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::network::MessageCommand;
 
-static VERSION: u16 = 4;
+static VERSION: u16 = 5;
 pub static COMMAND_PORT: u16 = 1337;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
