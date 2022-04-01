@@ -16,19 +16,19 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::from_args();
-    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::kIgnore, None)?;
+    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
     let model = robot.load_model(false)?;
     let state = robot.read_once()?;
     let frames = vec![
-        Frame::kJoint1,
-        Frame::kJoint2,
-        Frame::kJoint3,
-        Frame::kJoint4,
-        Frame::kJoint5,
-        Frame::kJoint6,
-        Frame::kJoint7,
-        Frame::kFlange,
-        Frame::kEndEffector,
+        Frame::Joint1,
+        Frame::Joint2,
+        Frame::Joint3,
+        Frame::Joint4,
+        Frame::Joint5,
+        Frame::Joint6,
+        Frame::Joint7,
+        Frame::Flange,
+        Frame::EndEffector,
     ];
     for frame in frames {
         let pose = Matrix4::from_column_slice(&model.pose_from_state(&frame, &state));

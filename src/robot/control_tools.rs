@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-#![allow(non_upper_case_globals)]
 
 use crate::exception::FrankaException;
 use crate::FrankaResult;
@@ -57,7 +56,7 @@ pub fn set_current_thread_to_highest_scheduler_priority() -> FrankaResult<()> {
 /// transform is represented as a 4x4 matrix in column-major format
 #[allow(clippy::float_cmp)]
 pub fn is_homogeneous_transformation(transform: &[f64; 16]) -> bool {
-    const kOrthonormalThreshold: f64 = 1e-5;
+    const ORTHONORMAL_THRESHOLD: f64 = 1e-5;
     if transform[3] != 0.0 || transform[7] != 0.0 || transform[11] != 0.0 || transform[15] != 1.0 {
         return false;
     }
@@ -68,7 +67,7 @@ pub fn is_homogeneous_transformation(transform: &[f64; 16]) -> bool {
                     + transform[j * 4 + 1].powf(2.)
                     + transform[j * 4 + 2].powf(2.),
             ) - 1.,
-        ) > kOrthonormalThreshold
+        ) > ORTHONORMAL_THRESHOLD
         {
             return false;
         }
@@ -78,7 +77,7 @@ pub fn is_homogeneous_transformation(transform: &[f64; 16]) -> bool {
             f64::sqrt(
                 transform[i].powf(2.) + transform[4 + i].powf(2.) + transform[2 * 4 + i].powf(2.),
             ) - 1.,
-        ) > kOrthonormalThreshold
+        ) > ORTHONORMAL_THRESHOLD
         {
             return false;
         }

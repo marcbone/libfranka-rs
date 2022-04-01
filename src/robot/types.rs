@@ -2,47 +2,44 @@
 // Licensed under the EUPL-1.2-or-later
 use std::fmt::Debug;
 
-use crate::robot::types::RobotMode::kOther;
+use crate::robot::types::RobotMode::Other;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum MotionGeneratorMode {
-    kIdle,
-    kJointPosition,
-    kJointVelocity,
-    kCartesianPosition,
-    kCartesianVelocity,
+    Idle,
+    JointPosition,
+    JointVelocity,
+    CartesianPosition,
+    CartesianVelocity,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum ControllerMode {
-    kJointImpedance,
-    kCartesianImpedance,
-    kExternalController,
-    kOther,
+    JointImpedance,
+    CartesianImpedance,
+    ExternalController,
+    Other,
 }
 /// Describes the robot's current mode.
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum RobotMode {
-    kOther,
-    kIdle,
-    kMove,
-    kGuiding,
-    kReflex,
-    kUserStopped,
-    kAutomaticErrorRecovery,
+    Other,
+    Idle,
+    Move,
+    Guiding,
+    Reflex,
+    UserStopped,
+    AutomaticErrorRecovery,
 }
 impl Default for RobotMode {
     fn default() -> Self {
-        kOther
+        Other
     }
 }
 
@@ -140,15 +137,15 @@ impl RobotStateIntern {
             O_ddP_EE_c: [0.; 6],
             theta: [0.; 7],
             dtheta: [0.; 7],
-            motion_generator_mode: MotionGeneratorMode::kIdle,
-            controller_mode: ControllerMode::kJointImpedance,
+            motion_generator_mode: MotionGeneratorMode::Idle,
+            controller_mode: ControllerMode::JointImpedance,
             errors: RoboErrorHelperStruct {
                 errors1: [false; 32],
                 errors2: [false; 5],
                 reflex_reason1: [false; 32],
                 reflex_reason2: [false; 5],
             },
-            robot_mode: RobotMode::kOther,
+            robot_mode: RobotMode::Other,
             control_command_success_rate: 0.0,
         }
     }

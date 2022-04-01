@@ -25,7 +25,7 @@ fn main() -> FrankaResult<()> {
     let args: CommandLineArguments = CommandLineArguments::from_args();
     let mut path = args.download_path;
     path.push("model.so");
-    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::kIgnore, None)?;
+    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
     robot.load_model(true)?;
     fs::copy("/tmp/model.so", &path).map_err(|_| ModelException {
         message: "Could copy model to download location".to_string(),

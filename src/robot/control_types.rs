@@ -8,15 +8,15 @@ use serde::Serialize;
 
 use crate::robot::control_tools::is_homogeneous_transformation;
 use crate::robot::low_pass_filter::{
-    cartesian_low_pass_filter, kMaxCutoffFrequency, low_pass_filter,
+    cartesian_low_pass_filter, low_pass_filter, MAX_CUTOFF_FREQUENCY,
 };
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{
-    kDeltaT, kMaxElbowAcceleration, kMaxElbowJerk, kMaxElbowVelocity, kMaxJointAcceleration,
-    kMaxJointJerk, kMaxJointVelocity, kMaxRotationalAcceleration, kMaxRotationalJerk,
-    kMaxRotationalVelocity, kMaxTranslationalAcceleration, kMaxTranslationalJerk,
-    kMaxTranslationalVelocity, limit_rate_cartesian_pose, limit_rate_cartesian_velocity,
-    limit_rate_joint_positions, limit_rate_joint_velocities, limit_rate_position,
+    limit_rate_cartesian_pose, limit_rate_cartesian_velocity, limit_rate_joint_positions,
+    limit_rate_joint_velocities, limit_rate_position, DELTA_T, MAX_ELBOW_ACCELERATION,
+    MAX_ELBOW_JERK, MAX_ELBOW_VELOCITY, MAX_JOINT_ACCELERATION, MAX_JOINT_JERK, MAX_JOINT_VELOCITY,
+    MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
+    MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
 };
 use crate::robot::robot_state::RobotState;
 use crate::robot::service_types::MoveMotionGeneratorMode;
@@ -25,19 +25,17 @@ use crate::utils::Vector7;
 use nalgebra::{Isometry3, Vector6};
 
 /// Available controller modes for a [`Robot`](`crate::Robot`)
-#[allow(non_camel_case_types)]
 pub enum ControllerMode {
-    kJointImpedance,
-    kCartesianImpedance,
+    JointImpedance,
+    CartesianImpedance,
 }
 
 /// Used to decide whether to enforce realtime mode for a control loop thread.
 /// see [`Robot`](`crate::Robot`)
-#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum RealtimeConfig {
-    kEnforce,
-    kIgnore,
+    Enforce,
+    Ignore,
 }
 
 /// Helper type for control and motion generation loops.
@@ -161,10 +159,10 @@ impl Finishable for JointPositions {
         limit_rate: bool,
     ) {
         command.q_c = self.q;
-        if cutoff_frequency < kMaxCutoffFrequency {
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             for i in 0..7 {
                 command.q_c[i] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     command.q_c[i],
                     robot_state.q_d[i],
                     cutoff_frequency,
@@ -173,9 +171,9 @@ impl Finishable for JointPositions {
         }
         if limit_rate {
             command.q_c = limit_rate_joint_positions(
-                &kMaxJointVelocity,
-                &kMaxJointAcceleration,
-                &kMaxJointJerk,
+                &MAX_JOINT_VELOCITY,
+                &MAX_JOINT_ACCELERATION,
+                &MAX_JOINT_JERK,
                 &command.q_c,
                 &robot_state.q_d,
                 &robot_state.dq_d,
@@ -188,7 +186,7 @@ impl Finishable for JointPositions {
 
 impl MotionGeneratorTrait for JointPositions {
     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-        MoveMotionGeneratorMode::kJointPosition
+        MoveMotionGeneratorMode::JointPosition
     }
 }
 
@@ -235,10 +233,10 @@ impl Finishable for JointVelocities {
         limit_rate: bool,
     ) {
         command.dq_c = self.dq;
-        if cutoff_frequency < kMaxCutoffFrequency {
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             for i in 0..7 {
                 command.dq_c[i] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     command.dq_c[i],
                     robot_state.dq_d[i],
                     cutoff_frequency,
@@ -247,9 +245,9 @@ impl Finishable for JointVelocities {
         }
         if limit_rate {
             command.dq_c = limit_rate_joint_velocities(
-                &kMaxJointVelocity,
-                &kMaxJointAcceleration,
-                &kMaxJointJerk,
+                &MAX_JOINT_VELOCITY,
+                &MAX_JOINT_ACCELERATION,
+                &MAX_JOINT_JERK,
                 &command.dq_c,
                 &robot_state.dq_d,
                 &robot_state.ddq_d,
@@ -261,7 +259,7 @@ impl Finishable for JointVelocities {
 
 impl MotionGeneratorTrait for JointVelocities {
     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-        MoveMotionGeneratorMode::kJointVelocity
+        MoveMotionGeneratorMode::JointVelocity
     }
 }
 
@@ -348,9 +346,9 @@ impl Finishable for CartesianPose {
         limit_rate: bool,
     ) {
         command.O_T_EE_c = self.O_T_EE;
-        if cutoff_frequency < kMaxCutoffFrequency {
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             command.O_T_EE_c = cartesian_low_pass_filter(
-                kDeltaT,
+                DELTA_T,
                 &command.O_T_EE_c,
                 &robot_state.O_T_EE_c,
                 cutoff_frequency,
@@ -359,12 +357,12 @@ impl Finishable for CartesianPose {
 
         if limit_rate {
             command.O_T_EE_c = limit_rate_cartesian_pose(
-                kMaxTranslationalVelocity,
-                kMaxTranslationalAcceleration,
-                kMaxTranslationalJerk,
-                kMaxRotationalVelocity,
-                kMaxRotationalAcceleration,
-                kMaxRotationalJerk,
+                MAX_TRANSLATIONAL_VELOCITY,
+                MAX_TRANSLATIONAL_ACCELERATION,
+                MAX_TRANSLATIONAL_JERK,
+                MAX_ROTATIONAL_VELOCITY,
+                MAX_ROTATIONAL_ACCELERATION,
+                MAX_ROTATIONAL_JERK,
                 &command.O_T_EE_c,
                 &robot_state.O_T_EE_c,
                 &robot_state.O_dP_EE_c,
@@ -376,9 +374,9 @@ impl Finishable for CartesianPose {
         if self.has_elbow() {
             command.valid_elbow = true;
             command.elbow_c = self.elbow.unwrap();
-            if cutoff_frequency < kMaxCutoffFrequency {
+            if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
                 command.elbow_c[0] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     cutoff_frequency,
@@ -386,9 +384,9 @@ impl Finishable for CartesianPose {
             }
             if limit_rate {
                 command.elbow_c[0] = limit_rate_position(
-                    kMaxElbowVelocity,
-                    kMaxElbowAcceleration,
-                    kMaxElbowJerk,
+                    MAX_ELBOW_VELOCITY,
+                    MAX_ELBOW_ACCELERATION,
+                    MAX_ELBOW_JERK,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     robot_state.delbow_c[0],
@@ -405,7 +403,7 @@ impl Finishable for CartesianPose {
 
 impl MotionGeneratorTrait for CartesianPose {
     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-        MoveMotionGeneratorMode::kCartesianPosition
+        MoveMotionGeneratorMode::CartesianPosition
     }
 }
 
@@ -469,10 +467,10 @@ impl Finishable for CartesianVelocities {
         limit_rate: bool,
     ) {
         command.O_dP_EE_c = self.O_dP_EE;
-        if cutoff_frequency < kMaxCutoffFrequency {
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             for i in 0..6 {
                 command.O_dP_EE_c[i] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     command.O_dP_EE_c[i],
                     robot_state.O_dP_EE_c[i],
                     cutoff_frequency,
@@ -481,12 +479,12 @@ impl Finishable for CartesianVelocities {
         }
         if limit_rate {
             command.O_dP_EE_c = limit_rate_cartesian_velocity(
-                kMaxTranslationalVelocity,
-                kMaxTranslationalAcceleration,
-                kMaxTranslationalJerk,
-                kMaxRotationalVelocity,
-                kMaxRotationalAcceleration,
-                kMaxRotationalJerk,
+                MAX_TRANSLATIONAL_VELOCITY,
+                MAX_TRANSLATIONAL_ACCELERATION,
+                MAX_TRANSLATIONAL_JERK,
+                MAX_ROTATIONAL_VELOCITY,
+                MAX_ROTATIONAL_ACCELERATION,
+                MAX_ROTATIONAL_JERK,
                 &command.O_dP_EE_c,
                 &robot_state.O_dP_EE_c,
                 &robot_state.O_ddP_EE_c,
@@ -500,9 +498,9 @@ impl Finishable for CartesianVelocities {
         if self.has_elbow() {
             command.valid_elbow = true;
             command.elbow_c = self.elbow.unwrap();
-            if cutoff_frequency < kMaxCutoffFrequency {
+            if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
                 command.elbow_c[0] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     cutoff_frequency,
@@ -510,9 +508,9 @@ impl Finishable for CartesianVelocities {
             }
             if limit_rate {
                 command.elbow_c[0] = limit_rate_position(
-                    kMaxElbowVelocity,
-                    kMaxElbowAcceleration,
-                    kMaxElbowJerk,
+                    MAX_ELBOW_VELOCITY,
+                    MAX_ELBOW_ACCELERATION,
+                    MAX_ELBOW_JERK,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     robot_state.delbow_c[0],
@@ -529,7 +527,7 @@ impl Finishable for CartesianVelocities {
 
 impl MotionGeneratorTrait for CartesianVelocities {
     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-        MoveMotionGeneratorMode::kCartesianVelocity
+        MoveMotionGeneratorMode::CartesianVelocity
     }
 }
 

@@ -8,9 +8,9 @@ use crate::robot::control_tools::{
     has_realtime_kernel, set_current_thread_to_highest_scheduler_priority,
 };
 use crate::robot::control_types::{ControllerMode, Finishable, RealtimeConfig, Torques};
-use crate::robot::low_pass_filter::{kMaxCutoffFrequency, low_pass_filter};
+use crate::robot::low_pass_filter::{low_pass_filter, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
-use crate::robot::rate_limiting::{kDeltaT, kMaxTorqueRate, limit_rate_torques};
+use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, MAX_TORQUE_RATE};
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_state::RobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation};
@@ -56,7 +56,7 @@ impl<
             cutoff_frequency,
         )?;
         control_loop.motion_id = control_loop.robot.start_motion(
-            MoveControllerMode::kExternalController,
+            MoveControllerMode::ExternalController,
             U::get_motion_generator_mode(),
             &control_loop.default_deviation,
             &control_loop.default_deviation,
@@ -71,8 +71,8 @@ impl<
         cutoff_frequency: f64,
     ) -> FrankaResult<Self> {
         let mode: MoveControllerMode = match control_mode {
-            ControllerMode::kJointImpedance => MoveControllerMode::kJointImpedance,
-            ControllerMode::kCartesianImpedance => MoveControllerMode::kCartesianImpedance,
+            ControllerMode::JointImpedance => MoveControllerMode::JointImpedance,
+            ControllerMode::CartesianImpedance => MoveControllerMode::CartesianImpedance,
         };
         let mut control_loop =
             ControlLoop::new_intern(robot, motion_callback, None, limit_rate, cutoff_frequency)?;
@@ -91,7 +91,7 @@ impl<
         limit_rate: bool,
         cutoff_frequency: f64,
     ) -> FrankaResult<Self> {
-        let enforce_real_time = robot.realtime_config() == RealtimeConfig::kEnforce;
+        let enforce_real_time = robot.realtime_config() == RealtimeConfig::Enforce;
         let control_loop = ControlLoop {
             default_deviation: MoveDeviation {
                 translation: 10.,
@@ -183,10 +183,10 @@ impl<
     ) -> bool {
         let mut control_output: Torques =
             (self.control_callback.as_deref_mut().unwrap())(robot_state, time_step);
-        if self.cutoff_frequency < kMaxCutoffFrequency {
+        if self.cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             for i in 0..7 {
                 control_output.tau_J[i] = low_pass_filter(
-                    kDeltaT,
+                    DELTA_T,
                     control_output.tau_J[i],
                     robot_state.tau_J_d[i],
                     self.cutoff_frequency,
@@ -194,8 +194,11 @@ impl<
             }
         }
         if self.limit_rate {
-            control_output.tau_J =
-                limit_rate_torques(&kMaxTorqueRate, &control_output.tau_J, &robot_state.tau_J_d);
+            control_output.tau_J = limit_rate_torques(
+                &MAX_TORQUE_RATE,
+                &control_output.tau_J,
+                &robot_state.tau_J_d,
+            );
         }
         command.tau_J_d = control_output.tau_J;
         command.tau_J_d.iter().for_each(|x| assert!(x.is_finite()));

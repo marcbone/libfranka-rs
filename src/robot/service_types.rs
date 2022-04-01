@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-#![allow(non_upper_case_globals)]
 
 use std::fmt::Debug;
 
@@ -10,99 +9,91 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::network::MessageCommand;
 
-static kVersion: u16 = 4;
-pub static kCommandPort: u16 = 1337;
+static VERSION: u16 = 4;
+pub static COMMAND_PORT: u16 = 1337;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u32)]
-#[allow(non_camel_case_types)]
 pub enum RobotCommandEnum {
-    kConnect,
-    kMove,
-    kStopMove,
-    kGetCartesianLimit,
-    kSetCollisionBehavior,
-    kSetJointImpedance,
-    kSetCartesianImpedance,
-    kSetGuidingMode,
-    kSetEeToK,
-    kSetNeToEe,
-    kSetLoad,
-    kSetFilters,
-    kAutomaticErrorRecovery,
-    kLoadModelLibrary,
+    Connect,
+    Move,
+    StopMove,
+    GetCartesianLimit,
+    SetCollisionBehavior,
+    SetJointImpedance,
+    SetCartesianImpedance,
+    SetGuidingMode,
+    SetEeToK,
+    SetNeToEe,
+    SetLoad,
+    SetFilters,
+    AutomaticErrorRecovery,
+    LoadModelLibrary,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum DefaultStatus {
-    kSuccess,
-    kCommandNotPossibleRejected,
+    Success,
+    CommandNotPossibleRejected,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum ConnectStatus {
-    kSuccess,
-    kIncompatibleLibraryVersion,
+    Success,
+    IncompatibleLibraryVersion,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum MoveStatus {
-    kSuccess,
-    kMotionStarted,
-    kPreempted,
-    kCommandNotPossibleRejected,
-    kStartAtSingularPoseRejected,
-    kInvalidArgumentRejected,
-    kReflexAborted,
-    kEmergencyAborted,
-    kInputErrorAborted,
-    kAborted,
+    Success,
+    MotionStarted,
+    Preempted,
+    CommandNotPossibleRejected,
+    StartAtSingularPoseRejected,
+    InvalidArgumentRejected,
+    ReflexAborted,
+    EmergencyAborted,
+    InputErrorAborted,
+    Aborted,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum StopMoveStatus {
-    kSuccess,
-    kCommandNotPossibleRejected,
-    kEmergencyAborted,
-    kReflexAborted,
-    kAborted,
+    Success,
+    CommandNotPossibleRejected,
+    EmergencyAborted,
+    ReflexAborted,
+    Aborted,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum AutomaticErrorRecoveryStatus {
-    kSuccess,
-    kCommandNotPossibleRejected,
-    kManualErrorRecoveryRequiredRejected,
-    kReflexAborted,
-    kEmergencyAborted,
-    kAborted,
+    Success,
+    CommandNotPossibleRejected,
+    ManualErrorRecoveryRequiredRejected,
+    ReflexAborted,
+    EmergencyAborted,
+    Aborted,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum LoadModelLibraryStatus {
-    kSuccess,
-    kError,
+    Success,
+    Error,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum GetterSetterStatus {
-    kSuccess,
-    kCommandNotPossibleRejected,
-    kInvalidArgumentRejected,
+    Success,
+    CommandNotPossibleRejected,
+    InvalidArgumentRejected,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -115,7 +106,7 @@ pub struct ConnectRequest {
 impl ConnectRequest {
     pub fn new(udp_port: u16) -> Self {
         ConnectRequest {
-            version: kVersion,
+            version: VERSION,
             udp_port,
         }
     }
@@ -143,21 +134,19 @@ pub struct ConnectResponse {
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u32)]
-#[allow(non_camel_case_types)]
 pub enum MoveControllerMode {
-    kJointImpedance,
-    kCartesianImpedance,
-    kExternalController,
+    JointImpedance,
+    CartesianImpedance,
+    ExternalController,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u32)]
-#[allow(non_camel_case_types)]
 pub enum MoveMotionGeneratorMode {
-    kJointPosition,
-    kJointVelocity,
-    kCartesianPosition,
-    kCartesianVelocity,
+    JointPosition,
+    JointVelocity,
+    CartesianPosition,
+    CartesianVelocity,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -562,20 +551,18 @@ pub struct AutomaticErrorRecoveryResponse {
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum LoadModelLibraryArchitecture {
-    kX64,
-    kX86,
-    kArm,
-    kArm64,
+    X64,
+    X86,
+    Arm,
+    Arm64,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum LoadModelLibrarySystem {
-    kLinux,
-    kWindow,
+    Linux,
+    Windows,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]

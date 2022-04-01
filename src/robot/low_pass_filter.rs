@@ -2,15 +2,14 @@
 // Licensed under the EUPL-1.2-or-later
 
 //! Contains functions for filtering signals with a low-pass filter.
-#![allow(non_upper_case_globals)]
 
 use crate::utils::array_to_isometry;
 use std::f64::consts::PI;
 
 /// Maximum cutoff frequency: 1000 Hz
-pub static kMaxCutoffFrequency: f64 = 1000.0;
+pub static MAX_CUTOFF_FREQUENCY: f64 = 1000.0;
 ///  Default cutoff frequency: 100 Hz
-pub static kDefaultCutoffFrequency: f64 = 100.0;
+pub static DEFAULT_CUTOFF_FREQUENCY: f64 = 100.0;
 
 /// Applies a first-order low-pass filter
 ///
@@ -18,7 +17,7 @@ pub static kDefaultCutoffFrequency: f64 = 100.0;
 /// * `sample_time` - Sample time constant
 /// * `y` - Current value of the signal to be filtered
 /// * `y_last` - Value of the signal to be filtered in the previous time step
-/// * `cutoff_frequency` -Cutoff frequency of the low-pass filter
+/// * `cutoff_frequency` - Cutoff frequency of the low-pass filter
 /// # Panics
 /// This function panics if:
 /// * y is infinite or NaN.

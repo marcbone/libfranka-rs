@@ -1,6 +1,5 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-#![allow(non_upper_case_globals)]
 
 use std::fmt::Debug;
 
@@ -11,28 +10,26 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use crate::network::MessageCommand;
 use std::time::Duration;
 
-pub static kVersion: u16 = 3;
-pub static kCommandPort: u16 = 1338;
+pub static VERSION: u16 = 3;
+pub static COMMAND_PORT: u16 = 1338;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u16)]
-#[allow(non_camel_case_types)]
 pub enum Command {
-    kConnect,
-    kHoming,
-    kGrasp,
-    kMove,
-    kStop,
+    Connect,
+    Homing,
+    Grasp,
+    Move,
+    Stop,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug)]
 #[repr(u16)]
-#[allow(non_camel_case_types)]
 pub enum Status {
-    kSuccess,
-    kFail,
-    kUnsuccessful,
-    kAborted,
+    Success,
+    Fail,
+    Unsuccessful,
+    Aborted,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -101,7 +98,7 @@ pub struct GraspRequest {
 impl ConnectRequest {
     pub fn new(udp_port: u16) -> Self {
         ConnectRequest {
-            version: kVersion,
+            version: VERSION,
             udp_port,
         }
     }
