@@ -377,8 +377,8 @@ impl Model {
     ///  Calculates the gravity vector. Unit: \[Nm\].
     /// # Arguments
     /// * `robot_state` - State from which the gravity vector should be calculated.
-    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2]
-    /// Default to [0.0, 0.0, -9.81].
+    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2].
+    /// By default `gravity_earth` will be calculated from [`RobotState::O_ddP_O`](`crate::RobotState::O_ddP_O`).
     /// # Return
     /// Gravity vector.
     pub fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
@@ -390,7 +390,7 @@ impl Model {
             &robot_state.q,
             robot_state.m_total,
             &robot_state.F_x_Ctotal,
-            gravity_earth,
+            gravity_earth.into().unwrap_or(&robot_state.O_ddP_O),
         )
     }
 }
