@@ -61,8 +61,8 @@ pub fn cartesian_low_pass_filter(
     y.iter()
         .zip(y_last.iter())
         .for_each(|(i, j)| assert!(i.is_finite() && j.is_finite()));
-    let mut transform = array_to_isometry(&y);
-    let transform_last = array_to_isometry(&y_last);
+    let mut transform = array_to_isometry(y);
+    let transform_last = array_to_isometry(y_last);
     let gain = sample_time / (sample_time + (1.0 / (2.0 * PI * cutoff_frequency)));
     transform.translation.vector =
         gain * transform.translation.vector + (1. - gain) * transform_last.translation.vector;

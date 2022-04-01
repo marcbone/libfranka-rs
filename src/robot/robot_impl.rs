@@ -199,25 +199,25 @@ impl RobotImpl {
             if motion_is_some && controller_is_some {
                 let command = RobotCommand {
                     message_id: self.message_id,
-                    motion: motion_command.unwrap().clone().pack(),
-                    control: control_command.unwrap().clone().pack(),
+                    motion: (*motion_command.unwrap()).pack(),
+                    control: (*control_command.unwrap()).pack(),
                 };
                 return match self.network.udp_send(&command) {
                     Ok(_) => Ok(Some(command)),
                     Err(e) => Err(FrankaException::NetworkException {
-                        message: format!("libfranka-rs: UDP send: {}", e.to_string()),
+                        message: format!("libfranka-rs: UDP send: {}", e),
                     }),
                 };
             } else if motion_is_some {
                 let command = RobotCommand {
                     message_id: self.message_id,
-                    motion: motion_command.unwrap().clone().pack(),
+                    motion: (*motion_command.unwrap()).pack(),
                     control: ControllerCommand { tau_J_d: [0.; 7] }.pack(),
                 };
                 return match self.network.udp_send(&command) {
                     Ok(_) => Ok(Some(command)),
                     Err(e) => Err(FrankaException::NetworkException {
-                        message: format!("libfranka-rs: UDP send: {}", e.to_string()),
+                        message: format!("libfranka-rs: UDP send: {}", e),
                     }),
                 };
             }
@@ -309,8 +309,8 @@ impl RobotControl for RobotImpl {
         let move_command_id = self.execute_move_command(
             &controller_mode,
             &motion_generator_mode,
-            &maximum_path_deviation,
-            &maximum_goal_deviation,
+            maximum_path_deviation,
+            maximum_goal_deviation,
         )?;
 
         while self.motion_generator_mode.unwrap() != self.current_move_motion_generator_mode
