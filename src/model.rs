@@ -333,7 +333,7 @@ impl Model {
     ) -> [f64; 7] {
         let mut output = [0.; 7];
         self.library
-            .coriolis(&q, &dq, &I_total, &m_total, &F_x_Ctotal, &mut output);
+            .coriolis(q, dq, I_total, &m_total, F_x_Ctotal, &mut output);
         output
     }
 

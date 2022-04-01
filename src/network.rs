@@ -224,7 +224,7 @@ impl Network {
         if message.unwrap().len() != size_of::<T>() {
             panic!("libfranka-rs: Incorrect TCP message size.");
         }
-        let message: T = deserialize(&message.unwrap());
+        let message: T = deserialize(message.unwrap());
         let result = handler(message);
         match result {
             Ok(_) => {
@@ -240,7 +240,7 @@ impl Network {
         while response_bytes == None {
             {
                 self.tcp_read_from_buffer(Duration::from_millis(10));
-                response_bytes = self.received_responses.remove(&command_id);
+                response_bytes = self.received_responses.remove(command_id);
             }
             std::thread::yield_now();
         }
@@ -328,7 +328,7 @@ impl Network {
                         let available_bytes = match available_bytes {
                             Ok(a) => a,
                             Err(e) => {
-                                eprintln!("{}", e.to_string());
+                                eprintln!("{}", e);
                                 return;
                             }
                         };
@@ -394,7 +394,7 @@ fn serialize<T: Serialize>(s: &T) -> Vec<u8> {
 }
 
 fn deserialize<T: Debug + DeserializeOwned + 'static>(encoded: &[u8]) -> T {
-    bincode::deserialize(&encoded).unwrap()
+    bincode::deserialize(encoded).unwrap()
 }
 
 #[cfg(test)]

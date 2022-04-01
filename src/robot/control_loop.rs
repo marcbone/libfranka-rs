@@ -182,7 +182,7 @@ impl<
         command: &mut ControllerCommand,
     ) -> bool {
         let mut control_output: Torques =
-            (self.control_callback.as_deref_mut().unwrap())(robot_state, time_step);
+            (self.control_callback.as_mut().unwrap())(robot_state, time_step);
         if self.cutoff_frequency < MAX_CUTOFF_FREQUENCY {
             for i in 0..7 {
                 control_output.tau_J[i] = low_pass_filter(
