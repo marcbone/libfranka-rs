@@ -1,27 +1,26 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
+use clap::Parser;
 use franka::FrankaResult;
 use franka::Robot;
 use franka::RobotState;
 use franka::{CartesianPose, MotionFinished};
 use std::f64::consts::PI;
 use std::time::Duration;
-use structopt::StructOpt;
 
 /// An example showing how to generate a Cartesian motion.
 ///
 /// WARNING: Before executing this example, make sure there is enough space in front of the robot.
-#[derive(StructOpt, Debug)]
-#[structopt(name = "generate_cartesian_pose_motion")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "generate_cartesian_pose_motion")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
-    #[structopt()]
     pub franka_ip: String,
 }
 
 fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::from_args();
+    let address = CommandLineArguments::parse();
     let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");

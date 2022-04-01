@@ -1,26 +1,24 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+use clap::Parser;
 use franka::{FrankaResult, Gripper};
 use std::time::Duration;
-use structopt::StructOpt;
 
 /// An example showing how to control FRANKA's gripper.
-#[derive(StructOpt, Debug)]
-#[structopt(name = "grasp_object")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "grasp_object")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the gripper
-    #[structopt()]
     pub gripper_hostname: String,
     /// Perform homing before grasping to calibrate the gripper
-    #[structopt(long)]
+    #[clap(long)]
     pub homing: bool,
     /// Width of the object in meter
-    #[structopt()]
     pub object_width: f64,
 }
 
 fn main() -> FrankaResult<()> {
-    let args: CommandLineArguments = CommandLineArguments::from_args();
+    let args: CommandLineArguments = CommandLineArguments::parse();
     let mut gripper = Gripper::new(args.gripper_hostname.as_str())?;
     if args.homing {
         gripper.homing()?;
