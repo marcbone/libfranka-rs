@@ -207,6 +207,12 @@ pub struct RobotState {
     /// Desired end effector twist in base frame.
     /// Unit: [m/s,m/s,m/s,rad/s,rad/s,rad/s]
     pub O_dP_EE_d: [f64; 6],
+    /// ![{^OddP_O}](https://latex.codecogs.com/png.latex?{^OddP_O)
+    ///
+    /// Linear component of the acceleration of the robot's base, expressed in frame parallel to the
+    /// base frame, i.e. the base's translational acceleration. If the base is resting
+    /// this shows the direction of the gravity vector. It is hardcoded for now to `{0, 0, -9.81}`.
+    pub O_ddP_O: [f64; 3],
     /// ![{^OT_{EE}}_{c}](https://latex.codecogs.com/png.latex?{^OT_{EE}}_{c})
     ///
     /// Last commanded end effector pose of motion generation in base frame.
@@ -301,6 +307,7 @@ impl From<RobotStateIntern> for RobotState {
         let O_F_ext_hat_K = robot_state.O_F_ext_hat_K;
         let K_F_ext_hat_K = robot_state.K_F_ext_hat_K;
         let O_dP_EE_d = robot_state.O_dP_EE_d;
+        let O_ddP_O = robot_state.O_ddP_O;
         let O_T_EE_c = robot_state.O_T_EE_c;
         let O_dP_EE_c = robot_state.O_dP_EE_c;
         let O_ddP_EE_c = robot_state.O_ddP_EE_c;
@@ -349,6 +356,7 @@ impl From<RobotStateIntern> for RobotState {
             O_F_ext_hat_K,
             K_F_ext_hat_K,
             O_dP_EE_d,
+            O_ddP_O,
             O_T_EE_c,
             O_dP_EE_c,
             O_ddP_EE_c,

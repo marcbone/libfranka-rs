@@ -78,6 +78,7 @@ pub struct RobotStateIntern {
     pub O_F_ext_hat_K: [f64; 6],
     pub K_F_ext_hat_K: [f64; 6],
     pub O_dP_EE_d: [f64; 6],
+    pub O_ddP_O: [f64; 3],
     pub elbow_c: [f64; 2],
     pub delbow_c: [f64; 2],
     pub ddelbow_c: [f64; 2],
@@ -129,6 +130,7 @@ impl RobotStateIntern {
             O_F_ext_hat_K: [0.; 6],
             K_F_ext_hat_K: [0.; 6],
             O_dP_EE_d: [0.; 6],
+            O_ddP_O: [0.; 3],
             elbow_c: [0.; 2],
             delbow_c: [0.; 2],
             ddelbow_c: [0.; 2],
@@ -141,9 +143,9 @@ impl RobotStateIntern {
             controller_mode: ControllerMode::JointImpedance,
             errors: RoboErrorHelperStruct {
                 errors1: [false; 32],
-                errors2: [false; 5],
+                errors2: [false; 9],
                 reflex_reason1: [false; 32],
-                reflex_reason2: [false; 5],
+                reflex_reason2: [false; 9],
             },
             robot_mode: RobotMode::Other,
             control_command_success_rate: 0.0,
@@ -156,18 +158,17 @@ impl RobotStateIntern {
 /// https://crates.io/crates/serde-big-array would be an alternative
 /// but I do not want to add a dependency with less than 1 million downloads.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-#[allow(non_snake_case)]
 #[repr(packed)]
 pub struct RoboErrorHelperStruct {
     pub errors1: [bool; 32],
-    pub errors2: [bool; 5],
+    pub errors2: [bool; 9],
     pub reflex_reason1: [bool; 32],
-    pub reflex_reason2: [bool; 5],
+    pub reflex_reason2: [bool; 9],
 }
 
 impl RoboErrorHelperStruct {
-    pub fn combine_errors(&self) -> [bool; 37] {
-        let mut out = [false; 37];
+    pub fn combine_errors(&self) -> [bool; 41] {
+        let mut out = [false; 41];
         for (i, &val) in self.errors1.iter().enumerate() {
             out[i] = val;
         }
@@ -176,8 +177,8 @@ impl RoboErrorHelperStruct {
         }
         out
     }
-    pub fn combine_reflex_reasons(&self) -> [bool; 37] {
-        let mut out = [false; 37];
+    pub fn combine_reflex_reasons(&self) -> [bool; 41] {
+        let mut out = [false; 41];
         for (i, &val) in self.reflex_reason1.iter().enumerate() {
             out[i] = val;
         }

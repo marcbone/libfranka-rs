@@ -88,6 +88,14 @@ pub enum FrankaError {
     InstabilityDetection = 35,
     /// The robot is in joint position limits violation error and the user guides the robot further towards the limit.
     JointMoveInWrongDirection = 36,
+    /// The generated motion violates a joint limit.
+    CartesianSplineViolation = 37,
+    /// The generated motion violates a joint limit.
+    JointViaPlanLimitViolation = 38,
+    /// The gravity vector could not be initialized by measuring the base acceleration.
+    BaseAccelerationInitializationTimeout = 39,
+    /// Base acceleration O_ddP_O cannot be determined.
+    BaseAccelerationInvalidReading = 40,
 }
 
 impl Display for FrankaError {
