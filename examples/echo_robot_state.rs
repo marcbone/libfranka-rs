@@ -1,22 +1,21 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
+use clap::Parser;
 use franka::FrankaResult;
 use franka::Robot;
 use franka::RobotState;
-use structopt::StructOpt;
 
 /// An example showing how to continuously read the robot state.
-#[derive(StructOpt, Debug)]
-#[structopt(name = "echo_robot_state")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "echo_robot_state")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
-    #[structopt()]
     pub franka_ip: String,
 }
 
 fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::from_args();
+    let address = CommandLineArguments::parse();
     let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
     let mut count = 0;
     robot.read(|robot_state: &RobotState| {

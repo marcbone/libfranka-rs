@@ -1,6 +1,7 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
+use clap::Parser;
 use franka::Frame;
 use franka::FrankaResult;
 use franka::Robot;
@@ -9,23 +10,21 @@ use franka::Torques;
 use franka::{array_to_isometry, Matrix6x7, Vector7};
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 use std::time::Duration;
-use structopt::StructOpt;
 
-///An example showing a simple cartesian impedance controller without inertia shaping
+/// An example showing a simple cartesian impedance controller without inertia shaping
 /// that renders a spring damper system where the equilibrium is the initial configuration.
 /// After starting the controller try to push the robot around and try different stiffness levels.
 ///
 /// WARNING collision thresholds are set to high values. Make sure you have the user stop at hand!
-#[derive(StructOpt, Debug)]
-#[structopt(name = "cartesian impedance_control")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "cartesian_impedance_control")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
-    #[structopt()]
     pub franka_ip: String,
 }
 
 fn main() -> FrankaResult<()> {
-    let args = CommandLineArguments::from_args();
+    let args = CommandLineArguments::parse();
     let translational_stiffness = 150.;
     let rotational_stiffness = 10.;
 

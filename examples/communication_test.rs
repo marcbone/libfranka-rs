@@ -1,26 +1,25 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+use clap::Parser;
 use franka::FrankaResult;
 use franka::Robot;
 use franka::RobotState;
 use franka::{MotionFinished, Torques};
 use std::f64::consts::PI;
 use std::time::Duration;
-use structopt::StructOpt;
 
 /// An example indicating the network performance.
 ///
 /// WARNING: Before executing this example, make sure there is enough space in front of the robot.
-#[derive(StructOpt, Debug)]
-#[structopt(name = "communication_test")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "communication_test")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
-    #[structopt()]
     pub franka_ip: String,
 }
 
 fn main() -> FrankaResult<()> {
-    let args = CommandLineArguments::from_args();
+    let args = CommandLineArguments::parse();
     let mut robot = Robot::new(args.franka_ip.as_str(), None, None)?;
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 

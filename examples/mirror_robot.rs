@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+use clap::Parser;
 use core::f64::consts::PI;
 use franka::exception::FrankaResult;
 use franka::model::Frame;
@@ -11,27 +12,26 @@ use franka::RobotState;
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 use std::sync::mpsc::channel;
 use std::time::Duration;
-use structopt::StructOpt;
 
 /// An example where one robot is guided by the user and the other robot acts as a mirror. In this
 /// case mirror does not mean equal joint positions. Instead, it acts like a real physical mirror that
 /// stands in front of the robot (mirrored cartesian poses). Hand guide the end-effector of the user robot
 /// and see how the other robot mirrors this pose.
 /// WARNING: Before executing this example, make sure there is enough space in between the robots.
-#[derive(StructOpt, Debug)]
-#[structopt(name = "mirror_robot")]
+#[derive(Parser, Debug)]
+#[clap(author, version, name = "mirror_robot")]
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot which the user can hand guide
-    #[structopt(long)]
+    #[clap(long)]
     pub franka_ip_user: String,
     /// IP-Address or hostname of the robot which mirrors the movement
-    #[structopt(long)]
+    #[clap(long)]
     pub franka_ip_mirror: String,
 }
 
 const NULLSPACE_TORQUE_SCALING: f64 = 5.;
 fn main() -> FrankaResult<()> {
-    let args = CommandLineArguments::from_args();
+    let args = CommandLineArguments::parse();
     let translational_stiffness = 400.;
     let rotational_stiffness = 50.;
 
