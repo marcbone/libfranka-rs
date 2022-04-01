@@ -1088,13 +1088,12 @@ mod tests {
 
     use crate::exception::FrankaException;
     use crate::network::MessageCommand;
-    use crate::robot::robot_impl::VERSION;
     use crate::robot::service_types::{
         ConnectRequestWithHeader, ConnectResponse, ConnectStatus, GetterSetterStatus,
         MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode, MoveRequest,
         MoveRequestWithHeader, MoveResponse, MoveStatus, RobotCommandEnum, RobotCommandHeader,
         SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
-        SetCollisionBehaviorResponse, COMMAND_PORT,
+        SetCollisionBehaviorResponse, COMMAND_PORT, VERSION,
     };
     use crate::robot::types::RobotStateIntern;
     use crate::{FrankaResult, JointPositions, MotionFinished, RealtimeConfig, Robot, RobotState};

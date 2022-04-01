@@ -16,6 +16,7 @@ use crate::robot::service_types::{
     ConnectRequest, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, MoveControllerMode,
     MoveDeviation, MoveMotionGeneratorMode, MoveRequest, MoveRequestWithHeader, MoveResponse,
     MoveStatus, RobotCommandEnum, StopMoveRequestWithHeader, StopMoveResponse, StopMoveStatus,
+    VERSION,
 };
 use crate::robot::types::{
     ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode, RobotCommand,
@@ -23,8 +24,6 @@ use crate::robot::types::{
 };
 use std::fs::remove_file;
 use std::path::Path;
-
-pub const VERSION: u16 = 4;
 
 pub struct RobotImpl {
     pub network: Network,
