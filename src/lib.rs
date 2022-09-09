@@ -23,9 +23,9 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, PandaState, Panda, FrankaResult};
 //! fn main() -> FrankaResult<()> {
-//! let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! let mut robot = Panda::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
 //!     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
 //!                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -35,7 +35,7 @@
 //!     robot.joint_motion(0.5, &q_goal)?;
 //!     let mut initial_position = JointPositions::new([0.0; 7]);
 //!     let mut time = 0.;
-//!     let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
+//!     let callback = |state: &PandaState, time_step: &Duration| -> JointPositions {
 //!         time += time_step.as_secs_f64();
 //!         if time == 0. {
 //!             initial_position.q = state.q_d;
@@ -57,10 +57,10 @@
 //! The main function returns a FrankaResult<()> which means that it returns either Ok(())
 //! or an Error of type FrankaException which correspond to the C++ exceptions in libfranka.
 //!
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, PandaState, Panda, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! let mut robot = Robot::new("robotik-bs.de", None, None)?;
 //! # Ok(())
@@ -77,10 +77,10 @@
 //! ```
 //! this specifies the default collision behavior, joint impedance and Cartesian impedance
 //!
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, PandaState, Robot, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
@@ -179,6 +179,6 @@ pub use model::Model;
 pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
-pub use robot::robot_state::RobotState;
-pub use robot::Robot;
+pub use robot::robot_state::PandaState;
+pub use robot::Panda;
 pub use utils::*;

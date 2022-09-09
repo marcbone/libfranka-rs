@@ -12,17 +12,17 @@ use crate::robot::low_pass_filter::{low_pass_filter, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, MAX_TORQUE_RATE};
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::PandaState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
-type ControlCallback<'b> = &'b mut dyn FnMut(&RobotState, &Duration) -> Torques;
+type ControlCallback<'b> = &'b mut dyn FnMut(&PandaState, &Duration) -> Torques;
 pub struct ControlLoop<
     'a,
     'b,
     T: RobotControl,
     U: Finishable + Debug + MotionGeneratorTrait,
-    F: FnMut(&RobotState, &Duration) -> U,
+    F: FnMut(&PandaState, &Duration) -> U,
 > {
     pub default_deviation: MoveDeviation,
     robot: &'a mut T,
@@ -38,7 +38,7 @@ impl<
         'b,
         T: RobotControl,
         U: Finishable + Debug + MotionGeneratorTrait,
-        F: FnMut(&RobotState, &Duration) -> U,
+        F: FnMut(&PandaState, &Duration) -> U,
     > ControlLoop<'a, 'b, T, U, F>
 {
     pub fn new(
@@ -177,7 +177,7 @@ impl<
 
     fn spin_control(
         &mut self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         time_step: &Duration,
         command: &mut ControllerCommand,
     ) -> bool {
@@ -206,7 +206,7 @@ impl<
     }
     fn spin_motion(
         &mut self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         time_step: &Duration,
         command: &mut MotionGeneratorCommand,
     ) -> bool {

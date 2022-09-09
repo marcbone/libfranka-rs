@@ -400,12 +400,12 @@ fn deserialize<T: Debug + DeserializeOwned + 'static>(encoded: &[u8]) -> T {
 #[cfg(test)]
 mod tests {
     use crate::network::{deserialize, serialize};
-    use crate::robot::types::RobotStateIntern;
+    use crate::robot::types::PandaStateIntern;
 
     #[test]
     fn can_serialize_and_deserialize() {
-        let state = RobotStateIntern::dummy();
-        let state2: RobotStateIntern = deserialize(&serialize(&state));
+        let state = PandaStateIntern::dummy();
+        let state2: PandaStateIntern = deserialize(&serialize(&state));
         assert_eq!(state, state2);
     }
 }

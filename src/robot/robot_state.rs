@@ -5,13 +5,13 @@
 use std::time::Duration;
 
 use crate::robot::errors::{FrankaErrorKind, FrankaErrors};
-use crate::robot::types::{RobotMode, RobotStateIntern};
+use crate::robot::types::{RobotMode, PandaStateIntern};
 use nalgebra::{Matrix3, Vector3};
 
 /// Describes the robot state.
 #[derive(Debug, Clone, Default)]
 #[allow(non_snake_case)]
-pub struct RobotState {
+pub struct PandaState {
     /// ![^{O}T_{EE}](https://latex.codecogs.com/png.latex?^{O}T_{EE})
     ///
     /// Measured end effector pose in base frame.
@@ -254,9 +254,9 @@ pub struct RobotState {
     /// instead
     pub time: Duration,
 }
-impl From<RobotStateIntern> for RobotState {
+impl From<PandaStateIntern> for PandaState {
     #[allow(non_snake_case)]
-    fn from(robot_state: RobotStateIntern) -> Self {
+    fn from(robot_state: PandaStateIntern) -> Self {
         let O_T_EE = robot_state.O_T_EE;
         let O_T_EE_d = robot_state.O_T_EE_d;
         let F_T_NE = robot_state.F_T_NE;
@@ -319,7 +319,7 @@ impl From<RobotStateIntern> for RobotState {
         let current_errors = FrankaErrors::new(robot_state.errors, FrankaErrorKind::Error);
         let last_motion_errors =
             FrankaErrors::new(robot_state.errors, FrankaErrorKind::ReflexReason);
-        RobotState {
+        PandaState {
             O_T_EE,
             O_T_EE_d,
             F_T_EE,

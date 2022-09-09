@@ -46,7 +46,7 @@ impl Default for RobotMode {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 #[allow(non_snake_case)]
 #[repr(packed)]
-pub struct RobotStateIntern {
+pub struct PandaStateIntern {
     pub message_id: u64,
     pub O_T_EE: [f64; 16],
     pub O_T_EE_d: [f64; 16],
@@ -96,9 +96,9 @@ pub struct RobotStateIntern {
     pub control_command_success_rate: f64,
 }
 
-impl RobotStateIntern {
+impl PandaStateIntern {
     pub fn dummy() -> Self {
-        RobotStateIntern {
+        PandaStateIntern {
             message_id: 0,
             O_T_EE: [0.; 16],
             O_T_EE_d: [0.; 16],

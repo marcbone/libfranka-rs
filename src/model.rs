@@ -5,7 +5,7 @@
 use nalgebra::Matrix4;
 
 use crate::model::model_library::ModelLibrary;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::PandaState;
 use crate::FrankaResult;
 use std::fmt;
 use std::path::Path;
@@ -155,7 +155,7 @@ impl Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
-    pub fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16] {
+    pub fn pose_from_state(&self, frame: &Frame, robot_state: &PandaState) -> [f64; 16] {
         self.pose(
             frame,
             &robot_state.q,
@@ -213,7 +213,7 @@ impl Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    pub fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
+    pub fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &PandaState) -> [f64; 42] {
         self.body_jacobian(
             frame,
             &robot_state.q,
@@ -270,7 +270,7 @@ impl Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    pub fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
+    pub fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &PandaState) -> [f64; 42] {
         self.zero_jacobian(
             frame,
             &robot_state.q,
@@ -304,7 +304,7 @@ impl Model {
     /// * `robot_state` - State from which the mass matrix should be calculated.
     /// # Return
     /// Vectorized 7x7 mass matrix, column-major.
-    pub fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49] {
+    pub fn mass_from_state(&self, robot_state: &PandaState) -> [f64; 49] {
         self.mass(
             &robot_state.q,
             &robot_state.I_total,
@@ -343,7 +343,7 @@ impl Model {
     /// * `robot_state` - State from which the Coriolis force vector should be calculated.
     /// # Return
     /// Coriolis force vector.
-    pub fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7] {
+    pub fn coriolis_from_state(&self, robot_state: &PandaState) -> [f64; 7] {
         self.coriolis(
             &robot_state.q,
             &robot_state.dq,
@@ -383,7 +383,7 @@ impl Model {
     /// Gravity vector.
     pub fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         gravity_earth: Grav,
     ) -> [f64; 7] {
         self.gravity(

@@ -5,7 +5,7 @@
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, JointPositions, JointVelocities, Torques,
 };
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::PandaState;
 use crate::robot::types::RobotCommand;
 use std::collections::VecDeque;
 
@@ -34,7 +34,7 @@ pub struct RobotCommandLog {
 #[derive(Debug, Clone)]
 pub struct Record {
     /// Robot state of timestamp n+1.
-    pub state: RobotState,
+    pub state: PandaState,
     /// Robot command of timestamp n, after rate limiting (if activated).
     pub command: RobotCommandLog,
 }
@@ -47,7 +47,7 @@ impl Record {
 }
 
 pub(crate) struct Logger {
-    states: VecDeque<RobotState>,
+    states: VecDeque<PandaState>,
     commands: VecDeque<RobotCommand>,
     ring_front: usize,
     ring_size: usize,
@@ -64,7 +64,7 @@ impl Logger {
             log_size,
         }
     }
-    pub fn log(&mut self, state: &RobotState, command: &RobotCommand) {
+    pub fn log(&mut self, state: &PandaState, command: &RobotCommand) {
         self.states.push_back(state.clone());
         self.commands.push_back(*command);
         self.ring_front = (self.ring_front + 1) % self.log_size;

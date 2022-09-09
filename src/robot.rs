@@ -18,7 +18,7 @@ use crate::robot::control_types::{
 use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_impl::RobotImpl;
+use crate::robot::robot_impl::{RobotImpl, RobotImplementation};
 use crate::robot::service_types::{
     AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
     AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
@@ -34,7 +34,7 @@ use crate::robot::service_types::{
 };
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
-use robot_state::RobotState;
+use robot_state::PandaState;
 
 mod control_loop;
 mod control_tools;
@@ -51,6 +51,24 @@ pub mod robot_state;
 pub(crate) mod service_types;
 pub(crate) mod types;
 pub mod virtual_wall_cuboid;
+
+pub trait Robot {
+    type State:Debug;
+    type Rob:RobotImplementation<State=Self::State>;
+    fn get_rob(&mut self) -> &mut Self::Rob;
+    fn read<F: FnMut(&Self::State) -> bool>(&mut self,
+    mut read_callback: F,
+    ) -> FrankaResult<()> {
+        loop {
+
+            let state = self.get_rob().update2(None, None)?;
+            if !read_callback(&state) {
+            break;
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Maintains a network connection to the robot, provides the current robot state, gives access to
 /// the model library and allows to control the robot.
@@ -87,12 +105,12 @@ pub mod virtual_wall_cuboid;
 /// The following incomplete example shows the general structure of a callback function:
 ///
 /// ```no_run
-/// use franka::robot::robot_state::RobotState;
+/// use franka::robot::robot_state::PandaState;
 /// use franka::robot::control_types::{JointPositions, MotionFinished};
 /// use std::time::Duration;
 /// # fn your_function_which_generates_joint_positions(time:f64) -> JointPositions {JointPositions::new([0.;7])}
 /// let mut time = 0.;
-/// let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
+/// let callback = |state: &PandaState, time_step: &Duration| -> JointPositions {
 ///     time += time_step.as_secs_f64();
 ///     let out: JointPositions = your_function_which_generates_joint_positions(time);
 ///     if time >= 5.0 {
@@ -105,11 +123,19 @@ pub mod virtual_wall_cuboid;
 ///
 /// Commands are executed by communicating with the robot over the network.
 /// These functions should therefore not be called from within control or motion generator loops.
-pub struct Robot {
+pub struct Panda {
     robimpl: RobotImpl,
 }
 
-impl Robot {
+impl Robot for Panda {
+    type State = PandaState;
+    type Rob = RobotImpl;
+    fn get_rob(&mut self) ->&mut Self::Rob {
+        &mut self.robimpl
+    }
+}
+
+impl Panda {
     /// Establishes a connection with the robot.
     ///
     /// # Arguments
@@ -120,12 +146,12 @@ impl Robot {
     /// The log is provided when a [`ControlException`](`crate::exception::FrankaException::ControlException`) is thrown.
     /// # Example
     /// ```no_run
-    /// use franka::{FrankaResult, RealtimeConfig, Robot};
+    /// use franka::{FrankaResult, RealtimeConfig, Panda};
     /// fn main() -> FrankaResult<()> {
     ///     // connects to the robot using real-time scheduling and a default log size of 50.
-    ///     let mut robot = Robot::new("robotik-bs.de", None, None)?;
+    ///     let mut robot = Panda::new("robotik-bs.de", None, None)?;
     ///     // connects to the robot without using real-time scheduling and a log size of 1.
-    ///     let mut robot = Robot::new("robotik-bs.de", RealtimeConfig::Ignore, 1)?;
+    ///     let mut robot = Panda::new("robotik-bs.de", RealtimeConfig::Ignore, 1)?;
     ///     Ok(())
     /// }
     /// ```
@@ -136,7 +162,7 @@ impl Robot {
         franka_address: &str,
         realtime_config: RtConfig,
         log_size: LogSize,
-    ) -> FrankaResult<Robot> {
+    ) -> FrankaResult<Panda> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
         let network = Network::new(
@@ -147,7 +173,7 @@ impl Robot {
         .map_err(|_| FrankaException::NetworkException {
             message: "Connection could not be established".to_string(),
         })?;
-        Ok(Robot {
+        Ok(Panda {
             robimpl: RobotImpl::new(network, log_size, realtime_config)?,
         })
     }
@@ -157,11 +183,11 @@ impl Robot {
     ///
     /// This minimal example will print the robot state 100 times:
     /// ```no_run
-    /// use franka::{Robot, RobotState, FrankaResult};
+    /// use franka::{Panda, PandaState, FrankaResult};
     /// fn main() -> FrankaResult<()> {
-    ///     let mut robot = Robot::new("robotik-bs.de",None,None)?;
+    ///     let mut robot = Panda::new("robotik-bs.de",None,None)?;
     ///     let mut count = 0;
-    ///     robot.read(| robot_state:&RobotState | -> bool {
+    ///     robot.read(| robot_state:&PandaState | -> bool {
     ///         println!("{:?}", robot_state);
     ///         count += 1;
     ///         count <= 100
@@ -173,18 +199,18 @@ impl Robot {
     /// as it wants to receive further robot states.
     /// # Error
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn read<F: FnMut(&RobotState) -> bool>(
-        &mut self,
-        mut read_callback: F,
-    ) -> FrankaResult<()> {
-        loop {
-            let state = self.robimpl.update(None, None)?;
-            if !read_callback(&state) {
-                break;
-            }
-        }
-        Ok(())
-    }
+    // pub fn read<F: FnMut(&PandaState) -> bool>(
+    //     &mut self,
+    //     mut read_callback: F,
+    // ) -> FrankaResult<()> {
+    //     loop {
+    //         let state = self.robimpl.update(None, None)?;
+    //         if !read_callback(&state) {
+    //             break;
+    //         }
+    //     }
+    //     Ok(())
+    // }
     /// Waits for a robot state update and returns it.
     ///
     /// # Return
@@ -193,7 +219,7 @@ impl Robot {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     ///
     /// See [`Robot::read`](`Self::read`) for a way to repeatedly receive the robot state.
-    pub fn read_once(&mut self) -> FrankaResult<RobotState> {
+    pub fn read_once(&mut self) -> FrankaResult<PandaState> {
         self.robimpl.read_once()
     }
 
@@ -611,7 +637,7 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_joint_positions<
-        F: FnMut(&RobotState, &Duration) -> JointPositions,
+        F: FnMut(&PandaState, &Duration) -> JointPositions,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -653,7 +679,7 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_joint_velocities<
-        F: FnMut(&RobotState, &Duration) -> JointVelocities,
+        F: FnMut(&PandaState, &Duration) -> JointVelocities,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -696,7 +722,7 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_cartesian_pose<
-        F: FnMut(&RobotState, &Duration) -> CartesianPose,
+        F: FnMut(&PandaState, &Duration) -> CartesianPose,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -739,7 +765,7 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_cartesian_velocities<
-        F: FnMut(&RobotState, &Duration) -> CartesianVelocities,
+        F: FnMut(&PandaState, &Duration) -> CartesianVelocities,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -782,8 +808,8 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_torques_and_joint_velocities<
-        F: FnMut(&RobotState, &Duration) -> JointVelocities,
-        T: FnMut(&RobotState, &Duration) -> Torques,
+        F: FnMut(&PandaState, &Duration) -> JointVelocities,
+        T: FnMut(&PandaState, &Duration) -> Torques,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
@@ -825,8 +851,8 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_torques_and_joint_positions<
-        F: FnMut(&RobotState, &Duration) -> JointPositions,
-        T: FnMut(&RobotState, &Duration) -> Torques,
+        F: FnMut(&PandaState, &Duration) -> JointPositions,
+        T: FnMut(&PandaState, &Duration) -> Torques,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
@@ -869,8 +895,8 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_torques_and_cartesian_pose<
-        F: FnMut(&RobotState, &Duration) -> CartesianPose,
-        T: FnMut(&RobotState, &Duration) -> Torques,
+        F: FnMut(&PandaState, &Duration) -> CartesianPose,
+        T: FnMut(&PandaState, &Duration) -> Torques,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
@@ -913,8 +939,8 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     pub fn control_torques_and_cartesian_velocities<
-        F: FnMut(&RobotState, &Duration) -> CartesianVelocities,
-        T: FnMut(&RobotState, &Duration) -> Torques,
+        F: FnMut(&PandaState, &Duration) -> CartesianVelocities,
+        T: FnMut(&PandaState, &Duration) -> Torques,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
@@ -958,7 +984,7 @@ impl Robot {
     ///
     /// See [`new`](`Self::new`) to change behavior if real-time priority cannot be set.
     pub fn control_torques<
-        T: FnMut(&RobotState, &Duration) -> Torques,
+        T: FnMut(&PandaState, &Duration) -> Torques,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
@@ -968,7 +994,7 @@ impl Robot {
         cutoff_frequency: CF,
     ) -> FrankaResult<()> {
         let motion_generator_callback =
-            |_state: &RobotState, _time_step: &Duration| JointVelocities::new([0.; 7]);
+            |_state: &PandaState, _time_step: &Duration| JointVelocities::new([0.; 7]);
         self.control_torques_intern(
             &motion_generator_callback,
             &mut control_callback,
@@ -977,12 +1003,12 @@ impl Robot {
         )
     }
     fn control_torques_intern<
-        F: FnMut(&RobotState, &Duration) -> U,
+        F: FnMut(&PandaState, &Duration) -> U,
         U: Finishable + Debug + MotionGeneratorTrait,
     >(
         &mut self,
         motion_generator_callback: F,
-        control_callback: &mut dyn FnMut(&RobotState, &Duration) -> Torques,
+        control_callback: &mut dyn FnMut(&PandaState, &Duration) -> Torques,
         limit_rate: Option<bool>,
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
@@ -998,7 +1024,7 @@ impl Robot {
         control_loop.run()
     }
     fn control_motion_intern<
-        F: FnMut(&RobotState, &Duration) -> U,
+        F: FnMut(&PandaState, &Duration) -> U,
         U: Finishable + Debug + MotionGeneratorTrait,
     >(
         &mut self,
@@ -1095,8 +1121,8 @@ mod tests {
         SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
         SetCollisionBehaviorResponse, COMMAND_PORT, VERSION,
     };
-    use crate::robot::types::RobotStateIntern;
-    use crate::{FrankaResult, JointPositions, MotionFinished, RealtimeConfig, Robot, RobotState};
+    use crate::robot::types::PandaStateIntern;
+    use crate::{FrankaResult, JointPositions, MotionFinished, RealtimeConfig, Panda, PandaState};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
     use std::mem::size_of;
@@ -1196,7 +1222,7 @@ mod tests {
                 let mut counter = 1;
                 let start = Instant::now();
                 while (Instant::now() - start).as_secs_f64() < 0.1 {
-                    let mut state = RobotStateIntern::dummy();
+                    let mut state = PandaStateIntern::dummy();
                     state.message_id = counter;
                     let bytes = serialize(&state).unwrap();
                     counter += 1;
@@ -1341,7 +1367,7 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Robot::new("127.0.0.1", None, None).expect("robot failure");
+            let mut robot = Panda::new("127.0.0.1", None, None).expect("robot failure");
             assert_eq!(robot.server_version(), VERSION);
             for (a, b, c, d, e, f, g, h) in collision_behavior_request_values.iter() {
                 robot
@@ -1412,7 +1438,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut robot =
-                Robot::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
+                Panda::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
             let mut counter = 0;
             let result = robot.control_joint_positions(
                 |_, _| {
@@ -1448,7 +1474,7 @@ mod tests {
             robot_server.server_thread(&mut mock);
         });
         std::thread::sleep(Duration::from_secs_f64(0.01));
-        let robot_result = Robot::new("127.0.0.1", None, None);
+        let robot_result = Panda::new("127.0.0.1", None, None);
 
         thread.join().unwrap();
         match robot_result {
@@ -1477,7 +1503,7 @@ mod tests {
 
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Robot::new("127.0.0.1", None, None)?;
+            let mut robot = Panda::new("127.0.0.1", None, None)?;
             let _state = robot.read_once().unwrap();
         }
         thread.join().unwrap();
@@ -1496,12 +1522,12 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Robot::new("127.0.0.1", None, None)?;
+            let mut robot = Panda::new("127.0.0.1", None, None)?;
             let mut counter = 0;
             let mut first_time = true;
             let mut start_counter = 0;
             robot
-                .read(|state: &RobotState| {
+                .read(|state: &PandaState| {
                     if first_time {
                         first_time = false;
                         counter = state.time.as_millis();

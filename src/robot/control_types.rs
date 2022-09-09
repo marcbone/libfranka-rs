@@ -18,7 +18,7 @@ use crate::robot::rate_limiting::{
     MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
     MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
 };
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::PandaState;
 use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;
@@ -49,7 +49,7 @@ pub trait Finishable {
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -107,7 +107,7 @@ impl Finishable for Torques {
     //todo pull  convert motion out of the Finishable trait
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -153,7 +153,7 @@ impl Finishable for JointPositions {
 
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -227,7 +227,7 @@ impl Finishable for JointVelocities {
 
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -340,7 +340,7 @@ impl Finishable for CartesianPose {
 
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -461,7 +461,7 @@ impl Finishable for CartesianVelocities {
 
     fn convert_motion(
         &self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,

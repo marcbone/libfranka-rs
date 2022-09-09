@@ -4,7 +4,7 @@
 use clap::Parser;
 use franka::FrankaResult;
 use franka::Robot;
-use franka::RobotState;
+use franka::PandaState;
 use franka::{JointVelocities, MotionFinished};
 use std::f64::consts::PI;
 use std::time::Duration;
@@ -46,7 +46,7 @@ fn main() -> FrankaResult<()> {
     let mut time = 0.;
     let omega_max = 1.0;
     let time_max = 1.0;
-    let callback = move |_state: &RobotState, time_step: &Duration| -> JointVelocities {
+    let callback = move |_state: &PandaState, time_step: &Duration| -> JointVelocities {
         time += time_step.as_secs_f64();
 
         let cycle = f64::floor(f64::powf(

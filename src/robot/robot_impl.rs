@@ -11,7 +11,7 @@ use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::{Logger, Record};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::PandaState;
 use crate::robot::service_types::{
     ConnectRequest, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, MoveControllerMode,
     MoveDeviation, MoveMotionGeneratorMode, MoveRequest, MoveRequestWithHeader, MoveResponse,
@@ -20,10 +20,32 @@ use crate::robot::service_types::{
 };
 use crate::robot::types::{
     ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode, RobotCommand,
-    RobotMode, RobotStateIntern,
+    RobotMode, PandaStateIntern,
 };
 use std::fs::remove_file;
 use std::path::Path;
+
+pub trait RobotImplementation {
+    type State;
+    fn update2(
+        &mut self,
+        motion_command: Option<&MotionGeneratorCommand>,
+        control_command: Option<&ControllerCommand>,
+    ) -> FrankaResult<Self::State>;
+}
+
+impl RobotImplementation for RobotImpl{
+    type State = PandaState;
+
+    fn update2(&mut self, motion_command: Option<&MotionGeneratorCommand>, control_command: Option<&ControllerCommand>) -> FrankaResult<Self::State> {
+        let robot_command = self.send_robot_command(motion_command, control_command)?;
+        let state = PandaState::from(self.receive_robot_state()?);
+        if let Some(command) = robot_command {
+            self.logger.log(&state, &command);
+        }
+        Ok(state)
+    }
+}
 
 pub struct RobotImpl {
     pub network: Network,
@@ -112,7 +134,7 @@ impl RobotImpl {
         robot_impl.connect_robot()?;
         let state = robot_impl
             .network
-            .udp_blocking_receive::<RobotStateIntern>()
+            .udp_blocking_receive::<PandaStateIntern>()
             .unwrap();
         robot_impl.update_state_with(&state);
         Ok(robot_impl)
@@ -139,18 +161,18 @@ impl RobotImpl {
             }),
         }
     }
-    fn update_state_with(&mut self, robot_state: &RobotStateIntern) {
+    fn update_state_with(&mut self, robot_state: &PandaStateIntern) {
         self.motion_generator_mode = Some(robot_state.motion_generator_mode);
         self.controller_mode = robot_state.controller_mode;
         self.message_id = robot_state.message_id;
     }
-    pub fn read_once(&mut self) -> FrankaResult<RobotState> {
-        while self.network.udp_receive::<RobotStateIntern>().is_some() {}
-        Ok(RobotState::from(self.receive_robot_state()?))
+    pub fn read_once(&mut self) -> FrankaResult<PandaState> {
+        while self.network.udp_receive::<PandaStateIntern>().is_some() {}
+        Ok(PandaState::from(self.receive_robot_state()?))
     }
-    fn receive_robot_state(&mut self) -> FrankaResult<RobotStateIntern> {
-        let mut latest_accepted_state: Option<RobotStateIntern> = None;
-        let mut received_state = self.network.udp_receive::<RobotStateIntern>();
+    fn receive_robot_state(&mut self) -> FrankaResult<PandaStateIntern> {
+        let mut latest_accepted_state: Option<PandaStateIntern> = None;
+        let mut received_state = self.network.udp_receive::<PandaStateIntern>();
         while received_state.is_some() {
             if received_state.unwrap().message_id
                 > match latest_accepted_state {
@@ -160,7 +182,7 @@ impl RobotImpl {
             {
                 latest_accepted_state = Some(received_state.unwrap());
             }
-            received_state = self.network.udp_receive::<RobotStateIntern>();
+            received_state = self.network.udp_receive::<PandaStateIntern>();
         }
         while latest_accepted_state.is_none() {
             received_state = Some(self.network.udp_blocking_receive()?);
@@ -417,9 +439,9 @@ impl RobotControl for RobotImpl {
         &mut self,
         motion_command: Option<&MotionGeneratorCommand>,
         control_command: Option<&ControllerCommand>,
-    ) -> FrankaResult<RobotState> {
+    ) -> FrankaResult<PandaState> {
         let robot_command = self.send_robot_command(motion_command, control_command)?;
-        let state = RobotState::from(self.receive_robot_state()?);
+        let state = PandaState::from(self.receive_robot_state()?);
         if let Some(command) = robot_command {
             self.logger.log(&state, &command);
         }
@@ -432,7 +454,7 @@ impl RobotControl for RobotImpl {
 
     fn throw_on_motion_error(
         &mut self,
-        robot_state: &RobotState,
+        robot_state: &PandaState,
         motion_id: u32,
     ) -> FrankaResult<()> {
         if robot_state.robot_mode != RobotMode::Move

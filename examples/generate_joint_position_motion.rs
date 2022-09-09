@@ -2,7 +2,7 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::{FrankaResult, JointPositions, MotionFinished, Robot, RobotState};
+use franka::{FrankaResult, JointPositions, MotionFinished, Robot, PandaState};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -42,7 +42,7 @@ fn main() -> FrankaResult<()> {
     println!("Finished moving to initial joint configuration.");
     let mut initial_position = JointPositions::new([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     let mut time = 0.;
-    let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
+    let callback = |state: &PandaState, time_step: &Duration| -> JointPositions {
         time += time_step.as_secs_f64();
         if time == 0. {
             initial_position.q = state.q_d;
