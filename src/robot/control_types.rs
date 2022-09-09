@@ -18,11 +18,12 @@ use crate::robot::rate_limiting::{
     MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
     MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
 };
-use crate::robot::robot_state::PandaState;
+use crate::robot::robot_state::{FR3State, PandaState, RobotState};
 use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;
 use nalgebra::{Isometry3, Vector6};
+use crate::robot::robot_impl::RobotImplFR3;
 
 /// Available controller modes for a [`Robot`](`crate::Robot`)
 pub enum ControllerMode {
@@ -41,33 +42,65 @@ pub enum RealtimeConfig {
 /// Helper type for control and motion generation loops.
 ///
 /// Used to determine whether to terminate a loop after the control callback has returned.
-pub trait Finishable {
-    /// Determines whether to finish a currently running motion.
-    fn is_finished(&self) -> bool;
-    /// Sets the attribute which decide if the currently running motion should be finished
-    fn set_motion_finished(&mut self, finished: bool);
+pub trait ConvertMotion<State3: RobotState> {
+
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &State3,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
     );
 }
 
-/// A trait for a Finshable control type to finish the motion
-pub trait MotionFinished {
-    /// Helper method to indicate that a motion should stop after processing the given command.
+pub trait Finishable {
+    /// Determines whether to finish a currently running motion.
+    fn is_finished(&self) -> bool;
+    /// Sets the attribute which decide if the currently running motion should be finished
+    fn set_motion_finished(&mut self, finished: bool);
     fn motion_finished(self) -> Self;
 }
 
-impl<T: Finishable + Copy> MotionFinished for T {
-    fn motion_finished(mut self) -> Self {
-        self.set_motion_finished(true);
-        self
-    }
-}
+// /// A trait for a Finshable control type to finish the motion
+// pub trait MotionFinished : Finishable<T> {
+//     /// Helper method to indicate that a motion should stop after processing the given command.
+//     fn motion_finished(self) -> Self;
+// }
+//
+// // impl<T: Finishable<PandaState> + Copy> MotionFinished for T {
+// //     type State4 = PandaState ;
+// //
+// //     fn motion_finished(mut self) -> Self {
+// //         self.set_motion_finished(true);
+// //         self
+// //     }
+// // }
+//
+// impl<T: Finishable<PandaState> + Copy> MotionFinished for T {
+//
+//     fn motion_finished(mut self) -> Self {
+//         self.set_motion_finished(true);
+//         self
+//     }
+// }
+//
+// impl<T: Finishable<FR3State> + Copy> MotionFinished for T {
+//
+//     fn motion_finished(mut self) -> Self {
+//         self.set_motion_finished(true);
+//         self
+//     }
+// }
+
+// impl<T: Finishable<X> + Copy,X> MotionFinished for T {
+//     type State4 = FR3State ;
+//
+//     fn motion_finished(mut self) -> Self {
+//         self.set_motion_finished(true);
+//         self
+//     }
+// }
 
 /// Stores joint-level torque commands without gravity and friction.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -96,18 +129,27 @@ impl Torques {
     }
 }
 
-impl Finishable for Torques {
+impl Finishable for Torques{
     fn is_finished(&self) -> bool {
         self.motion_finished
     }
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+    fn motion_finished(mut self) -> Self {
+        self.set_motion_finished(true);
+        self
+    }
+}
+
+impl<Statee:RobotState> ConvertMotion<Statee> for Torques {
+
+
     #[allow(unused_variables)]
     //todo pull  convert motion out of the Finishable trait
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &Statee,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -115,6 +157,26 @@ impl Finishable for Torques {
         unimplemented!()
     }
 }
+// impl Finishable<FR3State> for Torques {
+//
+//     fn is_finished(&self) -> bool {
+//         self.motion_finished
+//     }
+//     fn set_motion_finished(&mut self, finished: bool) {
+//         self.motion_finished = finished;
+//     }
+//     #[allow(unused_variables)]
+//     //todo pull  convert motion out of the Finishable trait
+//     fn convert_motion(
+//         &self,
+//         robot_state: &Self::State3,
+//         command: &mut MotionGeneratorCommand,
+//         cutoff_frequency: f64,
+//         limit_rate: bool,
+//     ) {
+//         unimplemented!()
+//     }
+// }
 
 /// Stores values for joint position motion generation.
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -142,18 +204,55 @@ impl JointPositions {
         }
     }
 }
-
-impl Finishable for JointPositions {
+impl Finishable for JointPositions{
     fn is_finished(&self) -> bool {
         self.motion_finished
     }
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+    fn motion_finished(mut self) -> Self {
+        self.set_motion_finished(true);
+        self
+    }}
+impl ConvertMotion<PandaState> for JointPositions {
 
     fn convert_motion(
         &self,
         robot_state: &PandaState,
+        command: &mut MotionGeneratorCommand,
+        cutoff_frequency: f64,
+        limit_rate: bool,
+    ) {
+        command.q_c = self.q;
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+            for i in 0..7 {
+                command.q_c[i] = low_pass_filter(
+                    DELTA_T,
+                    command.q_c[i],
+                    robot_state.q_d[i],
+                    cutoff_frequency,
+                );
+            }
+        }
+        if limit_rate {
+            command.q_c = limit_rate_joint_positions(
+                &MAX_JOINT_VELOCITY,
+                &MAX_JOINT_ACCELERATION,
+                &MAX_JOINT_JERK,
+                &command.q_c,
+                &robot_state.q_d,
+                &robot_state.dq_d,
+                &robot_state.ddq_d,
+            );
+        }
+        command.q_c.iter().for_each(|x| assert!(x.is_finite()));
+    }
+}
+impl ConvertMotion<FR3State> for JointPositions {
+    fn convert_motion(
+        &self,
+        robot_state: &FR3State,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -216,18 +315,56 @@ impl JointVelocities {
         }
     }
 }
-
-impl Finishable for JointVelocities {
+impl Finishable for JointVelocities{
     fn is_finished(&self) -> bool {
         self.motion_finished
     }
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+    fn motion_finished(mut self) -> Self {
+        self.set_motion_finished(true);
+        self
+    }
+}
+impl ConvertMotion<PandaState> for JointVelocities {
 
     fn convert_motion(
         &self,
         robot_state: &PandaState,
+        command: &mut MotionGeneratorCommand,
+        cutoff_frequency: f64,
+        limit_rate: bool,
+    ) {
+        command.dq_c = self.dq;
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+            for i in 0..7 {
+                command.dq_c[i] = low_pass_filter(
+                    DELTA_T,
+                    command.dq_c[i],
+                    robot_state.dq_d[i],
+                    cutoff_frequency,
+                );
+            }
+        }
+        if limit_rate {
+            command.dq_c = limit_rate_joint_velocities(
+                &MAX_JOINT_VELOCITY,
+                &MAX_JOINT_ACCELERATION,
+                &MAX_JOINT_JERK,
+                &command.dq_c,
+                &robot_state.dq_d,
+                &robot_state.ddq_d,
+            );
+        }
+        command.dq_c.iter().for_each(|x| assert!(x.is_finite()));
+    }
+}
+
+impl ConvertMotion<FR3State> for JointVelocities {
+    fn convert_motion(
+        &self,
+        robot_state: &FR3State,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -330,17 +467,89 @@ impl CartesianPose {
     }
 }
 
-impl Finishable for CartesianPose {
+impl Finishable for CartesianPose{
     fn is_finished(&self) -> bool {
         self.motion_finished
     }
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+    fn motion_finished(mut self) -> Self {
+        self.set_motion_finished(true);
+        self
+    }
+}
+
+impl ConvertMotion<PandaState> for CartesianPose {
 
     fn convert_motion(
         &self,
         robot_state: &PandaState,
+        command: &mut MotionGeneratorCommand,
+        cutoff_frequency: f64,
+        limit_rate: bool,
+    ) {
+        command.O_T_EE_c = self.O_T_EE;
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+            command.O_T_EE_c = cartesian_low_pass_filter(
+                DELTA_T,
+                &command.O_T_EE_c,
+                &robot_state.O_T_EE_c,
+                cutoff_frequency,
+            );
+        }
+
+        if limit_rate {
+            command.O_T_EE_c = limit_rate_cartesian_pose(
+                MAX_TRANSLATIONAL_VELOCITY,
+                MAX_TRANSLATIONAL_ACCELERATION,
+                MAX_TRANSLATIONAL_JERK,
+                MAX_ROTATIONAL_VELOCITY,
+                MAX_ROTATIONAL_ACCELERATION,
+                MAX_ROTATIONAL_JERK,
+                &command.O_T_EE_c,
+                &robot_state.O_T_EE_c,
+                &robot_state.O_dP_EE_c,
+                &robot_state.O_ddP_EE_c,
+            );
+        }
+        check_matrix(&command.O_T_EE_c);
+
+        if self.has_elbow() {
+            command.valid_elbow = true;
+            command.elbow_c = self.elbow.unwrap();
+            if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+                command.elbow_c[0] = low_pass_filter(
+                    DELTA_T,
+                    command.elbow_c[0],
+                    robot_state.elbow_c[0],
+                    cutoff_frequency,
+                );
+            }
+            if limit_rate {
+                command.elbow_c[0] = limit_rate_position(
+                    MAX_ELBOW_VELOCITY,
+                    MAX_ELBOW_ACCELERATION,
+                    MAX_ELBOW_JERK,
+                    command.elbow_c[0],
+                    robot_state.elbow_c[0],
+                    robot_state.delbow_c[0],
+                    robot_state.ddelbow_c[0],
+                );
+            }
+            CartesianPose::check_elbow(&command.elbow_c);
+        } else {
+            command.valid_elbow = false;
+            command.elbow_c = [0.; 2];
+        }
+    }
+}
+
+impl ConvertMotion<FR3State> for CartesianPose {
+
+    fn convert_motion(
+        &self,
+        robot_state: &FR3State,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -450,18 +659,91 @@ impl CartesianVelocities {
         self.elbow.is_some()
     }
 }
-
-impl Finishable for CartesianVelocities {
+impl Finishable for CartesianVelocities{
     fn is_finished(&self) -> bool {
         self.motion_finished
     }
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+    fn motion_finished(mut self) -> Self {
+        self.set_motion_finished(true);
+        self
+    }
+}
+impl ConvertMotion<PandaState> for CartesianVelocities {
 
     fn convert_motion(
         &self,
         robot_state: &PandaState,
+        command: &mut MotionGeneratorCommand,
+        cutoff_frequency: f64,
+        limit_rate: bool,
+    ) {
+        command.O_dP_EE_c = self.O_dP_EE;
+        if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+            for i in 0..6 {
+                command.O_dP_EE_c[i] = low_pass_filter(
+                    DELTA_T,
+                    command.O_dP_EE_c[i],
+                    robot_state.O_dP_EE_c[i],
+                    cutoff_frequency,
+                );
+            }
+        }
+        if limit_rate {
+            command.O_dP_EE_c = limit_rate_cartesian_velocity(
+                MAX_TRANSLATIONAL_VELOCITY,
+                MAX_TRANSLATIONAL_ACCELERATION,
+                MAX_TRANSLATIONAL_JERK,
+                MAX_ROTATIONAL_VELOCITY,
+                MAX_ROTATIONAL_ACCELERATION,
+                MAX_ROTATIONAL_JERK,
+                &command.O_dP_EE_c,
+                &robot_state.O_dP_EE_c,
+                &robot_state.O_ddP_EE_c,
+            );
+        }
+        command
+            .O_dP_EE_c
+            .iter()
+            .for_each(|x| assert!(x.is_finite()));
+
+        if self.has_elbow() {
+            command.valid_elbow = true;
+            command.elbow_c = self.elbow.unwrap();
+            if cutoff_frequency < MAX_CUTOFF_FREQUENCY {
+                command.elbow_c[0] = low_pass_filter(
+                    DELTA_T,
+                    command.elbow_c[0],
+                    robot_state.elbow_c[0],
+                    cutoff_frequency,
+                );
+            }
+            if limit_rate {
+                command.elbow_c[0] = limit_rate_position(
+                    MAX_ELBOW_VELOCITY,
+                    MAX_ELBOW_ACCELERATION,
+                    MAX_ELBOW_JERK,
+                    command.elbow_c[0],
+                    robot_state.elbow_c[0],
+                    robot_state.delbow_c[0],
+                    robot_state.ddelbow_c[0],
+                );
+            }
+            CartesianPose::check_elbow(&command.elbow_c);
+        } else {
+            command.valid_elbow = false;
+            command.elbow_c = [0.; 2];
+        }
+    }
+}
+
+impl ConvertMotion<FR3State> for CartesianVelocities {
+
+    fn convert_motion(
+        &self,
+        robot_state: &FR3State,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,

@@ -12,13 +12,13 @@ use crate::model::Model;
 use crate::network::{Network, NetworkType};
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::control_types::{
-    CartesianPose, CartesianVelocities, ControllerMode, Finishable, JointPositions,
+    CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, JointPositions,
     JointVelocities, RealtimeConfig, Torques,
 };
 use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_impl::{RobotImpl, RobotImplementation};
+use crate::robot::robot_impl::{RobotImplPanda, RobotImplementation, RobotImplFR3};
 use crate::robot::service_types::{
     AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
     AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
@@ -35,6 +35,8 @@ use crate::robot::service_types::{
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
 use robot_state::PandaState;
+use crate::Finishable;
+use crate::robot::robot_state::{FR3State, RobotState};
 
 mod control_loop;
 mod control_tools;
@@ -52,11 +54,12 @@ pub(crate) mod service_types;
 pub(crate) mod types;
 pub mod virtual_wall_cuboid;
 
-pub trait Robot {
-    type State:Debug;
-    type Rob:RobotImplementation<State=Self::State>;
+pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
+    type State1:RobotState;
+    type Rob:RobotImplementation<State=Self::State1>;
     fn get_rob(&mut self) -> &mut Self::Rob;
-    fn read<F: FnMut(&Self::State) -> bool>(&mut self,
+    fn get_net(&mut self) -> &mut Network;
+    fn read<F: FnMut(&Self::State1) -> bool>(&mut self,
     mut read_callback: F,
     ) -> FrankaResult<()> {
         loop {
@@ -67,6 +70,119 @@ pub trait Robot {
             }
         }
         Ok(())
+    }
+    fn read_once(&mut self) -> FrankaResult<Self::State1> {
+        self.get_rob().read_once2()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn set_collision_behavior(
+        &mut self,
+        lower_torque_thresholds_acceleration: [f64; 7],
+        upper_torque_thresholds_acceleration: [f64; 7],
+        lower_torque_thresholds_nominal: [f64; 7],
+        upper_torque_thresholds_nominal: [f64; 7],
+        lower_force_thresholds_acceleration: [f64; 6],
+        upper_force_thresholds_acceleration: [f64; 6],
+        lower_force_thresholds_nominal: [f64; 6],
+        upper_force_thresholds_nominal: [f64; 6],
+    ) -> FrankaResult<()> {
+        let command = SetCollisionBehaviorRequestWithHeader {
+            header: self.get_net().create_header_for_robot(
+                RobotCommandEnum::SetCollisionBehavior,
+                size_of::<SetCollisionBehaviorRequestWithHeader>(),
+            ),
+            request: SetCollisionBehaviorRequest::new(
+                lower_torque_thresholds_acceleration,
+                upper_torque_thresholds_acceleration,
+                lower_torque_thresholds_nominal,
+                upper_torque_thresholds_nominal,
+                lower_force_thresholds_acceleration,
+                upper_force_thresholds_acceleration,
+                lower_force_thresholds_nominal,
+                upper_force_thresholds_nominal,
+            ),
+        };
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let response: SetCollisionBehaviorResponse = self
+            .get_net()
+            .tcp_blocking_receive_response(command_id);
+        handle_getter_setter_status(response.status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
+        let command = SetJointImpedanceRequestWithHeader {
+            header: self.get_net().create_header_for_robot(
+                RobotCommandEnum::SetJointImpedance,
+                size_of::<SetJointImpedanceRequestWithHeader>(),
+            ),
+            request: SetJointImpedanceRequest::new(K_theta),
+        };
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let response: SetJointImpedanceResponse = self
+            .get_net()
+            .tcp_blocking_receive_response(command_id);
+        handle_getter_setter_status(response.status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
+        let command = SetCartesianImpedanceRequestWithHeader {
+            header: self.get_net().create_header_for_robot(
+                RobotCommandEnum::SetCartesianImpedance,
+                size_of::<SetCartesianImpedanceRequestWithHeader>(),
+            ),
+            request: SetCartesianImpedanceRequest::new(K_x),
+        };
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let response: SetCartesianImpedanceResponse = self
+            .get_net()
+            .tcp_blocking_receive_response(command_id);
+        handle_getter_setter_status(response.status)
+    }
+
+    fn control_motion_intern<
+        F: FnMut(&Self::State1, &Duration) -> U,
+        U: ConvertMotion<Self::State1> + Debug + MotionGeneratorTrait + Finishable,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        controller_mode: Option<ControllerMode>,
+        limit_rate: Option<bool>,
+        cutoff_frequency: Option<f64>,
+    ) -> FrankaResult<()> {
+        let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
+        let limit_rate = limit_rate.unwrap_or(true);
+        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
+        let mut control_loop = ControlLoop::from_control_mode(
+             self.get_rob(),
+            controller_mode,
+            motion_generator_callback,
+            limit_rate,
+            cutoff_frequency,
+        )?;
+        control_loop.run()
+    }
+
+    fn control_cartesian_pose<
+        F: FnMut(&Self::State1, &Duration) -> CartesianPose,
+        CM: Into<Option<ControllerMode>>,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        controller_mode: CM,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_motion_intern(
+            motion_generator_callback,
+            controller_mode.into(),
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
     }
 }
 
@@ -124,14 +240,54 @@ pub trait Robot {
 /// Commands are executed by communicating with the robot over the network.
 /// These functions should therefore not be called from within control or motion generator loops.
 pub struct Panda {
-    robimpl: RobotImpl,
+    robimpl: RobotImplPanda,
 }
 
 impl Robot for Panda {
-    type State = PandaState;
-    type Rob = RobotImpl;
+    type State1 = PandaState;
+    type Rob = RobotImplPanda;
+    fn get_net(&mut self) -> &mut Network {
+        &mut self.robimpl.network
+    }
     fn get_rob(&mut self) ->&mut Self::Rob {
         &mut self.robimpl
+    }
+}
+
+pub struct FR3 {
+    robimpl: RobotImplFR3,
+}
+
+impl Robot for FR3 {
+    type State1 = FR3State;
+    type Rob = RobotImplFR3;
+    fn get_net(&mut self) -> &mut Network {
+        &mut self.robimpl.network
+    }
+    fn get_rob(&mut self) ->&mut Self::Rob {
+        &mut self.robimpl
+    }
+}
+
+impl FR3{
+    pub fn new<RtConfig: Into<Option<RealtimeConfig>>, LogSize: Into<Option<usize>>>(
+        franka_address: &str,
+        realtime_config: RtConfig,
+        log_size: LogSize,
+    ) -> FrankaResult<FR3> {
+        let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
+        let log_size = log_size.into().unwrap_or(50);
+        let network = Network::new(
+            NetworkType::Robot,
+            franka_address,
+            service_types::COMMAND_PORT,
+        )
+            .map_err(|_| FrankaException::NetworkException {
+                message: "Connection could not be established".to_string(),
+            })?;
+        Ok(FR3 {
+            robimpl: RobotImplFR3::new(network, log_size, realtime_config)?,
+        })
     }
 }
 
@@ -174,7 +330,7 @@ impl Panda {
             message: "Connection could not be established".to_string(),
         })?;
         Ok(Panda {
-            robimpl: RobotImpl::new(network, log_size, realtime_config)?,
+            robimpl: RobotImplPanda::new(network, log_size, realtime_config)?,
         })
     }
     /// Starts a loop for reading the current robot state.
@@ -219,9 +375,9 @@ impl Panda {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     ///
     /// See [`Robot::read`](`Self::read`) for a way to repeatedly receive the robot state.
-    pub fn read_once(&mut self) -> FrankaResult<PandaState> {
-        self.robimpl.read_once()
-    }
+    // pub fn read_once(&mut self) -> FrankaResult<PandaState> {
+    //     self.robimpl.read_once()
+    // }
 
     /// Changes the collision behavior.
     ///
@@ -254,41 +410,41 @@ impl Panda {
     /// * [`RobotState::joint_contact`](`crate::RobotState::joint_contact`)
     /// * [`RobotState::joint_collision`](`crate::RobotState::joint_collision`)
     /// * [`automatic_error_recovery`](`Self::automatic_error_recovery`) for performing a reset after a collision.
-    #[allow(clippy::too_many_arguments)]
-    pub fn set_collision_behavior(
-        &mut self,
-        lower_torque_thresholds_acceleration: [f64; 7],
-        upper_torque_thresholds_acceleration: [f64; 7],
-        lower_torque_thresholds_nominal: [f64; 7],
-        upper_torque_thresholds_nominal: [f64; 7],
-        lower_force_thresholds_acceleration: [f64; 6],
-        upper_force_thresholds_acceleration: [f64; 6],
-        lower_force_thresholds_nominal: [f64; 6],
-        upper_force_thresholds_nominal: [f64; 6],
-    ) -> FrankaResult<()> {
-        let command = SetCollisionBehaviorRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetCollisionBehavior,
-                size_of::<SetCollisionBehaviorRequestWithHeader>(),
-            ),
-            request: SetCollisionBehaviorRequest::new(
-                lower_torque_thresholds_acceleration,
-                upper_torque_thresholds_acceleration,
-                lower_torque_thresholds_nominal,
-                upper_torque_thresholds_nominal,
-                lower_force_thresholds_acceleration,
-                upper_force_thresholds_acceleration,
-                lower_force_thresholds_nominal,
-                upper_force_thresholds_nominal,
-            ),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetCollisionBehaviorResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
+    // #[allow(clippy::too_many_arguments)]
+    // pub fn set_collision_behavior(
+    //     &mut self,
+    //     lower_torque_thresholds_acceleration: [f64; 7],
+    //     upper_torque_thresholds_acceleration: [f64; 7],
+    //     lower_torque_thresholds_nominal: [f64; 7],
+    //     upper_torque_thresholds_nominal: [f64; 7],
+    //     lower_force_thresholds_acceleration: [f64; 6],
+    //     upper_force_thresholds_acceleration: [f64; 6],
+    //     lower_force_thresholds_nominal: [f64; 6],
+    //     upper_force_thresholds_nominal: [f64; 6],
+    // ) -> FrankaResult<()> {
+    //     let command = SetCollisionBehaviorRequestWithHeader {
+    //         header: self.robimpl.network.create_header_for_robot(
+    //             RobotCommandEnum::SetCollisionBehavior,
+    //             size_of::<SetCollisionBehaviorRequestWithHeader>(),
+    //         ),
+    //         request: SetCollisionBehaviorRequest::new(
+    //             lower_torque_thresholds_acceleration,
+    //             upper_torque_thresholds_acceleration,
+    //             lower_torque_thresholds_nominal,
+    //             upper_torque_thresholds_nominal,
+    //             lower_force_thresholds_acceleration,
+    //             upper_force_thresholds_acceleration,
+    //             lower_force_thresholds_nominal,
+    //             upper_force_thresholds_nominal,
+    //         ),
+    //     };
+    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
+    //     let response: SetCollisionBehaviorResponse = self
+    //         .robimpl
+    //         .network
+    //         .tcp_blocking_receive_response(command_id);
+    //     handle_getter_setter_status(response.status)
+    // }
 
     /// Sets the impedance for each joint in the internal controller.
     ///
@@ -298,22 +454,22 @@ impl Panda {
     /// # Errors
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    #[allow(non_snake_case)]
-    pub fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
-        let command = SetJointImpedanceRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetJointImpedance,
-                size_of::<SetJointImpedanceRequestWithHeader>(),
-            ),
-            request: SetJointImpedanceRequest::new(K_theta),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetJointImpedanceResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
+    // #[allow(non_snake_case)]
+    // pub fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
+    //     let command = SetJointImpedanceRequestWithHeader {
+    //         header: self.robimpl.network.create_header_for_robot(
+    //             RobotCommandEnum::SetJointImpedance,
+    //             size_of::<SetJointImpedanceRequestWithHeader>(),
+    //         ),
+    //         request: SetJointImpedanceRequest::new(K_theta),
+    //     };
+    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
+    //     let response: SetJointImpedanceResponse = self
+    //         .robimpl
+    //         .network
+    //         .tcp_blocking_receive_response(command_id);
+    //     handle_getter_setter_status(response.status)
+    // }
 
     /// Sets the Cartesian impedance for (x, y, z, roll, pitch, yaw) in the internal controller.
     ///
@@ -325,22 +481,22 @@ impl Panda {
     /// # Errors
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    #[allow(non_snake_case)]
-    pub fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
-        let command = SetCartesianImpedanceRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetCartesianImpedance,
-                size_of::<SetCartesianImpedanceRequestWithHeader>(),
-            ),
-            request: SetCartesianImpedanceRequest::new(K_x),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetCartesianImpedanceResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
+    // #[allow(non_snake_case)]
+    // pub fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
+    //     let command = SetCartesianImpedanceRequestWithHeader {
+    //         header: self.robimpl.network.create_header_for_robot(
+    //             RobotCommandEnum::SetCartesianImpedance,
+    //             size_of::<SetCartesianImpedanceRequestWithHeader>(),
+    //         ),
+    //         request: SetCartesianImpedanceRequest::new(K_x),
+    //     };
+    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
+    //     let response: SetCartesianImpedanceResponse = self
+    //         .robimpl
+    //         .network
+    //         .tcp_blocking_receive_response(command_id);
+    //     handle_getter_setter_status(response.status)
+    // }
     /// Locks or unlocks guiding mode movement in (x, y, z, roll, pitch, yaw).
     ///
     /// If a flag is set to true, movement is unlocked.
@@ -721,25 +877,25 @@ impl Panda {
     /// * if Cartesian pose command elements are NaN or infinity.
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_cartesian_pose<
-        F: FnMut(&PandaState, &Duration) -> CartesianPose,
-        CM: Into<Option<ControllerMode>>,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        controller_mode: CM,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_motion_intern(
-            motion_generator_callback,
-            controller_mode.into(),
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
+    // pub fn control_cartesian_pose<
+    //     F: FnMut(&PandaState, &Duration) -> CartesianPose,
+    //     CM: Into<Option<ControllerMode>>,
+    //     L: Into<Option<bool>>,
+    //     CF: Into<Option<f64>>,
+    // >(
+    //     &mut self,
+    //     motion_generator_callback: F,
+    //     controller_mode: CM,
+    //     limit_rate: L,
+    //     cutoff_frequency: CF,
+    // ) -> FrankaResult<()> {
+    //     self.control_motion_intern(
+    //         motion_generator_callback,
+    //         controller_mode.into(),
+    //         limit_rate.into(),
+    //         cutoff_frequency.into(),
+    //     )
+    // }
     /// Starts a control loop for a Cartesian velocity motion generator with a given controller mode.
     ///
     /// Sets realtime priority for the current thread.
@@ -1004,7 +1160,7 @@ impl Panda {
     }
     fn control_torques_intern<
         F: FnMut(&PandaState, &Duration) -> U,
-        U: Finishable + Debug + MotionGeneratorTrait,
+        U: ConvertMotion<PandaState> + Debug + MotionGeneratorTrait + Finishable,
     >(
         &mut self,
         motion_generator_callback: F,
@@ -1023,28 +1179,28 @@ impl Panda {
         )?;
         control_loop.run()
     }
-    fn control_motion_intern<
-        F: FnMut(&PandaState, &Duration) -> U,
-        U: Finishable + Debug + MotionGeneratorTrait,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        controller_mode: Option<ControllerMode>,
-        limit_rate: Option<bool>,
-        cutoff_frequency: Option<f64>,
-    ) -> FrankaResult<()> {
-        let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
-        let limit_rate = limit_rate.unwrap_or(true);
-        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
-        let mut control_loop = ControlLoop::from_control_mode(
-            &mut self.robimpl,
-            controller_mode,
-            motion_generator_callback,
-            limit_rate,
-            cutoff_frequency,
-        )?;
-        control_loop.run()
-    }
+    // fn control_motion_intern<
+    //     F: FnMut(&PandaState, &Duration) -> U,
+    //     U: Finishable + Debug + MotionGeneratorTrait,
+    // >(
+    //     &mut self,
+    //     motion_generator_callback: F,
+    //     controller_mode: Option<ControllerMode>,
+    //     limit_rate: Option<bool>,
+    //     cutoff_frequency: Option<f64>,
+    // ) -> FrankaResult<()> {
+    //     let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
+    //     let limit_rate = limit_rate.unwrap_or(true);
+    //     let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
+    //     let mut control_loop = ControlLoop::from_control_mode(
+    //         &mut self.robimpl,
+    //         controller_mode,
+    //         motion_generator_callback,
+    //         limit_rate,
+    //         cutoff_frequency,
+    //     )?;
+    //     control_loop.run()
+    // }
     /// Sets a default collision behavior, joint impedance and Cartesian impedance.
     /// # Errors
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.

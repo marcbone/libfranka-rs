@@ -2,12 +2,14 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::FrankaResult;
-use franka::Robot;
-use franka::RobotState;
-use franka::{CartesianPose, MotionFinished};
+use franka::{ConvertMotion, Finishable, FrankaResult, Panda};
+// use franka::Robot;
+use franka::PandaState;
+use franka::{CartesianPose};
 use std::f64::consts::PI;
 use std::time::Duration;
+use franka::robot::{FR3, Robot};
+use franka::robot::robot_state::FR3State;
 
 /// An example showing how to generate a Cartesian motion.
 ///
@@ -21,8 +23,8 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let address = CommandLineArguments::parse();
-    let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
-    robot.set_default_behavior()?;
+    let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+    // robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");
     std::io::stdin().read_line(&mut String::new()).unwrap();
@@ -40,11 +42,11 @@ fn main() -> FrankaResult<()> {
     )?;
 
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
-    robot.joint_motion(0.5, &q_goal)?;
+    // robot.joint_motion(0.5, &q_goal)?;
     println!("Finished moving to initial joint configuration.");
     let mut initial_pose = CartesianPose::new([0.0; 16], None);
     let mut time = 0.;
-    let callback = |state: &RobotState, time_step: &Duration| -> CartesianPose {
+    let callback = |state: &FR3State, time_step: &Duration| -> CartesianPose {
         time += time_step.as_secs_f64();
         if time == 0. {
             initial_pose.O_T_EE = state.O_T_EE_c;

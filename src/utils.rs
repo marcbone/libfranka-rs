@@ -2,10 +2,11 @@
 // Licensed under the EUPL-1.2-or-later
 
 //! contains useful type definitions and conversion functions.
-use crate::robot::control_types::{Finishable, JointPositions};
+use crate::robot::control_types::{ConvertMotion, JointPositions};
 use crate::robot::robot_state::PandaState;
 use nalgebra::{Isometry3, Matrix4, MatrixMN, MatrixN, Rotation3, Vector3, VectorN, U6, U7};
 use std::time::Duration;
+use crate::Finishable;
 
 /// converts a 4x4 column-major homogenous matrix to an Isometry
 pub fn array_to_isometry(array: &[f64; 16]) -> Isometry3<f64> {
@@ -192,7 +193,7 @@ impl MotionGenerator {
 
 #[cfg(test)]
 mod test {
-    use crate::{array_to_isometry, Finishable, MotionGenerator, PandaState};
+    use crate::{array_to_isometry, ConvertMotion, MotionGenerator, PandaState};
     use nalgebra::Rotation3;
     use std::time::Duration;
 

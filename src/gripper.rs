@@ -44,7 +44,7 @@ impl Gripper {
         gripper.connect_gripper(&VERSION)?;
         Ok(gripper)
     }
-    fn connect_gripper(&mut self, ri_version: &u16) -> Result<(), FrankaException> {
+    fn connect_gripper(&mut self, ri_version: &u16) -> FrankaResult<()> {
         let connect_command = ConnectRequestWithHeader {
             header: self
                 .network

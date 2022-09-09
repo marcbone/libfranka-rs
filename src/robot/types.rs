@@ -280,3 +280,5 @@ pub struct RobotCommand {
     pub motion: MotionGeneratorCommandPacked,
     pub control: ControllerCommandPacked,
 }
+
+pub trait ConvertMotion {}

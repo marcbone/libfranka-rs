@@ -4,30 +4,32 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::exception::{FrankaException, FrankaResult};
+use crate::Finishable;
 use crate::robot::control_tools::{
     has_realtime_kernel, set_current_thread_to_highest_scheduler_priority,
 };
-use crate::robot::control_types::{ControllerMode, Finishable, RealtimeConfig, Torques};
+use crate::robot::control_types::{ControllerMode, ConvertMotion, RealtimeConfig, Torques};
 use crate::robot::low_pass_filter::{low_pass_filter, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, MAX_TORQUE_RATE};
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::PandaState;
+use crate::robot::robot_impl::RobotImplementation;
+use crate::robot::robot_state::{PandaState, RobotState};
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
-type ControlCallback<'b> = &'b mut dyn FnMut(&PandaState, &Duration) -> Torques;
+type ControlCallback<'b,State> = &'b mut dyn FnMut(&State, &Duration) -> Torques;
 pub struct ControlLoop<
     'a,
     'b,
-    T: RobotControl,
-    U: Finishable + Debug + MotionGeneratorTrait,
-    F: FnMut(&PandaState, &Duration) -> U,
+    T: RobotImplementation,
+    U: ConvertMotion<T::State> + Debug + MotionGeneratorTrait + Finishable,
+    F: FnMut(&T::State, &Duration) -> U,
 > {
     pub default_deviation: MoveDeviation,
     robot: &'a mut T,
     motion_callback: F,
-    control_callback: Option<ControlCallback<'b>>,
+    control_callback: Option<ControlCallback<'b,T::State>>,
     limit_rate: bool,
     cutoff_frequency: f64,
     pub motion_id: u32,
@@ -36,14 +38,14 @@ pub struct ControlLoop<
 impl<
         'a,
         'b,
-        T: RobotControl,
-        U: Finishable + Debug + MotionGeneratorTrait,
-        F: FnMut(&PandaState, &Duration) -> U,
+        T: RobotImplementation,
+        U: ConvertMotion<T::State> + Debug + MotionGeneratorTrait + Finishable,
+        F: FnMut(&T::State, &Duration) -> U,
     > ControlLoop<'a, 'b, T, U, F>
 {
     pub fn new(
         robot: &'a mut T,
-        control_callback: ControlCallback<'b>,
+        control_callback: ControlCallback<'b,T::State>,
         motion_callback: F,
         limit_rate: bool,
         cutoff_frequency: f64,
@@ -87,7 +89,7 @@ impl<
     fn new_intern(
         robot: &'a mut T,
         motion_callback: F,
-        control_callback: Option<ControlCallback<'b>>,
+        control_callback: Option<ControlCallback<'b,T::State>>,
         limit_rate: bool,
         cutoff_frequency: f64,
     ) -> FrankaResult<Self> {
@@ -132,21 +134,21 @@ impl<
         let mut robot_state = self.robot.update(None, None)?;
         self.robot
             .throw_on_motion_error(&robot_state, self.motion_id)?;
-        let mut previous_time = robot_state.time;
+        let mut previous_time = robot_state.get_time();
         let mut motion_command =
             MotionGeneratorCommand::new([0.; 7], [0.; 7], [0.; 16], [0.; 6], [0.; 2]);
         if self.control_callback.is_some() {
             let mut control_command = ControllerCommand { tau_J_d: [0.; 7] };
             while self.spin_motion(
                 &robot_state,
-                &(robot_state.time - previous_time),
+                &(robot_state.get_time() - previous_time),
                 &mut motion_command,
             ) && self.spin_control(
                 &robot_state,
-                &(robot_state.time - previous_time),
+                &(robot_state.get_time() - previous_time),
                 &mut control_command,
             ) {
-                previous_time = robot_state.time;
+                previous_time = robot_state.get_time();
                 robot_state = self
                     .robot
                     .update(Some(&motion_command), Some(&control_command))?;
@@ -161,10 +163,10 @@ impl<
         } else {
             while self.spin_motion(
                 &robot_state,
-                &(robot_state.time - previous_time),
+                &(robot_state.get_time() - previous_time),
                 &mut motion_command,
             ) {
-                previous_time = robot_state.time;
+                previous_time = robot_state.get_time();
                 robot_state = self.robot.update(Some(&motion_command), None)?;
                 self.robot
                     .throw_on_motion_error(&robot_state, self.motion_id)?;
@@ -177,7 +179,7 @@ impl<
 
     fn spin_control(
         &mut self,
-        robot_state: &PandaState,
+        robot_state: &T::State,
         time_step: &Duration,
         command: &mut ControllerCommand,
     ) -> bool {
@@ -188,7 +190,7 @@ impl<
                 control_output.tau_J[i] = low_pass_filter(
                     DELTA_T,
                     control_output.tau_J[i],
-                    robot_state.tau_J_d[i],
+                    robot_state.get_tau_J_d()[i],
                     self.cutoff_frequency,
                 );
             }
@@ -197,16 +199,17 @@ impl<
             control_output.tau_J = limit_rate_torques(
                 &MAX_TORQUE_RATE,
                 &control_output.tau_J,
-                &robot_state.tau_J_d,
+                &robot_state.get_tau_J_d(),
             );
         }
         command.tau_J_d = control_output.tau_J;
         command.tau_J_d.iter().for_each(|x| assert!(x.is_finite()));
-        !control_output.is_finished()
+        // !control_output.is_finished()
+        true
     }
     fn spin_motion(
         &mut self,
-        robot_state: &PandaState,
+        robot_state: &T::State2,
         time_step: &Duration,
         command: &mut MotionGeneratorCommand,
     ) -> bool {
