@@ -9,7 +9,7 @@ use std::fmt::Debug;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
 use crate::model::Model;
-use crate::network::{Network, NetworkType};
+use crate::network::{FR3Data, Network, NetworkType, PandaData, RobotData};
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, JointPositions,
@@ -22,7 +22,7 @@ use crate::robot::robot_impl::{RobotImplPanda, RobotImplementation, RobotImplFR3
 use crate::robot::service_types::{
     AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
     AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
-    GetCartesianLimitResponse, GetterSetterStatus, RobotCommandEnum, SetCartesianImpedanceRequest,
+    GetCartesianLimitResponse, GetterSetterStatus, PandaCommandEnum, SetCartesianImpedanceRequest,
     SetCartesianImpedanceRequestWithHeader, SetCartesianImpedanceResponse,
     SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
     SetCollisionBehaviorResponse, SetEeToKRequest, SetEeToKRequestWithHeader, SetEeToKResponse,
@@ -55,10 +55,11 @@ pub(crate) mod types;
 pub mod virtual_wall_cuboid;
 
 pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
+    type Data:RobotData;
     type State1:RobotState;
     type Rob:RobotImplementation<State=Self::State1>;
     fn get_rob(&mut self) -> &mut Self::Rob;
-    fn get_net(&mut self) -> &mut Network;
+    fn get_net(&mut self) -> &mut Network<Self::Data>;
     fn read<F: FnMut(&Self::State1) -> bool>(&mut self,
     mut read_callback: F,
     ) -> FrankaResult<()> {
@@ -88,8 +89,8 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
         upper_force_thresholds_nominal: [f64; 6],
     ) -> FrankaResult<()> {
         let command = SetCollisionBehaviorRequestWithHeader {
-            header: self.get_net().create_header_for_robot(
-                RobotCommandEnum::SetCollisionBehavior,
+            header: self.get_net().create_header_for_panda(
+                PandaCommandEnum::SetCollisionBehavior,
                 size_of::<SetCollisionBehaviorRequestWithHeader>(),
             ),
             request: SetCollisionBehaviorRequest::new(
@@ -113,8 +114,8 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
     #[allow(non_snake_case)]
     fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
         let command = SetJointImpedanceRequestWithHeader {
-            header: self.get_net().create_header_for_robot(
-                RobotCommandEnum::SetJointImpedance,
+            header: self.get_net().create_header_for_panda(
+                PandaCommandEnum::SetJointImpedance,
                 size_of::<SetJointImpedanceRequestWithHeader>(),
             ),
             request: SetJointImpedanceRequest::new(K_theta),
@@ -129,8 +130,8 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
     #[allow(non_snake_case)]
     fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
         let command = SetCartesianImpedanceRequestWithHeader {
-            header: self.get_net().create_header_for_robot(
-                RobotCommandEnum::SetCartesianImpedance,
+            header: self.get_net().create_header_for_panda(
+                PandaCommandEnum::SetCartesianImpedance,
                 size_of::<SetCartesianImpedanceRequestWithHeader>(),
             ),
             request: SetCartesianImpedanceRequest::new(K_x),
@@ -244,9 +245,10 @@ pub struct Panda {
 }
 
 impl Robot for Panda {
+    type Data = PandaData;
     type State1 = PandaState;
     type Rob = RobotImplPanda;
-    fn get_net(&mut self) -> &mut Network {
+    fn get_net(&mut self) -> &mut Network<Self::Data>{
         &mut self.robimpl.network
     }
     fn get_rob(&mut self) ->&mut Self::Rob {
@@ -259,9 +261,10 @@ pub struct FR3 {
 }
 
 impl Robot for FR3 {
+    type Data = FR3Data;
     type State1 = FR3State;
     type Rob = RobotImplFR3;
-    fn get_net(&mut self) -> &mut Network {
+    fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
     fn get_rob(&mut self) ->&mut Self::Rob {
@@ -277,8 +280,7 @@ impl FR3{
     ) -> FrankaResult<FR3> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(
-            NetworkType::Robot,
+        let network = Network::new(NetworkType::FR3,
             franka_address,
             service_types::COMMAND_PORT,
         )
@@ -321,8 +323,7 @@ impl Panda {
     ) -> FrankaResult<Panda> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(
-            NetworkType::Robot,
+        let network = Network::new(NetworkType::Panda,
             franka_address,
             service_types::COMMAND_PORT,
         )
@@ -510,8 +511,8 @@ impl Panda {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
         let command = SetGuidingModeRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetGuidingMode,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::SetGuidingMode,
                 size_of::<SetGuidingModeRequestWithHeader>(),
             ),
             request: SetGuidingModeRequest::new(guiding_mode, elbow),
@@ -537,8 +538,8 @@ impl Panda {
     #[allow(non_snake_case)]
     pub fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
         let command = SetEeToKRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetEeToK,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::SetEeToK,
                 size_of::<SetEeToKRequestWithHeader>(),
             ),
             request: SetEeToKRequest::new(EE_T_K),
@@ -568,8 +569,8 @@ impl Panda {
     #[allow(non_snake_case)]
     pub fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
         let command = SetNeToEeRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetNeToEe,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::SetNeToEe,
                 size_of::<SetNeToEeRequestWithHeader>(),
             ),
             request: SetNeToEeRequest::new(NE_T_EE),
@@ -603,8 +604,8 @@ impl Panda {
         load_inertia: [f64; 9],
     ) -> FrankaResult<()> {
         let command = SetLoadRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetLoad,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::SetLoad,
                 size_of::<SetLoadRequestWithHeader>(),
             ),
             request: SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
@@ -643,8 +644,8 @@ impl Panda {
         controller_filter_frequency: f64,
     ) -> FrankaResult<()> {
         let command = SetFiltersRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::SetFilters,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::SetFilters,
                 size_of::<SetFiltersRequestWithHeader>(),
             ),
             request: SetFiltersRequest::new(
@@ -670,8 +671,8 @@ impl Panda {
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
-        let command = self.robimpl.network.create_header_for_robot(
-            RobotCommandEnum::AutomaticErrorRecovery,
+        let command = self.robimpl.network.create_header_for_panda(
+            PandaCommandEnum::AutomaticErrorRecovery,
             size_of::<AutomaticErrorRecoveryRequestWithHeader>(),
         );
         let command_id: u32 = self.robimpl.network.tcp_send_request(command);
@@ -712,8 +713,8 @@ impl Panda {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn stop(&mut self) -> FrankaResult<()> {
         let command = StopMoveRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::StopMove,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::StopMove,
                 size_of::<StopMoveRequestWithHeader>(),
             ),
         };
@@ -747,8 +748,8 @@ impl Panda {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn get_virtual_wall(&mut self, id: i32) -> FrankaResult<VirtualWallCuboid> {
         let command = GetCartesianLimitRequestWithHeader {
-            header: self.robimpl.network.create_header_for_robot(
-                RobotCommandEnum::GetCartesianLimit,
+            header: self.robimpl.network.create_header_for_panda(
+                PandaCommandEnum::GetCartesianLimit,
                 size_of::<GetCartesianLimitRequestWithHeader>(),
             ),
             request: GetCartesianLimitRequest::new(id),
@@ -1273,16 +1274,17 @@ mod tests {
     use crate::robot::service_types::{
         ConnectRequestWithHeader, ConnectResponse, ConnectStatus, GetterSetterStatus,
         MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode, MoveRequest,
-        MoveRequestWithHeader, MoveResponse, MoveStatus, RobotCommandEnum, RobotCommandHeader,
+        MoveRequestWithHeader, MoveResponse, MoveStatus, PandaCommandEnum, PandaCommandHeader,
         SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
         SetCollisionBehaviorResponse, COMMAND_PORT, VERSION,
     };
     use crate::robot::types::PandaStateIntern;
-    use crate::{FrankaResult, JointPositions, MotionFinished, RealtimeConfig, Panda, PandaState};
+    use crate::{FrankaResult, JointPositions, RealtimeConfig, Panda, PandaState, Finishable};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
     use std::mem::size_of;
     use std::time::{Duration, Instant};
+    use crate::robot::Robot;
 
     struct Socket<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)> {
         pub send_bytes: F,
@@ -1423,8 +1425,8 @@ mod tests {
             tcp_socket: &mut Socket<F, G>,
         ) {
             let mut response = ConnectResponse {
-                header: RobotCommandHeader {
-                    command: RobotCommandEnum::Connect,
+                header: PandaCommandHeader {
+                    command: PandaCommandEnum::Connect,
                     command_id: request.get_command_message_id(),
                     size: 0,
                 },
@@ -1465,8 +1467,8 @@ mod tests {
                   upper_force_thresholds_nominal: [f64; 6]| {
                 counter += 1;
                 SetCollisionBehaviorRequestWithHeader {
-                    header: RobotCommandHeader::new(
-                        RobotCommandEnum::SetCollisionBehavior,
+                    header: PandaCommandHeader::new(
+                        PandaCommandEnum::SetCollisionBehavior,
                         counter,
                         size_of::<SetCollisionBehaviorRequestWithHeader>() as u32,
                     ),
@@ -1507,8 +1509,8 @@ mod tests {
                     let req: SetCollisionBehaviorRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
                     let mut response = SetCollisionBehaviorResponse {
-                        header: RobotCommandHeader::new(
-                            RobotCommandEnum::SetCollisionBehavior,
+                        header: PandaCommandHeader::new(
+                            PandaCommandEnum::SetCollisionBehavior,
                             req.header.command_id,
                             0,
                         ),
@@ -1539,8 +1541,8 @@ mod tests {
     #[test]
     fn fail_start_motion_test() {
         let requests = Arc::new(vec![MoveRequestWithHeader {
-            header: RobotCommandHeader::new(
-                RobotCommandEnum::Move,
+            header: PandaCommandHeader::new(
+                PandaCommandEnum::Move,
                 1,
                 size_of::<MoveRequestWithHeader>() as u32,
             ),
@@ -1577,8 +1579,8 @@ mod tests {
                         .for_each(|(x, y)| assert_eq!(x, y));
                     counter += 1;
                     let mut response = MoveResponse {
-                        header: RobotCommandHeader::new(
-                            RobotCommandEnum::Move,
+                        header: PandaCommandHeader::new(
+                            PandaCommandEnum::Move,
                             req.header.command_id,
                             0,
                         ),

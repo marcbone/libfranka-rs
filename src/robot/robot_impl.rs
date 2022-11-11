@@ -5,19 +5,14 @@ use std::mem::size_of;
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
 use crate::model::library_downloader::LibraryDownloader;
 use crate::model::Model;
-use crate::network::Network;
+use crate::network::{FR3Data, Network, PandaData, RobotData};
 use crate::robot::control_types::RealtimeConfig;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::{Logger, Record};
 
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_state::{FR3State, PandaState, RobotState};
-use crate::robot::service_types::{
-    ConnectRequest, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, MoveControllerMode,
-    MoveDeviation, MoveMotionGeneratorMode, MoveRequest, MoveRequestWithHeader, MoveResponse,
-    MoveStatus, RobotCommandEnum, StopMoveRequestWithHeader, StopMoveResponse, StopMoveStatus,
-    VERSION,
-};
+use crate::robot::service_types::{ConnectRequest, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode, MoveRequest, MoveRequestWithHeader, MoveResponse, MoveStatus, PandaCommandEnum, PandaCommandHeader, StopMoveRequestWithHeader, StopMoveResponse, StopMoveStatus, VERSION};
 use crate::robot::types::{
     ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode, RobotCommand,
     RobotMode, PandaStateIntern,
@@ -90,7 +85,7 @@ impl RobotImplementation for RobotImplFR3 {
         let model_file = Path::new("/tmp/model.so");
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
-            LibraryDownloader::download(&mut self.network, model_file)?;
+            LibraryDownloader::download2(&mut self.network, model_file)?;
         }
         let model = Model::new(model_file, None)?;
         if !persistent && model_already_downloaded {
@@ -104,7 +99,7 @@ impl RobotImplementation for RobotImplFR3 {
 }
 
 pub struct RobotImplPanda {
-    pub network: Network,
+    pub network: Network<PandaData>,
     logger: Logger,
     realtime_config: RealtimeConfig,
     ri_version: Option<u16>,
@@ -116,7 +111,7 @@ pub struct RobotImplPanda {
 }
 
 pub struct RobotImplFR3 {
-    pub network: Network,
+    pub network: Network<FR3Data>,
     logger: Logger,
     realtime_config: RealtimeConfig,
     ri_version: Option<u16>,
@@ -181,7 +176,7 @@ fn handle_command_response_stop(response: &StopMoveResponse) -> Result<(), Frank
 
 impl RobotImplPanda {
     pub fn new(
-        network: Network,
+        network: Network<PandaData>,
         log_size: usize,
         realtime_config: RealtimeConfig,
     ) -> FrankaResult<Self> {
@@ -209,8 +204,8 @@ impl RobotImplPanda {
     }
     fn connect_robot(&mut self) -> Result<(), FrankaException> {
         let connect_command = ConnectRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::Connect,
+            header:PandaData::create_header(&mut self.network.command_id,
+                PandaCommandEnum::Connect,
                 size_of::<ConnectRequestWithHeader>(),
             ),
             request: ConnectRequest::new(self.network.get_udp_port()),
@@ -343,8 +338,8 @@ impl RobotImplPanda {
         maximum_goal_deviation: &MoveDeviation,
     ) -> FrankaResult<u32> {
         let connect_command = MoveRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::Move,
+            header: self.network.create_header_for_panda(
+                PandaCommandEnum::Move,
                 size_of::<MoveRequestWithHeader>(),
             ),
             request: MoveRequest::new(
@@ -361,8 +356,8 @@ impl RobotImplPanda {
     }
     fn execute_stop_command(&mut self) -> FrankaResult<u32> {
         let command = StopMoveRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::StopMove,
+            header: self.network.create_header_for_panda(
+                PandaCommandEnum::StopMove,
                 size_of::<StopMoveRequestWithHeader>(),
             ),
         };
@@ -375,7 +370,7 @@ impl RobotImplPanda {
 
 impl RobotImplFR3 {
     pub fn new(
-        network: Network,
+        network: Network<FR3Data>,
         log_size: usize,
         realtime_config: RealtimeConfig,
     ) -> FrankaResult<Self> {
@@ -403,8 +398,8 @@ impl RobotImplFR3 {
     }
     fn connect_robot(&mut self) -> Result<(), FrankaException> {
         let connect_command = ConnectRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::Connect,
+            header: self.network.create_header_for_panda(
+                PandaCommandEnum::Connect,
                 size_of::<ConnectRequestWithHeader>(),
             ),
             request: ConnectRequest::new(self.network.get_udp_port()),
@@ -518,7 +513,7 @@ impl RobotImplFR3 {
         let model_file = Path::new("/tmp/model.so");
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
-            LibraryDownloader::download(&mut self.network, model_file)?;
+            LibraryDownloader::download2(&mut self.network, model_file)?;
         }
         let model = Model::new(model_file, None)?;
         if !persistent && model_already_downloaded {
@@ -537,8 +532,8 @@ impl RobotImplFR3 {
         maximum_goal_deviation: &MoveDeviation,
     ) -> FrankaResult<u32> {
         let connect_command = MoveRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::Move,
+            header: self.network.create_header_for_panda(
+                PandaCommandEnum::Move,
                 size_of::<MoveRequestWithHeader>(),
             ),
             request: MoveRequest::new(
@@ -555,8 +550,8 @@ impl RobotImplFR3 {
     }
     fn execute_stop_command(&mut self) -> FrankaResult<u32> {
         let command = StopMoveRequestWithHeader {
-            header: self.network.create_header_for_robot(
-                RobotCommandEnum::StopMove,
+            header: self.network.create_header_for_panda(
+                PandaCommandEnum::StopMove,
                 size_of::<StopMoveRequestWithHeader>(),
             ),
         };

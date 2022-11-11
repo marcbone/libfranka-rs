@@ -9,13 +9,14 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::network::MessageCommand;
 use std::time::Duration;
+use serde::de::DeserializeOwned;
 
 pub static VERSION: u16 = 3;
 pub static COMMAND_PORT: u16 = 1338;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u16)]
-pub enum Command {
+pub enum GripperCommandEnum {
     Connect,
     Homing,
     Grasp,
@@ -48,17 +49,32 @@ impl GripperStateIntern {
     }
 }
 
+pub trait CommandHeader : Debug + DeserializeOwned + 'static {
+    fn get_command_id(&self) -> u32;
+    fn get_size(&self) -> u32;
+}
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
-pub struct CommandHeader {
-    pub command: Command,
+pub struct GripperCommandHeader {
+    pub command: GripperCommandEnum,
     pub command_id: u32,
     pub size: u32,
 }
 
-impl CommandHeader {
-    pub fn new(command: Command, command_id: u32, size: u32) -> CommandHeader {
-        CommandHeader {
+impl CommandHeader for GripperCommandHeader {
+    fn get_command_id(&self) -> u32 {
+        self.command_id
+    }
+
+    fn get_size(&self) -> u32 {
+       self.size
+    }
+}
+
+impl GripperCommandHeader {
+    pub fn new(command: GripperCommandEnum, command_id: u32, size: u32) -> GripperCommandHeader {
+        GripperCommandHeader {
             command,
             command_id,
             size,
@@ -127,28 +143,28 @@ impl GraspRequest {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct ConnectRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: ConnectRequest,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct MoveRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: MoveRequest,
 }
 
-pub type HomingRequestWithHeader = CommandHeader;
-pub type StopRequestWithHeader = CommandHeader;
+pub type HomingRequestWithHeader = GripperCommandHeader;
+pub type StopRequestWithHeader = GripperCommandHeader;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct GraspRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: GraspRequest,
 }
 
-impl MessageCommand for CommandHeader {
+impl MessageCommand for GripperCommandHeader {
     fn get_command_message_id(&self) -> u32 {
         self.command_id
     }
@@ -174,14 +190,14 @@ impl MessageCommand for GraspRequestWithHeader {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectResponse {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub status: Status,
     pub version: u16,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MoveResponse {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub status: Status,
 }
 

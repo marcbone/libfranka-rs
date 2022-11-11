@@ -193,7 +193,7 @@ impl MotionGenerator {
 
 #[cfg(test)]
 mod test {
-    use crate::{array_to_isometry, ConvertMotion, MotionGenerator, PandaState};
+    use crate::{array_to_isometry, ConvertMotion, Finishable, MotionGenerator, PandaState};
     use nalgebra::Rotation3;
     use std::time::Duration;
 

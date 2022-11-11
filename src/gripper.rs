@@ -8,12 +8,12 @@ use std::mem::size_of;
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
 use crate::gripper::gripper_state::GripperState;
 use crate::gripper::types::{
-    Command, ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
+    GripperCommandEnum, ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
     GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
     HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
     StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
 };
-use crate::network::{Network, NetworkType};
+use crate::network::{GripperData, Network, NetworkType};
 
 pub mod gripper_state;
 pub(crate) mod types;
@@ -21,7 +21,7 @@ pub(crate) mod types;
 /// Maintains a network connection to the gripper, provides the current gripper state,
 /// and allows the execution of commands.
 pub struct Gripper {
-    network: Network,
+    network: Network<GripperData>,
     ri_version: Option<u16>,
 }
 
@@ -48,7 +48,7 @@ impl Gripper {
         let connect_command = ConnectRequestWithHeader {
             header: self
                 .network
-                .create_header_for_gripper(Command::Connect, size_of::<ConnectRequestWithHeader>()),
+                .create_header(GripperCommandEnum::Connect, size_of::<ConnectRequestWithHeader>()),
             request: ConnectRequest::new(self.network.get_udp_port()),
         };
         let command_id: u32 = self.network.tcp_send_request(connect_command);
@@ -78,7 +78,7 @@ impl Gripper {
         let command = MoveRequestWithHeader {
             header: self
                 .network
-                .create_header_for_gripper(Command::Move, size_of::<MoveRequestWithHeader>()),
+                .create_header(GripperCommandEnum::Move, size_of::<MoveRequestWithHeader>()),
             request: MoveRequest::new(width, speed),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
@@ -98,7 +98,7 @@ impl Gripper {
     pub fn homing(&mut self) -> FrankaResult<bool> {
         let command: HomingRequestWithHeader = self
             .network
-            .create_header_for_gripper(Command::Homing, size_of::<HomingRequestWithHeader>());
+            .create_header(GripperCommandEnum::Homing, size_of::<HomingRequestWithHeader>());
         let command_id: u32 = self.network.tcp_send_request(command);
         let response: HomingResponse = self.network.tcp_blocking_receive_response(command_id);
         handle_response_status(&response.status)
@@ -113,7 +113,7 @@ impl Gripper {
     pub fn stop(&mut self) -> FrankaResult<bool> {
         let command: StopRequestWithHeader = self
             .network
-            .create_header_for_gripper(Command::Stop, size_of::<StopRequestWithHeader>());
+            .create_header(GripperCommandEnum::Stop, size_of::<StopRequestWithHeader>());
         let command_id: u32 = self.network.tcp_send_request(command);
         let response: StopResponse = self.network.tcp_blocking_receive_response(command_id);
         handle_response_status(&response.status)
@@ -149,7 +149,7 @@ impl Gripper {
         let command = GraspRequestWithHeader {
             header: self
                 .network
-                .create_header_for_gripper(Command::Grasp, size_of::<GraspRequestWithHeader>()),
+                .create_header(GripperCommandEnum::Grasp, size_of::<GraspRequestWithHeader>()),
             request: GraspRequest::new(width, speed, force, epsilon_inner, epsilon_outer),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
@@ -194,7 +194,7 @@ fn handle_response_status(status: &Status) -> FrankaResult<bool> {
 #[cfg(test)]
 mod tests {
     use crate::gripper::types::{
-        Command, CommandHeader, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
+        GripperCommandEnum, GripperCommandHeader, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
         GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
         HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
         StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
@@ -359,8 +359,8 @@ mod tests {
             tcp_socket: &mut Socket<F, G>,
         ) {
             let mut response = ConnectResponse {
-                header: CommandHeader {
-                    command: Command::Connect,
+                header: GripperCommandHeader {
+                    command: GripperCommandEnum::Connect,
                     command_id: request.get_command_message_id(),
                     size: 0,
                 },
@@ -384,8 +384,8 @@ mod tests {
         let mut generate_move_request = move |width: f64, speed: f64| -> MoveRequestWithHeader {
             counter += 1;
             MoveRequestWithHeader {
-                header: CommandHeader::new(
-                    Command::Move,
+                header: GripperCommandHeader::new(
+                    GripperCommandEnum::Move,
                     counter,
                     size_of::<MoveRequestWithHeader>() as u32,
                 ),
@@ -416,7 +416,7 @@ mod tests {
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
                     let mut response = MoveResponse {
-                        header: CommandHeader::new(Command::Move, req.header.command_id, 0),
+                        header: GripperCommandHeader::new(GripperCommandEnum::Move, req.header.command_id, 0),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -447,13 +447,13 @@ mod tests {
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let req: StopRequestWithHeader = deserialize(&bytes).unwrap();
                     match req.command {
-                        Command::Stop => {}
+                        GripperCommandEnum::Stop => {}
                         _ => {
                             assert!(false)
                         }
                     }
                     let mut response = StopResponse {
-                        header: CommandHeader::new(Command::Stop, req.command_id, 0),
+                        header: GripperCommandHeader::new(GripperCommandEnum::Stop, req.command_id, 0),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -481,13 +481,13 @@ mod tests {
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let req: HomingRequestWithHeader = deserialize(&bytes).unwrap();
                     match req.command {
-                        Command::Homing => {}
+                        GripperCommandEnum::Homing => {}
                         _ => {
                             assert!(false)
                         }
                     }
                     let mut response = HomingResponse {
-                        header: CommandHeader::new(Command::Homing, req.command_id, 0),
+                        header: GripperCommandHeader::new(GripperCommandEnum::Homing, req.command_id, 0),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -518,8 +518,8 @@ mod tests {
               -> GraspRequestWithHeader {
             counter += 1;
             GraspRequestWithHeader {
-                header: CommandHeader::new(
-                    Command::Grasp,
+                header: GripperCommandHeader::new(
+                    GripperCommandEnum::Grasp,
                     counter,
                     size_of::<GraspRequestWithHeader>() as u32,
                 ),
@@ -549,7 +549,7 @@ mod tests {
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
                     let mut response = GraspResponse {
-                        header: CommandHeader::new(Command::Grasp, req.header.command_id, 0),
+                        header: GripperCommandHeader::new(GripperCommandEnum::Grasp, req.header.command_id, 0),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;

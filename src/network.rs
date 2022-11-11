@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Debug;
 use std::io::{Read, Write};
+use std::marker::PhantomData;
 use std::mem::size_of;
 use std::net::TcpStream as StdTcpStream;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -26,25 +27,84 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::exception::{FrankaException, FrankaResult};
-use crate::gripper;
-use crate::gripper::types::CommandHeader;
-use crate::robot::service_types::{
-    LoadModelLibraryResponse, LoadModelLibraryStatus, RobotCommandEnum, RobotCommandHeader,
-};
+use crate::{gripper, GripperState, PandaState};
+use crate::gripper::types::{CommandHeader, GripperCommandEnum, GripperCommandHeader};
+use crate::robot::robot_state::FR3State;
+use crate::robot::service_types::{FR3CommandEnum, FR3CommandHeader, LoadModelLibraryResponse, LoadModelLibraryStatus, PandaCommandEnum, PandaCommandHeader};
 
 const CLIENT: Token = Token(1);
 
 pub enum NetworkType {
-    Robot,
+    Panda,
+    FR3,
     Gripper,
+}
+
+pub trait RobotData {
+    type CommandHeader: CommandHeader;
+    type CommandEnum;
+    type State;
+
+    fn create_header(command_id: &mut u32,
+                     command: Self::CommandEnum,
+                     size: usize,
+    ) -> Self::CommandHeader;
+
+}
+
+pub struct PandaData {
+
+}
+
+pub struct FR3Data {
+
+}
+
+pub struct GripperData{
+
+}
+
+impl RobotData for PandaData {
+    type CommandHeader = PandaCommandHeader;
+    type CommandEnum = PandaCommandEnum;
+    type State = PandaState;
+
+    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+        let header = PandaCommandHeader::new(command, *command_id, size as u32);
+        *command_id += 1;
+        header
+    }
+}
+
+impl RobotData for FR3Data {
+    type CommandHeader = FR3CommandHeader;
+    type CommandEnum = FR3CommandEnum;
+    type State = FR3State;
+
+    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+        let header = FR3CommandHeader::new(command, *command_id, size as u32);
+        *command_id += 1;
+        header
+    }
+}
+
+impl RobotData for GripperData {
+    type CommandHeader = GripperCommandHeader;
+    type CommandEnum = GripperCommandEnum;
+    type State = GripperState;
+
+    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+        let header = GripperCommandHeader::new(command, *command_id, size as u32);
+        *command_id += 1;
+        header
+    }
 }
 
 pub trait MessageCommand {
     fn get_command_message_id(&self) -> u32;
 }
 
-pub struct Network {
-    network_type: NetworkType,
+pub struct Network<Data: RobotData> {
     tcp_socket: TcpStream,
     udp_socket: UdpSocket,
     udp_server_address: SocketAddr,
@@ -60,14 +120,15 @@ pub struct Network {
     events: Events,
     poll_read_udp: Poll,
     events_udp: Events,
+    data : PhantomData<Data>,
 }
 
-impl Network {
+impl<Data: RobotData> Network<Data> {
     pub fn new(
         network_type: NetworkType,
         franka_address: &str,
         franka_port: u16,
-    ) -> Result<Network, Box<dyn Error>> {
+    ) -> Result<Network<Data>, Box<dyn Error>> {
         let address_str: String = format!("{}:{}", franka_address, franka_port);
         let sock_address = address_str.to_socket_addrs().unwrap().next().unwrap();
         let mut tcp_socket = TcpStream::from_std(StdTcpStream::connect(sock_address)?);
@@ -101,7 +162,6 @@ impl Network {
         let events = Events::with_capacity(128);
         let events_udp = Events::with_capacity(1);
         Ok(Network {
-            network_type,
             tcp_socket,
             udp_socket,
             udp_server_address,
@@ -117,26 +177,45 @@ impl Network {
             events,
             poll_read_udp,
             events_udp,
+            data:PhantomData
         })
     }
-    pub fn create_header_for_gripper(
+    // pub fn create_header_for_gripper(
+    //     &mut self,
+    //     command: gripper::types::GripperCommandEnum,
+    //     size: usize,
+    // ) -> GripperCommandHeader {
+    //     let header = gripper::types::GripperCommandHeader::new(command, self.command_id, size as u32);
+    //     self.command_id += 1;
+    //     header
+    // }
+    pub fn create_header_for_panda(
         &mut self,
-        command: gripper::types::Command,
+        command: PandaCommandEnum,
         size: usize,
-    ) -> CommandHeader {
-        let header = gripper::types::CommandHeader::new(command, self.command_id, size as u32);
+    ) -> PandaCommandHeader {
+        let header = PandaCommandHeader::new(command, self.command_id, size as u32);
         self.command_id += 1;
         header
     }
-    pub fn create_header_for_robot(
+
+    pub fn create_header(
         &mut self,
-        command: RobotCommandEnum,
+        command: Data::CommandEnum,
         size: usize,
-    ) -> RobotCommandHeader {
-        let header = RobotCommandHeader::new(command, self.command_id, size as u32);
-        self.command_id += 1;
-        header
+    ) -> Data::CommandHeader {
+        Data::create_header( &mut self.command_id, command, size )
+
     }
+    // pub fn create_header_for_fr3(
+    //     &mut self,
+    //     command: FR3CommandEnum,
+    //     size: usize,
+    // ) -> FR3CommandHeader {
+    //     let header = FR3CommandHeader::new(command, self.command_id, size as u32);
+    //     self.command_id += 1;
+    //     header
+    // }
 
     pub fn tcp_send_request<T: Serialize + DeserializeOwned + MessageCommand + Debug>(
         &mut self,
@@ -207,7 +286,7 @@ impl Network {
     ///
     /// # Error
     /// * [`FrankaException`](`crate::exception::FrankaException`) - if the handler returns an exception
-    pub fn tcp_receive_response<T, F>(
+    pub fn tcp_receive_response<T: Serialize, F>(
         &mut self,
         command_id: u32,
         handler: F,
@@ -334,27 +413,15 @@ impl Network {
                         };
 
                         if self.pending_response.is_empty() {
-                            let header_mem_size = match self.network_type {
-                                NetworkType::Gripper => size_of::<CommandHeader>(),
-                                NetworkType::Robot => size_of::<RobotCommandHeader>(),
-                            };
+                            let header_mem_size = size_of::<Data::CommandHeader>();
                             if available_bytes >= header_mem_size {
                                 let mut header_bytes: Vec<u8> = vec![0; header_mem_size];
                                 self.tcp_socket.read_exact(&mut header_bytes).unwrap();
                                 self.pending_response.append(&mut header_bytes.clone());
                                 self.pending_response_offset = header_mem_size as usize;
-                                match self.network_type {
-                                    NetworkType::Gripper => {
-                                        let header: CommandHeader = deserialize(&header_bytes);
-                                        self.pending_response_len = header.size as usize;
-                                        self.pending_command_id = header.command_id;
-                                    }
-                                    NetworkType::Robot => {
-                                        let header: RobotCommandHeader = deserialize(&header_bytes);
-                                        self.pending_response_len = header.size as usize;
-                                        self.pending_command_id = header.command_id;
-                                    }
-                                };
+                                let header: Data::CommandHeader = deserialize(&header_bytes);
+                                self.pending_response_len = header.get_size() as usize;
+                                self.pending_command_id = header.get_command_id();
                             }
                         }
                         if !self.pending_response.is_empty() && available_bytes > 0 {
@@ -400,6 +467,7 @@ fn deserialize<T: Debug + DeserializeOwned + 'static>(encoded: &[u8]) -> T {
 #[cfg(test)]
 mod tests {
     use crate::network::{deserialize, serialize};
+    use crate::robot::service_types::PandaCommandHeader;
     use crate::robot::types::PandaStateIntern;
 
     #[test]
