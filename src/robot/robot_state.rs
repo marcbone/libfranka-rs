@@ -2,16 +2,20 @@
 // Licensed under the EUPL-1.2-or-later
 
 //! Contains the franka::RobotState types.
+use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::robot::errors::{FrankaErrorKind, FrankaErrors};
 use crate::robot::types::{RobotMode, PandaStateIntern};
 use nalgebra::{Matrix3, Vector3};
+use serde::Serialize;
 use crate::robot::FR3;
 
-pub trait RobotState {
+pub trait RobotState : Clone + Debug {
     fn get_time(&self) -> Duration;
     fn get_tau_J_d(&self) -> [f64;7];
+    fn get_last_motion_errors(&self) -> &FrankaErrors;
+    fn is_moving(&self) -> bool;
 }
 
 /// Describes the robot state.
@@ -815,6 +819,14 @@ impl RobotState for PandaState {
     fn get_tau_J_d(&self) -> [f64; 7] {
         self.tau_J_d
     }
+
+    fn get_last_motion_errors(&self) -> & FrankaErrors {
+        &self.last_motion_errors
+    }
+
+    fn is_moving(&self) -> bool {
+        self.robot_mode == RobotMode::Move
+    }
 }
 
 impl RobotState for FR3State {
@@ -825,6 +837,13 @@ impl RobotState for FR3State {
 
     fn get_tau_J_d(&self) -> [f64; 7] {
        self.tau_J_d
+    }
+
+    fn get_last_motion_errors(&self) -> &FrankaErrors {
+        &self.last_motion_errors
+    }
+    fn is_moving(&self) -> bool {
+        self.robot_mode == RobotMode::Move
     }
 }
 

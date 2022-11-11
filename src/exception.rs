@@ -4,6 +4,7 @@
 //! Contains exception and Result definitions
 use crate::robot::logger::Record;
 use thiserror::Error;
+use crate::PandaState;
 
 /// Represents all kind of errors which correspond to the franka::Exception in the C++ version of
 /// this library
@@ -15,7 +16,7 @@ pub enum FrankaException {
     #[error("{error}")]
     ControlException {
         /// Vector of states and commands logged just before the exception occurred.
-        log: Option<Vec<Record>>,
+        log: Option<Vec<Record<PandaState>>>,
         /// Explanatory string.
         error: String,
     },

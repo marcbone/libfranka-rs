@@ -23,7 +23,6 @@ use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;
 use nalgebra::{Isometry3, Vector6};
-use crate::robot::robot_impl::RobotImplFR3;
 
 /// Available controller modes for a [`Robot`](`crate::Robot`)
 pub enum ControllerMode {

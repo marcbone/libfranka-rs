@@ -24,13 +24,14 @@ use nix::sys::socket::setsockopt;
 use nix::sys::socket::sockopt::{KeepAlive, TcpKeepCount, TcpKeepIdle, TcpKeepInterval};
 
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::exception::{FrankaException, FrankaResult};
 use crate::{gripper, GripperState, PandaState};
 use crate::gripper::types::{CommandHeader, GripperCommandEnum, GripperCommandHeader};
-use crate::robot::robot_state::FR3State;
+use crate::robot::robot_state::{FR3State, RobotState};
 use crate::robot::service_types::{FR3CommandEnum, FR3CommandHeader, LoadModelLibraryResponse, LoadModelLibraryStatus, PandaCommandEnum, PandaCommandHeader};
+use crate::robot::types::{RobotStateIntern, PandaStateIntern};
 
 const CLIENT: Token = Token(1);
 
@@ -40,15 +41,21 @@ pub enum NetworkType {
     Gripper,
 }
 
-pub trait RobotData {
+pub trait DeviceData {
     type CommandHeader: CommandHeader;
     type CommandEnum;
-    type State;
-
     fn create_header(command_id: &mut u32,
                      command: Self::CommandEnum,
                      size: usize,
     ) -> Self::CommandHeader;
+}
+
+pub trait RobotData : DeviceData {
+    type DeviceData: DeviceData;
+    type State:RobotState + From<Self::StateIntern>;
+    type StateIntern: Debug + DeserializeOwned + Serialize + RobotStateIntern + 'static;
+
+
 
 }
 
@@ -64,11 +71,9 @@ pub struct GripperData{
 
 }
 
-impl RobotData for PandaData {
+impl DeviceData for PandaData {
     type CommandHeader = PandaCommandHeader;
     type CommandEnum = PandaCommandEnum;
-    type State = PandaState;
-
     fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
         let header = PandaCommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
@@ -76,22 +81,29 @@ impl RobotData for PandaData {
     }
 }
 
-impl RobotData for FR3Data {
+impl RobotData for PandaData {
+    type State = PandaState;
+    type DeviceData = Self;
+    type StateIntern = PandaStateIntern;
+}
+impl DeviceData for FR3Data {
     type CommandHeader = FR3CommandHeader;
     type CommandEnum = FR3CommandEnum;
-    type State = FR3State;
-
     fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
         let header = FR3CommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
     }
 }
+impl RobotData for FR3Data {
+    type DeviceData = Self;
+    type State = FR3State;
+    type StateIntern = PandaStateIntern; // todo create fr3stateintern type
+}
 
-impl RobotData for GripperData {
+impl DeviceData for GripperData {
     type CommandHeader = GripperCommandHeader;
     type CommandEnum = GripperCommandEnum;
-    type State = GripperState;
 
     fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
         let header = GripperCommandHeader::new(command, *command_id, size as u32);
@@ -104,7 +116,7 @@ pub trait MessageCommand {
     fn get_command_message_id(&self) -> u32;
 }
 
-pub struct Network<Data: RobotData> {
+pub struct Network<Data: DeviceData> {
     tcp_socket: TcpStream,
     udp_socket: UdpSocket,
     udp_server_address: SocketAddr,
@@ -123,7 +135,7 @@ pub struct Network<Data: RobotData> {
     data : PhantomData<Data>,
 }
 
-impl<Data: RobotData> Network<Data> {
+impl<Data: DeviceData> Network<Data> {
     pub fn new(
         network_type: NetworkType,
         franka_address: &str,

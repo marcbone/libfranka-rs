@@ -18,7 +18,7 @@ use crate::robot::control_types::{
 use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_impl::{RobotImplPanda, RobotImplementation, RobotImplFR3};
+use crate::robot::robot_impl::{RobotImplementation, RobotImplGeneric};
 use crate::robot::service_types::{
     AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
     AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
@@ -241,13 +241,13 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
 /// Commands are executed by communicating with the robot over the network.
 /// These functions should therefore not be called from within control or motion generator loops.
 pub struct Panda {
-    robimpl: RobotImplPanda,
+    robimpl: RobotImplGeneric<PandaData>,
 }
 
 impl Robot for Panda {
     type Data = PandaData;
     type State1 = PandaState;
-    type Rob = RobotImplPanda;
+    type Rob = RobotImplGeneric<Self::Data>;
     fn get_net(&mut self) -> &mut Network<Self::Data>{
         &mut self.robimpl.network
     }
@@ -257,13 +257,13 @@ impl Robot for Panda {
 }
 
 pub struct FR3 {
-    robimpl: RobotImplFR3,
+    robimpl:  RobotImplGeneric<FR3Data>,
 }
 
 impl Robot for FR3 {
     type Data = FR3Data;
     type State1 = FR3State;
-    type Rob = RobotImplFR3;
+    type Rob = RobotImplGeneric<Self::Data>;
     fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
@@ -288,7 +288,7 @@ impl FR3{
                 message: "Connection could not be established".to_string(),
             })?;
         Ok(FR3 {
-            robimpl: RobotImplFR3::new(network, log_size, realtime_config)?,
+            robimpl: <FR3 as Robot>::Rob::new(network, log_size, realtime_config)?,
         })
     }
 }
@@ -331,7 +331,7 @@ impl Panda {
             message: "Connection could not be established".to_string(),
         })?;
         Ok(Panda {
-            robimpl: RobotImplPanda::new(network, log_size, realtime_config)?,
+            robimpl: <Panda as Robot>::Rob::new(network, log_size, realtime_config)?,
         })
     }
     /// Starts a loop for reading the current robot state.
@@ -1238,7 +1238,8 @@ impl Panda {
     /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn load_model(&mut self, persistent: bool) -> FrankaResult<Model> {
-        self.robimpl.load_model(persistent)
+        // self.robimpl.load_model(persistent) // todo care about model
+        FrankaResult::Err(FrankaException::ModelException { message: "fuck".to_string() })
     }
     /// Returns the software version reported by the connected server.
     ///

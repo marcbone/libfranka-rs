@@ -48,7 +48,7 @@ impl GripperStateIntern {
         Duration::from_millis(self.message_id as u64)
     }
 }
-
+// TODO is static a problem?
 pub trait CommandHeader : Debug + DeserializeOwned + 'static {
     fn get_command_id(&self) -> u32;
     fn get_size(&self) -> u32;
