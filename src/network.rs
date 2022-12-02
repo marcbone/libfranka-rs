@@ -27,11 +27,15 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::exception::{FrankaException, FrankaResult};
-use crate::{gripper, GripperState, PandaState};
 use crate::gripper::types::{CommandHeader, GripperCommandEnum, GripperCommandHeader};
 use crate::robot::robot_state::{FR3State, RobotState};
-use crate::robot::service_types::{FR3CommandEnum, FR3CommandHeader, LoadModelLibraryResponse, LoadModelLibraryStatus, PandaCommandEnum, PandaCommandHeader};
-use crate::robot::types::{RobotStateIntern, PandaStateIntern};
+use crate::robot::service_types::{
+    FR3CommandEnum, FR3CommandHeader, LoadModelLibraryRequest, LoadModelLibraryRequestWithHeader,
+    LoadModelLibraryResponse, LoadModelLibraryStatus, ModelRequestWithHeader, PandaCommandEnum,
+    PandaCommandHeader, RobotHeader,
+};
+use crate::robot::types::{PandaStateIntern, RobotStateIntern};
+use crate::{gripper, FR3Model, GripperState, PandaModel, PandaState, RobotModel};
 
 const CLIENT: Token = Token(1);
 
@@ -44,37 +48,39 @@ pub enum NetworkType {
 pub trait DeviceData {
     type CommandHeader: CommandHeader;
     type CommandEnum;
-    fn create_header(command_id: &mut u32,
-                     command: Self::CommandEnum,
-                     size: usize,
+    fn create_header(
+        command_id: &mut u32,
+        command: Self::CommandEnum,
+        size: usize,
     ) -> Self::CommandHeader;
 }
 
-pub trait RobotData : DeviceData {
+pub trait RobotData: DeviceData {
     type DeviceData: DeviceData;
-    type State:RobotState + From<Self::StateIntern>;
+    type Header: RobotHeader;
+    type State: RobotState + From<Self::StateIntern>;
     type StateIntern: Debug + DeserializeOwned + Serialize + RobotStateIntern + 'static;
-
-
-
+    type Model: RobotModel;
+    fn create_model_library_request(
+        command_id: &mut u32,
+        request: LoadModelLibraryRequest,
+    ) -> ModelRequestWithHeader<<Self as RobotData>::Header>;
 }
 
-pub struct PandaData {
+pub struct PandaData {}
 
-}
+pub struct FR3Data {}
 
-pub struct FR3Data {
-
-}
-
-pub struct GripperData{
-
-}
+pub struct GripperData {}
 
 impl DeviceData for PandaData {
     type CommandHeader = PandaCommandHeader;
     type CommandEnum = PandaCommandEnum;
-    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+    fn create_header(
+        command_id: &mut u32,
+        command: Self::CommandEnum,
+        size: usize,
+    ) -> Self::CommandHeader {
         let header = PandaCommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
@@ -85,11 +91,30 @@ impl RobotData for PandaData {
     type State = PandaState;
     type DeviceData = Self;
     type StateIntern = PandaStateIntern;
+    type Model = PandaModel;
+
+    fn create_model_library_request(
+        mut command_id: &mut u32,
+        request: LoadModelLibraryRequest,
+    ) -> ModelRequestWithHeader<PandaCommandHeader> {
+        let header = Self::create_header(
+            &mut command_id,
+            PandaCommandEnum::LoadModelLibrary,
+            size_of::<LoadModelLibraryRequestWithHeader>(),
+        );
+        ModelRequestWithHeader { header, request }
+    }
+
+    type Header = PandaCommandHeader;
 }
 impl DeviceData for FR3Data {
     type CommandHeader = FR3CommandHeader;
     type CommandEnum = FR3CommandEnum;
-    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+    fn create_header(
+        command_id: &mut u32,
+        command: Self::CommandEnum,
+        size: usize,
+    ) -> Self::CommandHeader {
         let header = FR3CommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
@@ -97,15 +122,39 @@ impl DeviceData for FR3Data {
 }
 impl RobotData for FR3Data {
     type DeviceData = Self;
+    type Header = FR3CommandHeader;
     type State = FR3State;
     type StateIntern = PandaStateIntern; // todo create fr3stateintern type
+    type Model = FR3Model;
+
+    fn create_model_library_request(
+        mut command_id: &mut u32,
+        request: LoadModelLibraryRequest,
+    ) -> ModelRequestWithHeader<<<Self as RobotData>::DeviceData as DeviceData>::CommandHeader>
+    where
+        <<Self as RobotData>::DeviceData as DeviceData>::CommandHeader: RobotHeader,
+    {
+        let header = Self::create_header(
+            &mut command_id,
+            FR3CommandEnum::LoadModelLibrary,
+            size_of::<LoadModelLibraryRequestWithHeader>(),
+        );
+        ModelRequestWithHeader {
+            header: header,
+            request: request,
+        }
+    }
 }
 
 impl DeviceData for GripperData {
     type CommandHeader = GripperCommandHeader;
     type CommandEnum = GripperCommandEnum;
 
-    fn create_header(command_id: &mut u32, command: Self::CommandEnum, size: usize) -> Self::CommandHeader {
+    fn create_header(
+        command_id: &mut u32,
+        command: Self::CommandEnum,
+        size: usize,
+    ) -> Self::CommandHeader {
         let header = GripperCommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
@@ -132,7 +181,7 @@ pub struct Network<Data: DeviceData> {
     events: Events,
     poll_read_udp: Poll,
     events_udp: Events,
-    data : PhantomData<Data>,
+    data: PhantomData<Data>,
 }
 
 impl<Data: DeviceData> Network<Data> {
@@ -189,7 +238,7 @@ impl<Data: DeviceData> Network<Data> {
             events,
             poll_read_udp,
             events_udp,
-            data:PhantomData
+            data: PhantomData,
         })
     }
     // pub fn create_header_for_gripper(
@@ -216,8 +265,7 @@ impl<Data: DeviceData> Network<Data> {
         command: Data::CommandEnum,
         size: usize,
     ) -> Data::CommandHeader {
-        Data::create_header( &mut self.command_id, command, size )
-
+        Data::create_header(&mut self.command_id, command, size)
     }
     // pub fn create_header_for_fr3(
     //     &mut self,
@@ -229,10 +277,7 @@ impl<Data: DeviceData> Network<Data> {
     //     header
     // }
 
-    pub fn tcp_send_request<T: Serialize + DeserializeOwned + MessageCommand + Debug>(
-        &mut self,
-        request: T,
-    ) -> u32 {
+    pub fn tcp_send_request<T: Serialize + MessageCommand>(&mut self, request: T) -> u32 {
         let encoded_request = serialize(&request);
         self.tcp_socket.write_all(&encoded_request).unwrap();
         request.get_command_message_id()

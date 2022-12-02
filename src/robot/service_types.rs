@@ -639,6 +639,20 @@ pub struct LoadModelLibraryRequestWithHeader {
     pub request: LoadModelLibraryRequest,
 }
 
+// this is a very hacky generic struct that is a generic version of LoadModelLibraryRequestWithHeader
+// todo find a better solution to deal with the model downloader
+#[derive(Serialize, Debug, Copy, Clone)]
+pub struct ModelRequestWithHeader<Header: RobotHeader> {
+    pub header: Header,
+    pub request: LoadModelLibraryRequest,
+}
+
+impl<Header:RobotHeader> MessageCommand for ModelRequestWithHeader<Header> {
+    fn get_command_message_id(&self) -> u32 {
+       self.header.get_command_message_id()
+    }
+}
+
 impl MessageCommand for LoadModelLibraryRequestWithHeader {
     fn get_command_message_id(&self) -> u32 {
         self.header.get_command_message_id()

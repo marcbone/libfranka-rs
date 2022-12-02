@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::fmt::Debug;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::model::Model;
+use crate::model::PandaModel;
 use crate::network::{FR3Data, Network, NetworkType, PandaData, RobotData};
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::control_types::{
@@ -18,7 +18,8 @@ use crate::robot::control_types::{
 use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_impl::{RobotImplementation, RobotImplGeneric};
+use crate::robot::robot_impl::{RobotImplGeneric, RobotImplementation};
+use crate::robot::robot_state::{FR3State, RobotState};
 use crate::robot::service_types::{
     AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
     AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
@@ -34,9 +35,8 @@ use crate::robot::service_types::{
 };
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
-use robot_state::PandaState;
 use crate::Finishable;
-use crate::robot::robot_state::{FR3State, RobotState};
+use robot_state::PandaState;
 
 mod control_loop;
 mod control_tools;
@@ -54,25 +54,30 @@ pub(crate) mod service_types;
 pub(crate) mod types;
 pub mod virtual_wall_cuboid;
 
-pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
-    type Data:RobotData;
-    type State1:RobotState;
-    type Rob:RobotImplementation<State=Self::State1>;
+pub trait Robot
+where
+    CartesianPose: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
+    JointVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
+    JointPositions: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
+    CartesianVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
+{
+    type Data: RobotData;
+    type Rob: RobotImplementation<Data = Self::Data>;
     fn get_rob(&mut self) -> &mut Self::Rob;
     fn get_net(&mut self) -> &mut Network<Self::Data>;
-    fn read<F: FnMut(&Self::State1) -> bool>(&mut self,
-    mut read_callback: F,
+    fn read<F: FnMut(&<<Self as Robot>::Data as RobotData>::State) -> bool>(
+        &mut self,
+        mut read_callback: F,
     ) -> FrankaResult<()> {
         loop {
-
             let state = self.get_rob().update2(None, None)?;
             if !read_callback(&state) {
-            break;
+                break;
             }
         }
         Ok(())
     }
-    fn read_once(&mut self) -> FrankaResult<Self::State1> {
+    fn read_once(&mut self) -> FrankaResult<<<Self as Robot>::Data as RobotData>::State> {
         self.get_rob().read_once2()
     }
 
@@ -105,9 +110,8 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
             ),
         };
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetCollisionBehaviorResponse = self
-            .get_net()
-            .tcp_blocking_receive_response(command_id);
+        let response: SetCollisionBehaviorResponse =
+            self.get_net().tcp_blocking_receive_response(command_id);
         handle_getter_setter_status(response.status)
     }
 
@@ -121,9 +125,8 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
             request: SetJointImpedanceRequest::new(K_theta),
         };
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetJointImpedanceResponse = self
-            .get_net()
-            .tcp_blocking_receive_response(command_id);
+        let response: SetJointImpedanceResponse =
+            self.get_net().tcp_blocking_receive_response(command_id);
         handle_getter_setter_status(response.status)
     }
 
@@ -137,15 +140,17 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
             request: SetCartesianImpedanceRequest::new(K_x),
         };
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetCartesianImpedanceResponse = self
-            .get_net()
-            .tcp_blocking_receive_response(command_id);
+        let response: SetCartesianImpedanceResponse =
+            self.get_net().tcp_blocking_receive_response(command_id);
         handle_getter_setter_status(response.status)
     }
 
     fn control_motion_intern<
-        F: FnMut(&Self::State1, &Duration) -> U,
-        U: ConvertMotion<Self::State1> + Debug + MotionGeneratorTrait + Finishable,
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> U,
+        U: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>
+            + Debug
+            + MotionGeneratorTrait
+            + Finishable,
     >(
         &mut self,
         motion_generator_callback: F,
@@ -157,7 +162,7 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
         let limit_rate = limit_rate.unwrap_or(true);
         let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::from_control_mode(
-             self.get_rob(),
+            self.get_rob(),
             controller_mode,
             motion_generator_callback,
             limit_rate,
@@ -167,7 +172,7 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
     }
 
     fn control_cartesian_pose<
-        F: FnMut(&Self::State1, &Duration) -> CartesianPose,
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianPose,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -184,6 +189,269 @@ pub trait Robot where CartesianPose: ConvertMotion<<Self as Robot>::State1>{
             limit_rate.into(),
             cutoff_frequency.into(),
         )
+    }
+
+    fn control_torques_intern<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> U,
+        U: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>
+            + Debug
+            + MotionGeneratorTrait
+            + Finishable,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        control_callback: &mut dyn FnMut(
+            &<<Self as Robot>::Data as RobotData>::State,
+            &Duration,
+        ) -> Torques,
+        limit_rate: Option<bool>,
+        cutoff_frequency: Option<f64>,
+    ) -> FrankaResult<()> {
+        let limit_rate = limit_rate.unwrap_or(true);
+        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
+        let mut control_loop = ControlLoop::new(
+            self.get_rob(),
+            control_callback,
+            motion_generator_callback,
+            limit_rate,
+            cutoff_frequency,
+        )?;
+        control_loop.run()
+    }
+
+    /// Starts a control loop for sending joint-level torque commands.
+    ///
+    /// Sets real-time priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `control_callback` - Callback function providing joint-level torque commands.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `limit_rate` - True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` - Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal. Set to
+    /// [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`)
+    /// to disable. Default is 100 Hz
+    ///
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`)
+    /// if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`)
+    /// if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`)
+    /// if real-time priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint-level torque commands are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if real-time priority cannot be set.
+    fn control_torques<
+        T: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> Torques,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        mut control_callback: T,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        let motion_generator_callback =
+            |_state: &<<Self as Robot>::Data as RobotData>::State, _time_step: &Duration| {
+                JointVelocities::new([0.; 7])
+            };
+        self.control_torques_intern(
+            &motion_generator_callback,
+            &mut control_callback,
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+
+    /// Starts a control loop for sending joint-level torque commands and joint velocities.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `control_callback` Callback function providing joint-level torque commands.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint-level torque or joint velocity commands are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_torques_and_joint_velocities<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointVelocities,
+        T: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> Torques,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        mut control_callback: T,
+        motion_generator_callback: F,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_torques_intern(
+            motion_generator_callback,
+            &mut control_callback,
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+    /// Starts a control loop for sending joint-level torque commands and joint positions.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `control_callback` Callback function providing joint-level torque commands.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint-level torque or joint position commands are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_torques_and_joint_positions<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointPositions,
+        T: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> Torques,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        mut control_callback: T,
+        motion_generator_callback: F,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_torques_intern(
+            motion_generator_callback,
+            &mut control_callback,
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+
+    /// Starts a control loop for sending joint-level torque commands and Cartesian poses.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `control_callback` Callback function providing joint-level torque commands.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint-level torque or Cartesian pose command elements are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_torques_and_cartesian_pose<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianPose,
+        T: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> Torques,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        mut control_callback: T,
+        motion_generator_callback: F,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_torques_intern(
+            motion_generator_callback,
+            &mut control_callback,
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+
+    /// Starts a control loop for sending joint-level torque commands and Cartesian velocities.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `control_callback` Callback function providing joint-level torque commands.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint-level torque or Cartesian velocity command elements are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_torques_and_cartesian_velocities<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianVelocities,
+        T: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> Torques,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        mut control_callback: T,
+        motion_generator_callback: F,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_torques_intern(
+            motion_generator_callback,
+            &mut control_callback,
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+
+    /// Loads the model library from the robot.
+    /// # Arguments
+    /// * `persistent` - If set to true the model will be stored at `/tmp/model.so`
+    /// # Return
+    /// Model instance.
+    /// # Errors
+    /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    fn load_model(&mut self, persistent: bool) -> FrankaResult<<Self::Data as RobotData>::Model> {
+        self.get_rob().load_model2(persistent)
     }
 }
 
@@ -246,33 +514,31 @@ pub struct Panda {
 
 impl Robot for Panda {
     type Data = PandaData;
-    type State1 = PandaState;
     type Rob = RobotImplGeneric<Self::Data>;
-    fn get_net(&mut self) -> &mut Network<Self::Data>{
+    fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
-    fn get_rob(&mut self) ->&mut Self::Rob {
+    fn get_rob(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
 }
 
 pub struct FR3 {
-    robimpl:  RobotImplGeneric<FR3Data>,
+    robimpl: RobotImplGeneric<FR3Data>,
 }
 
 impl Robot for FR3 {
     type Data = FR3Data;
-    type State1 = FR3State;
     type Rob = RobotImplGeneric<Self::Data>;
     fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
-    fn get_rob(&mut self) ->&mut Self::Rob {
+    fn get_rob(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
 }
 
-impl FR3{
+impl FR3 {
     pub fn new<RtConfig: Into<Option<RealtimeConfig>>, LogSize: Into<Option<usize>>>(
         franka_address: &str,
         realtime_config: RtConfig,
@@ -280,13 +546,14 @@ impl FR3{
     ) -> FrankaResult<FR3> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(NetworkType::FR3,
+        let network = Network::new(
+            NetworkType::FR3,
             franka_address,
             service_types::COMMAND_PORT,
         )
-            .map_err(|_| FrankaException::NetworkException {
-                message: "Connection could not be established".to_string(),
-            })?;
+        .map_err(|_| FrankaException::NetworkException {
+            message: "Connection could not be established".to_string(),
+        })?;
         Ok(FR3 {
             robimpl: <FR3 as Robot>::Rob::new(network, log_size, realtime_config)?,
         })
@@ -323,7 +590,8 @@ impl Panda {
     ) -> FrankaResult<Panda> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(NetworkType::Panda,
+        let network = Network::new(
+            NetworkType::Panda,
             franka_address,
             service_types::COMMAND_PORT,
         )
@@ -940,268 +1208,7 @@ impl Panda {
             cutoff_frequency.into(),
         )
     }
-    /// Starts a control loop for sending joint-level torque commands and joint velocities.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `control_callback` Callback function providing joint-level torque commands.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint-level torque or joint velocity commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_torques_and_joint_velocities<
-        F: FnMut(&PandaState, &Duration) -> JointVelocities,
-        T: FnMut(&PandaState, &Duration) -> Torques,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        mut control_callback: T,
-        motion_generator_callback: F,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_torques_intern(
-            motion_generator_callback,
-            &mut control_callback,
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-    /// Starts a control loop for sending joint-level torque commands and joint positions.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `control_callback` Callback function providing joint-level torque commands.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint-level torque or joint position commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_torques_and_joint_positions<
-        F: FnMut(&PandaState, &Duration) -> JointPositions,
-        T: FnMut(&PandaState, &Duration) -> Torques,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        mut control_callback: T,
-        motion_generator_callback: F,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_torques_intern(
-            motion_generator_callback,
-            &mut control_callback,
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
 
-    /// Starts a control loop for sending joint-level torque commands and Cartesian poses.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `control_callback` Callback function providing joint-level torque commands.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint-level torque or Cartesian pose command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_torques_and_cartesian_pose<
-        F: FnMut(&PandaState, &Duration) -> CartesianPose,
-        T: FnMut(&PandaState, &Duration) -> Torques,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        mut control_callback: T,
-        motion_generator_callback: F,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_torques_intern(
-            motion_generator_callback,
-            &mut control_callback,
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-
-    /// Starts a control loop for sending joint-level torque commands and Cartesian velocities.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `control_callback` Callback function providing joint-level torque commands.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint-level torque or Cartesian velocity command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_torques_and_cartesian_velocities<
-        F: FnMut(&PandaState, &Duration) -> CartesianVelocities,
-        T: FnMut(&PandaState, &Duration) -> Torques,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        mut control_callback: T,
-        motion_generator_callback: F,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_torques_intern(
-            motion_generator_callback,
-            &mut control_callback,
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-    /// Starts a control loop for sending joint-level torque commands.
-    ///
-    /// Sets real-time priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `control_callback` - Callback function providing joint-level torque commands.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` - True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` - Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal. Set to
-    /// [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`)
-    /// to disable. Default is 100 Hz
-    ///
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`)
-    /// if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`)
-    /// if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`)
-    /// if real-time priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint-level torque commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if real-time priority cannot be set.
-    pub fn control_torques<
-        T: FnMut(&PandaState, &Duration) -> Torques,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        mut control_callback: T,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        let motion_generator_callback =
-            |_state: &PandaState, _time_step: &Duration| JointVelocities::new([0.; 7]);
-        self.control_torques_intern(
-            &motion_generator_callback,
-            &mut control_callback,
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-    fn control_torques_intern<
-        F: FnMut(&PandaState, &Duration) -> U,
-        U: ConvertMotion<PandaState> + Debug + MotionGeneratorTrait + Finishable,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        control_callback: &mut dyn FnMut(&PandaState, &Duration) -> Torques,
-        limit_rate: Option<bool>,
-        cutoff_frequency: Option<f64>,
-    ) -> FrankaResult<()> {
-        let limit_rate = limit_rate.unwrap_or(true);
-        let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
-        let mut control_loop = ControlLoop::new(
-            &mut self.robimpl,
-            control_callback,
-            motion_generator_callback,
-            limit_rate,
-            cutoff_frequency,
-        )?;
-        control_loop.run()
-    }
-    // fn control_motion_intern<
-    //     F: FnMut(&PandaState, &Duration) -> U,
-    //     U: Finishable + Debug + MotionGeneratorTrait,
-    // >(
-    //     &mut self,
-    //     motion_generator_callback: F,
-    //     controller_mode: Option<ControllerMode>,
-    //     limit_rate: Option<bool>,
-    //     cutoff_frequency: Option<f64>,
-    // ) -> FrankaResult<()> {
-    //     let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
-    //     let limit_rate = limit_rate.unwrap_or(true);
-    //     let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
-    //     let mut control_loop = ControlLoop::from_control_mode(
-    //         &mut self.robimpl,
-    //         controller_mode,
-    //         motion_generator_callback,
-    //         limit_rate,
-    //         cutoff_frequency,
-    //     )?;
-    //     control_loop.run()
-    // }
     /// Sets a default collision behavior, joint impedance and Cartesian impedance.
     /// # Errors
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
@@ -1228,18 +1235,6 @@ impl Panda {
             Some(true),
             Some(MAX_CUTOFF_FREQUENCY),
         )
-    }
-    /// Loads the model library from the robot.
-    /// # Arguments
-    /// * `persistent` - If set to true the model will be stored at `/tmp/model.so`
-    /// # Return
-    /// Model instance.
-    /// # Errors
-    /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn load_model(&mut self, persistent: bool) -> FrankaResult<Model> {
-        // self.robimpl.load_model(persistent) // todo care about model
-        FrankaResult::Err(FrankaException::ModelException { message: "fuck".to_string() })
     }
     /// Returns the software version reported by the connected server.
     ///
@@ -1280,12 +1275,12 @@ mod tests {
         SetCollisionBehaviorResponse, COMMAND_PORT, VERSION,
     };
     use crate::robot::types::PandaStateIntern;
-    use crate::{FrankaResult, JointPositions, RealtimeConfig, Panda, PandaState, Finishable};
+    use crate::robot::Robot;
+    use crate::{Finishable, FrankaResult, JointPositions, Panda, PandaState, RealtimeConfig};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
     use std::mem::size_of;
     use std::time::{Duration, Instant};
-    use crate::robot::Robot;
 
     struct Socket<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)> {
         pub send_bytes: F,

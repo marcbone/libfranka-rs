@@ -3,8 +3,8 @@
 use std::mem::size_of;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::model::library_downloader::LibraryDownloader;
-use crate::model::Model;
+use crate::model::library_downloader::{LibraryDownloader, LibraryDownloaderGeneric};
+use crate::model::PandaModel;
 use crate::network::DeviceData;
 use crate::network::{FR3Data, Network, PandaData, RobotData};
 use crate::robot::control_types::RealtimeConfig;
@@ -22,14 +22,15 @@ use crate::robot::service_types::{
 use crate::robot::types::{ControllerCommand, ControllerMode, RobotStateIntern, MotionGeneratorCommand, MotionGeneratorMode, PandaStateIntern, RobotCommand, RobotMode};
 use std::fs::remove_file;
 use std::path::Path;
+use crate::RobotModel;
 
-pub trait RobotImplementation: RobotControl<State2 = Self::State> {
-    type State: RobotState;
+pub trait RobotImplementation: RobotControl<State2 =<<Self as RobotImplementation>::Data as RobotData>::State> {
+    type Data: RobotData;
     fn update2(
         &mut self,
         motion_command: Option<&MotionGeneratorCommand>,
         control_command: Option<&ControllerCommand>,
-     ) -> FrankaResult<Self::State>; // todo remove commented out code
+     ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>; // todo remove commented out code
     // {
     //     let robot_command = self.send_robot_command(motion_command, control_command)?;
     //     let state = Self::State::from(self.receive_robot_state()?);
@@ -38,13 +39,13 @@ pub trait RobotImplementation: RobotControl<State2 = Self::State> {
     //     }
     //     Ok(state)
     // }
-    fn read_once2(&mut self) -> FrankaResult<Self::State>;
-    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Model>;
+    fn read_once2(&mut self) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>;
+    fn load_model2(&mut self, persistent: bool) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::Model>;
     fn server_version2(&self) -> u16;
 }
 
 pub struct RobotImplGeneric<Data: RobotData> {
-    pub network: Network<(Data::DeviceData)>,
+    pub network: Network<Data::DeviceData>,
     logger: Logger<PandaState>,
     realtime_config: RealtimeConfig,
     ri_version: Option<u16>,
@@ -229,10 +230,10 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
     }
 }
 
-impl<Data:RobotData> RobotImplementation for RobotImplGeneric<Data> {
-    type State = Data::State;
+impl<Data:RobotData + RobotData<DeviceData = Data>> RobotImplementation for RobotImplGeneric<Data> {
+    type Data = Data;
 
-    fn update2(&mut self, motion_command: Option<&MotionGeneratorCommand>, control_command: Option<&ControllerCommand>) -> FrankaResult<Self::State> {
+    fn update2(&mut self, motion_command: Option<&MotionGeneratorCommand>, control_command: Option<&ControllerCommand>) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
         let robot_command = self.send_robot_command(motion_command, control_command)?;
         let state = Data::State::from(self.receive_robot_state()?);
         if let Some(command) = robot_command {
@@ -241,24 +242,24 @@ impl<Data:RobotData> RobotImplementation for RobotImplGeneric<Data> {
         Ok(state)
     }
 
-    fn read_once2(&mut self) -> FrankaResult<Self::State> {
+    fn read_once2(&mut self) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
     }
-    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Model> {
-        /// todo take care of model
-        // let model_file = Path::new("/tmp/model.so");
-        // let model_already_downloaded = model_file.exists();
-        // if !model_already_downloaded {
-        //     LibraryDownloader::download(&mut self.network, model_file)?;
-        // }
-        // let model = Model::new(model_file, None)?;
-        // if !persistent && model_already_downloaded {
-        //     remove_file(model_file).expect("Could not delete file");
-        // }
-        // Ok(model)
-        FrankaResult::Err(FrankaException::ModelException { message: "fuck".to_string() })
+    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Data::Model>{
+        let model_file = Path::new("/tmp/model.so");
+        let model_already_downloaded = model_file.exists();
+        if !model_already_downloaded {
+            LibraryDownloaderGeneric::<Data>::download(&mut self.network, model_file)?;
+        }
+        let model = Data::Model::new(model_file, None)?;
+        if !persistent && model_already_downloaded {
+            remove_file(model_file).expect("Could not delete file");
+        }
+        Ok(model)
     }
+
+
     fn server_version2(&self) -> u16 {
         self.ri_version.unwrap()
     }
@@ -461,19 +462,6 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
     fn controller_running(&self) -> bool {
         self.controller_mode == ControllerMode::ExternalController
     }
-    /// todo take care of model
-    // pub fn load_model(&mut self, persistent: bool) -> FrankaResult<Model> {
-    //     let model_file = Path::new("/tmp/model.so");
-    //     let model_already_downloaded = model_file.exists();
-    //     if !model_already_downloaded {
-    //         LibraryDownloader::download(&mut self.network, model_file)?;
-    //     }
-    //     let model = Model::new(model_file, None)?;
-    //     if !persistent && model_already_downloaded {
-    //         remove_file(model_file).expect("Could not delete file");
-    //     }
-    //     Ok(model)
-    // }
     pub fn server_version(&self) -> u16 {
         self.ri_version.unwrap()
     }

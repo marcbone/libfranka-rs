@@ -2,14 +2,14 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::Frame;
+use franka::{Frame, Panda, PandaState, RobotModel};
 use franka::FrankaResult;
-use franka::Robot;
-use franka::RobotState;
 use franka::Torques;
 use franka::{array_to_isometry, Matrix6x7, Vector7};
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 use std::time::Duration;
+use franka::robot::{FR3, Robot};
+use franka::robot::robot_state::FR3State;
 
 /// An example showing a simple cartesian impedance controller without inertia shaping
 /// that renders a spring damper system where the equilibrium is the initial configuration.
@@ -43,7 +43,7 @@ fn main() -> FrankaResult<()> {
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot = Robot::new(args.franka_ip.as_str(), None, None)?;
+    let mut robot = FR3::new(args.franka_ip.as_str(), None, None)?;
     let model = robot.load_model(true)?;
 
     // Set additional parameters always before the control loop, NEVER in the control loop!
@@ -66,7 +66,7 @@ fn main() -> FrankaResult<()> {
     println!("Press Enter to continue...");
     std::io::stdin().read_line(&mut String::new()).unwrap();
     let result = robot.control_torques(
-        |state: &RobotState, _step: &Duration| -> Torques {
+        |state: &FR3State, _step: &Duration| -> Torques {
             let coriolis: Vector7 = model.coriolis_from_state(&state).into();
             let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);
@@ -98,7 +98,7 @@ fn main() -> FrankaResult<()> {
                 jacobian.transpose() * (-stiffness * error - damping * (jacobian * dq));
             let tau_d: Vector7 = tau_task + coriolis;
 
-            tau_d.into()
+            Torques::new(tau_d.into())
         },
         None,
         None,
