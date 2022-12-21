@@ -187,13 +187,13 @@ pub trait RobotData: DeviceData {
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaException;
     fn create_control_exception_if_reflex_aborted(
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaResult<()>;
 
     fn handle_getter_setter_status(status: Self::GetterSetterStatus) -> FrankaResult<()>;
@@ -313,7 +313,7 @@ impl RobotData for PandaData {
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaException {
         let mut exception_string = String::from(&message);
         if move_status == MoveStatusPanda::ReflexAborted {
@@ -348,7 +348,7 @@ impl RobotData for PandaData {
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaResult<()> {
         // todo think about if option is a good return type
         if move_status == MoveStatusPanda::ReflexAborted {
@@ -563,7 +563,7 @@ impl RobotData for FR3Data {
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaException {
         let mut exception_string = String::from(&message);
         if move_status == MoveStatusFR3::ReflexAborted {
@@ -598,7 +598,7 @@ impl RobotData for FR3Data {
         message: String,
         move_status: Self::MoveStatus,
         reflex_reasons: &FrankaErrors,
-        log: Vec<Record<PandaState>>,
+        log: Vec<Record<Self::State>>,
     ) -> FrankaResult<()> {
         if move_status == MoveStatusFR3::ReflexAborted {
             return Err(Self::create_control_exception(

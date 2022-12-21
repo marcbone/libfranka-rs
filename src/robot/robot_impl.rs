@@ -7,7 +7,7 @@ use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
 
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::{PandaState, RobotState};
+use crate::robot::robot_state::RobotState;
 use crate::robot::service_types::{
     ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
     MoveMotionGeneratorMode, MoveRequest, MoveResponse,
@@ -36,7 +36,7 @@ pub trait RobotImplementation:
 
 pub struct RobotImplGeneric<Data: RobotData> {
     pub network: Network<Data::DeviceData>,
-    logger: Logger<PandaState>,
+    logger: Logger<Data::State>,
     realtime_config: RealtimeConfig,
     ri_version: Option<u16>,
     motion_generator_mode: Option<MotionGeneratorMode>,
@@ -187,7 +187,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
         let robot_command = self.send_robot_command(motion_command, control_command)?;
         let state = Data::State::from(self.receive_robot_state()?);
         if let Some(command) = robot_command {
-            self.logger.log(&PandaState::default(), &command); // todo log properly
+            self.logger.log(&state, &command);
         }
         Ok(state)
     }
@@ -292,7 +292,7 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
     ) -> FrankaResult<Self> {
         let current_move_generator_mode = MotionGeneratorMode::Idle;
         let controller_mode = ControllerMode::Other;
-        let logger = Logger::new(log_size);
+        let logger: Logger<Data::State> = Logger::new(log_size);
         let mut robot_impl = RobotImplGeneric {
             network,
             logger,
