@@ -24,10 +24,12 @@ use nix::sys::socket::setsockopt;
 use nix::sys::socket::sockopt::{KeepAlive, TcpKeepCount, TcpKeepIdle, TcpKeepInterval};
 
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::gripper::types::{CommandHeader, GripperCommandEnum, GripperCommandHeader};
+use crate::gripper::types::{
+    CommandHeader, GripperCommandEnum, GripperCommandHeader, GRIPPER_VERSION,
+};
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot_state::{FR3State, RobotState};
@@ -68,6 +70,7 @@ pub trait DeviceData {
         command: Self::CommandEnum,
         size: usize,
     ) -> Self::CommandHeader;
+    fn get_library_version() -> u16;
 }
 
 pub trait RobotData: DeviceData {
@@ -218,6 +221,10 @@ impl DeviceData for PandaData {
         let header = PandaCommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
+    }
+
+    fn get_library_version() -> u16 {
+        PANDA_VERSION
     }
 }
 
@@ -447,6 +454,10 @@ impl DeviceData for FR3Data {
         let header = FR3CommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
+    }
+
+    fn get_library_version() -> u16 {
+        FR3_VERSION
     }
 }
 impl RobotData for FR3Data {
@@ -701,6 +712,10 @@ impl DeviceData for GripperData {
         *command_id += 1;
         header
     }
+
+    fn get_library_version() -> u16 {
+        GRIPPER_VERSION
+    }
 }
 
 pub trait MessageCommand {
@@ -727,11 +742,7 @@ pub struct Network<Data: DeviceData> {
 }
 
 impl<Data: DeviceData> Network<Data> {
-    pub fn new(
-        network_type: NetworkType,
-        franka_address: &str,
-        franka_port: u16,
-    ) -> Result<Network<Data>, Box<dyn Error>> {
+    pub fn new(franka_address: &str, franka_port: u16) -> Result<Network<Data>, Box<dyn Error>> {
         let address_str: String = format!("{}:{}", franka_address, franka_port);
         let sock_address = address_str.to_socket_addrs().unwrap().next().unwrap();
         let mut tcp_socket = TcpStream::from_std(StdTcpStream::connect(sock_address)?);
@@ -1079,7 +1090,6 @@ fn deserialize<T: DeserializeOwned + 'static>(encoded: &[u8]) -> T {
 #[cfg(test)]
 mod tests {
     use crate::network::{deserialize, serialize};
-    use crate::robot::service_types::PandaCommandHeader;
     use crate::robot::types::PandaStateIntern;
 
     #[test]

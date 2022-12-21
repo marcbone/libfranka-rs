@@ -8,8 +8,7 @@ use std::time::Duration;
 use std::fmt::Debug;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::model::PandaModel;
-use crate::network::{FR3Data, Network, NetworkType, PandaData, RobotData};
+use crate::network::{FR3Data, Network, PandaData, RobotData};
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, JointPositions,
@@ -19,7 +18,6 @@ use crate::robot::low_pass_filter::{DEFAULT_CUTOFF_FREQUENCY, MAX_CUTOFF_FREQUEN
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_impl::{RobotImplGeneric, RobotImplementation};
-use crate::robot::robot_state::{FR3State, RobotState};
 use crate::robot::service_types::{
     GetCartesianLimitRequest, GetCartesianLimitRequestWithPandaHeader, GetCartesianLimitResponse,
     GetterSetterStatusPanda, PandaCommandEnum, SetCartesianImpedanceRequest,
@@ -30,7 +28,6 @@ use crate::robot::service_types::{
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
 use crate::Finishable;
-use robot_state::PandaState;
 
 mod control_loop;
 mod control_tools;
@@ -87,7 +84,7 @@ where
         mut read_callback: F,
     ) -> FrankaResult<()> {
         loop {
-            let state = self.get_rob_mut().update2(None, None)?;
+            let state = self.get_rob_mut().update(None, None)?;
             if !read_callback(&state) {
                 break;
             }
@@ -103,7 +100,7 @@ where
     ///
     /// See [`Robot::read`](`Self::read`) for a way to repeatedly receive the robot state.
     fn read_once(&mut self) -> FrankaResult<<<Self as Robot>::Data as RobotData>::State> {
-        self.get_rob_mut().read_once2()
+        self.get_rob_mut().read_once()
     }
     /// Changes the collision behavior.
     ///
@@ -801,7 +798,7 @@ where
     /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     fn load_model(&mut self, persistent: bool) -> FrankaResult<<Self::Data as RobotData>::Model> {
-        self.get_rob_mut().load_model2(persistent)
+        self.get_rob_mut().load_model(persistent)
     }
 
     /// Sets a default collision behavior, joint impedance and Cartesian impedance.
@@ -836,7 +833,7 @@ where
     /// # Return
     /// Software version of the connected server.
     fn server_version(&self) -> u16 {
-        self.get_rob().server_version2()
+        self.get_rob().server_version()
     }
 }
 
@@ -939,13 +936,10 @@ impl FR3 {
     ) -> FrankaResult<FR3> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(
-            NetworkType::FR3,
-            franka_address,
-            service_types::COMMAND_PORT,
-        )
-        .map_err(|_| FrankaException::NetworkException {
-            message: "Connection could not be established".to_string(),
+        let network = Network::new(franka_address, service_types::COMMAND_PORT).map_err(|_| {
+            FrankaException::NetworkException {
+                message: "Connection could not be established".to_string(),
+            }
         })?;
         Ok(FR3 {
             robimpl: <FR3 as Robot>::Rob::new(network, log_size, realtime_config)?,
@@ -983,13 +977,10 @@ impl Panda {
     ) -> FrankaResult<Panda> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
-        let network = Network::new(
-            NetworkType::Panda,
-            franka_address,
-            service_types::COMMAND_PORT,
-        )
-        .map_err(|_| FrankaException::NetworkException {
-            message: "Connection could not be established".to_string(),
+        let network = Network::new(franka_address, service_types::COMMAND_PORT).map_err(|_| {
+            FrankaException::NetworkException {
+                message: "Connection could not be established".to_string(),
+            }
         })?;
         Ok(Panda {
             robimpl: <Panda as Robot>::Rob::new(network, log_size, realtime_config)?,
@@ -1090,10 +1081,10 @@ mod tests {
     use crate::robot::service_types::{
         ConnectRequestWithPandaHeader, ConnectResponsePanda, ConnectStatus, FR3CommandEnum,
         FR3CommandHeader, GetterSetterStatusPanda, MoveControllerMode, MoveDeviation,
-        MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveResponse,
-        MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, SetCollisionBehaviorRequest,
+        MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveStatusPanda,
+        PandaCommandEnum, PandaCommandHeader, SetCollisionBehaviorRequest,
         SetCollisionBehaviorRequestWithFR3Header, SetCollisionBehaviorRequestWithPandaHeader,
-        SetterResponseFR3, COMMAND_PORT, FR3_VERSION, PANDA_VERSION,
+        SetterResponseFR3, COMMAND_PORT, FR3_VERSION,
     };
     use crate::robot::types::PandaStateIntern;
     use crate::robot::{Robot, FR3};

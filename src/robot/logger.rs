@@ -5,7 +5,7 @@
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, JointPositions, JointVelocities, Torques,
 };
-use crate::robot::robot_state::{PandaState, RobotState};
+use crate::robot::robot_state::RobotState;
 use crate::robot::types::RobotCommand;
 use std::collections::VecDeque;
 use std::fmt::Debug;

@@ -10,9 +10,9 @@ use crate::gripper::gripper_state::GripperState;
 use crate::gripper::types::{
     ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
     GraspRequestWithHeader, GripperCommandEnum, GripperCommandHeader, GripperStateIntern,
-    MoveRequest, MoveRequestWithHeader, Status, COMMAND_PORT, VERSION,
+    MoveRequest, MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
 };
-use crate::network::{GripperData, Network, NetworkType};
+use crate::network::{GripperData, Network};
 
 pub mod gripper_state;
 pub(crate) mod types;
@@ -33,14 +33,14 @@ impl Gripper {
     /// * [`IncompatibleLibraryVersionError`](`crate::exception::FrankaException::IncompatibleLibraryVersionError`) if this version of libfranka-rs is not supported
     pub fn new(franka_address: &str) -> FrankaResult<Gripper> {
         let mut gripper = Gripper {
-            network: Network::new(NetworkType::Gripper, franka_address, COMMAND_PORT).map_err(
-                |e| FrankaException::NetworkException {
+            network: Network::new(franka_address, COMMAND_PORT).map_err(|e| {
+                FrankaException::NetworkException {
                     message: e.to_string(),
-                },
-            )?,
+                }
+            })?,
             ri_version: None,
         };
-        gripper.connect_gripper(&VERSION)?;
+        gripper.connect_gripper(&GRIPPER_VERSION)?;
         Ok(gripper)
     }
     fn connect_gripper(&mut self, ri_version: &u16) -> FrankaResult<()> {
@@ -198,7 +198,7 @@ mod tests {
     use crate::gripper::types::{
         ConnectRequestWithHeader, ConnectResponse, GraspRequest, GraspRequestWithHeader,
         GripperCommandEnum, GripperCommandHeader, GripperStateIntern, MoveRequest,
-        MoveRequestWithHeader, Status, COMMAND_PORT, VERSION,
+        MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
     };
     use crate::gripper::Gripper;
     use crate::FrankaResult;
@@ -408,7 +408,7 @@ mod tests {
 
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(VERSION);
+            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -441,7 +441,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
-            assert_eq!(gripper.server_version(), VERSION);
+            assert_eq!(gripper.server_version(), GRIPPER_VERSION);
             for (width, speed) in move_request_values.iter() {
                 gripper.move_gripper(*width, *speed).unwrap();
             }
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn gripper_stop_test() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(VERSION);
+            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn gripper_homing_test() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(VERSION);
+            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
@@ -553,7 +553,7 @@ mod tests {
 
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(VERSION);
+            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn incompatible_library() {
         let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(VERSION + 1);
+            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION + 1);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -634,7 +634,7 @@ mod tests {
     #[test]
     fn gripper_read_once() {
         let thread = std::thread::spawn(|| {
-            let mut server = GripperMockServer::new(VERSION);
+            let mut server = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());

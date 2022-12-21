@@ -18,7 +18,7 @@ use crate::robot::rate_limiting::{
     MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
     MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
 };
-use crate::robot::robot_state::{FR3State, PandaState, RobotState};
+use crate::robot::robot_state::{PandaState, RobotState};
 use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;

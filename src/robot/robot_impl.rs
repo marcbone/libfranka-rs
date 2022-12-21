@@ -1,58 +1,37 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-use std::mem::size_of;
-
-use crate::exception::{create_command_exception, FrankaException, FrankaResult};
+use crate::exception::{FrankaException, FrankaResult};
 use crate::model::library_downloader::{LibraryDownloader, LibraryDownloaderGeneric};
-use crate::model::PandaModel;
-use crate::network::DeviceData;
-use crate::network::{FR3Data, Network, PandaData, RobotData};
+use crate::network::{Network, RobotData};
 use crate::robot::control_types::RealtimeConfig;
-use crate::robot::errors::FrankaErrors;
-use crate::robot::logger::{Logger, Record};
+use crate::robot::logger::Logger;
 
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::{FR3State, PandaState, RobotState};
+use crate::robot::robot_state::{PandaState, RobotState};
 use crate::robot::service_types::{
-    ConnectRequest, ConnectRequestWithPandaHeader, ConnectResponsePanda,
     ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
-    MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveResponse,
-    MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, StopMoveRequestWithPandaHeader,
-    StopMoveStatusPanda, FR3_VERSION, PANDA_VERSION,
+    MoveMotionGeneratorMode, MoveRequest, MoveResponse,
 };
 use crate::robot::types::{
-    ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode,
-    PandaStateIntern, RobotCommand, RobotMode, RobotStateIntern,
+    ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode, RobotCommand,
+    RobotStateIntern,
 };
 use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;
 
 pub trait RobotImplementation:
-    RobotControl<State2 = <<Self as RobotImplementation>::Data as RobotData>::State>
+    RobotControl<State = <<Self as RobotImplementation>::Data as RobotData>::State>
 {
     type Data: RobotData;
-    fn update2(
-        &mut self,
-        motion_command: Option<&MotionGeneratorCommand>,
-        control_command: Option<&ControllerCommand>,
-    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>; // todo remove commented out code
-                                                                                  // {
-                                                                                  //     let robot_command = self.send_robot_command(motion_command, control_command)?;
-                                                                                  //     let state = Self::State::from(self.receive_robot_state()?);
-                                                                                  //     if let Some(command) = robot_command {
-                                                                                  //         self.logger.log(&state, &command);
-                                                                                  //     }
-                                                                                  //     Ok(state)
-                                                                                  // }
-    fn read_once2(
+    fn read_once(
         &mut self,
     ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>;
-    fn load_model2(
+    fn load_model(
         &mut self,
         persistent: bool,
     ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::Model>;
-    fn server_version2(&self) -> u16;
+    fn server_version(&self) -> u16;
 }
 
 pub struct RobotImplGeneric<Data: RobotData> {
@@ -68,7 +47,7 @@ pub struct RobotImplGeneric<Data: RobotData> {
 }
 
 impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
-    type State2 = Data::State;
+    type State = Data::State;
 
     fn start_motion(
         &mut self,
@@ -247,26 +226,13 @@ impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
 {
     type Data = Data;
 
-    fn update2(
-        &mut self,
-        motion_command: Option<&MotionGeneratorCommand>,
-        control_command: Option<&ControllerCommand>,
-    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
-        let robot_command = self.send_robot_command(motion_command, control_command)?;
-        let state = Data::State::from(self.receive_robot_state()?);
-        if let Some(command) = robot_command {
-            self.logger.log(&PandaState::default(), &command); // todo log properly
-        }
-        Ok(state)
-    }
-
-    fn read_once2(
+    fn read_once(
         &mut self,
     ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
     }
-    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Data::Model> {
+    fn load_model(&mut self, persistent: bool) -> FrankaResult<Data::Model> {
         let model_file = Path::new("/tmp/model.so");
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
@@ -279,7 +245,7 @@ impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
         Ok(model)
     }
 
-    fn server_version2(&self) -> u16 {
+    fn server_version(&self) -> u16 {
         self.ri_version.unwrap()
     }
 }
@@ -360,7 +326,7 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
             }
             _ => Err(FrankaException::IncompatibleLibraryVersionError {
                 server_version: connect_response.version,
-                library_version: PANDA_VERSION,
+                library_version: Data::get_library_version(),
             }),
         }
     }
@@ -497,45 +463,5 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
         let status = self.network.tcp_blocking_receive_status(command_id);
         Data::handle_command_stop_move_status(status)?;
         Ok(command_id)
-    }
-}
-
-// impl MotionGeneratorTrait for RobotImpl {
-//     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
-//         MoveMotionGeneratorMode::JointVelocity
-//     }
-// }
-
-fn create_control_exception_old(
-    message: String,
-    move_status: &MoveStatusPanda,
-    reflex_reasons: &FrankaErrors,
-    log: Vec<Record<PandaState>>,
-) -> FrankaException {
-    let mut exception_string = String::from(&message);
-    if move_status == &MoveStatusPanda::ReflexAborted {
-        exception_string += " ";
-        exception_string += reflex_reasons.to_string().as_str();
-        if log.len() >= 2 {
-            let lost_packets: u128 =
-                (log.last().unwrap().state.time - log[log.len() - 2].state.time).as_millis() - 1;
-            exception_string += format!(
-                "\ncontrol_command_success_rate: {}",
-                log[log.len() - 2].state.control_command_success_rate
-                    * (1. - lost_packets as f64 / 100.)
-            )
-            .as_str();
-            if lost_packets > 0 {
-                exception_string += format!(
-                    " packets lost in a row in the last sample: {}",
-                    lost_packets
-                )
-                .as_str();
-            }
-        }
-    }
-    FrankaException::ControlException {
-        error: exception_string,
-        log: Some(log),
     }
 }

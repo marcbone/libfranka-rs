@@ -1,11 +1,10 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::FrankaException::ModelException;
-use crate::network::{DeviceData, FR3Data, Network, PandaData, RobotData};
+use crate::network::{Network, RobotData};
 use crate::robot::service_types::{
-    FR3CommandEnum, LoadModelLibraryArchitecture, LoadModelLibraryRequest,
-    LoadModelLibraryResponse, LoadModelLibrarySystem, PandaCommandEnum, PandaCommandHeader,
-    RobotHeader,
+    LoadModelLibraryArchitecture, LoadModelLibraryRequest, LoadModelLibraryResponse,
+    LoadModelLibrarySystem,
 };
 use crate::FrankaResult;
 use std::fmt;
@@ -13,7 +12,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fs::File;
 use std::io::Write;
-use std::mem::size_of;
 use std::path::Path;
 
 pub trait LibraryDownloader {

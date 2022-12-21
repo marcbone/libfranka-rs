@@ -1,11 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-macro_rules! make_printer {
-    ($($element: ident: $ty: ty),*) => {
-        struct Foo { $($element: $ty),* }
-    }
-}
 macro_rules! define_panda_request_with_header {
     ($name: ident, $request: ty, $command: expr) => {
         #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -74,9 +69,6 @@ use crate::network::MessageCommand;
 pub static PANDA_VERSION: u16 = 5;
 pub static FR3_VERSION: u16 = 6;
 pub static COMMAND_PORT: u16 = 1337;
-
-make_printer!(x: i32, y: String);
-// define_request_with_header!(i32);
 
 pub trait RobotHeader: MessageCommand + Serialize + Debug + Copy + Clone {}
 
@@ -484,7 +476,6 @@ define_fr3_request_with_header!(
     SetJointImpedanceRequest,
     FR3CommandEnum::SetJointImpedance
 );
-pub type SetJointImpedanceResponse = SetterResponse;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -510,8 +501,6 @@ define_fr3_request_with_header!(
     SetCartesianImpedanceRequest,
     FR3CommandEnum::SetCartesianImpedance
 );
-
-pub type SetCartesianImpedanceResponse = SetterResponse;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -542,8 +531,6 @@ define_fr3_request_with_header!(
     FR3CommandEnum::SetGuidingMode
 );
 
-pub type SetGuidingModeResponse = SetterResponse;
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 #[allow(non_snake_case)]
@@ -569,8 +556,6 @@ define_fr3_request_with_header!(
     FR3CommandEnum::SetEeToK
 );
 
-pub type SetEeToKResponse = SetterResponse;
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 #[allow(non_snake_case)]
@@ -595,8 +580,6 @@ define_fr3_request_with_header!(
     SetNeToEeRequest,
     FR3CommandEnum::SetNeToEe
 );
-
-pub type SetNeToEeResponse = SetterResponse;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -678,14 +661,6 @@ pub struct SetterResponseFR3 {
     pub header: FR3CommandHeader,
     pub status: GetterSetterStatusPanda,
 }
-
-pub type AutomaticErrorRecoveryRequestWithPandaHeader = PandaCommandHeader;
-pub type AutomaticErrorRecoveryRequestWithFR3Header = FR3CommandHeader;
-// #[derive(Serialize, Deserialize, Debug)]
-// pub struct AutomaticErrorRecoveryResponse {
-//     pub header: PandaCommandHeader,
-//     pub status: AutomaticErrorRecoveryStatusPanda,
-// }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]

@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::robot::{Robot, FR3};
-use franka::{FrankaResult, Panda, PandaState};
+use franka::{FrankaResult, PandaState};
 // use franka::Robot;
 // use franka::RobotState;
 

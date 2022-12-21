@@ -1,7 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 use clap::Parser;
-use franka::robot::robot_state::FR3State;
 use franka::robot::{Robot, FR3};
 use franka::Torques;
 use franka::{Finishable, FrankaResult, PandaState};

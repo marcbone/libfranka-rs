@@ -7,12 +7,11 @@ use std::time::Duration;
 
 use crate::robot::errors::{FrankaErrorKind, FrankaErrors};
 use crate::robot::types::{PandaStateIntern, RobotMode};
-use crate::robot::FR3;
 use nalgebra::{Matrix3, Vector3};
-use serde::Serialize;
 
 pub trait RobotState: Clone + Debug {
     fn get_time(&self) -> Duration;
+    #[allow(non_snake_case)]
     fn get_tau_J_d(&self) -> [f64; 7];
     fn get_last_motion_errors(&self) -> &FrankaErrors;
     fn is_moving(&self) -> bool;

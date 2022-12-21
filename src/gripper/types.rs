@@ -11,7 +11,7 @@ use crate::network::MessageCommand;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 
-pub static VERSION: u16 = 3;
+pub static GRIPPER_VERSION: u16 = 3;
 pub static COMMAND_PORT: u16 = 1338;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
@@ -114,7 +114,7 @@ pub struct GraspRequest {
 impl ConnectRequest {
     pub fn new(udp_port: u16) -> Self {
         ConnectRequest {
-            version: VERSION,
+            version: GRIPPER_VERSION,
             udp_port,
         }
     }

@@ -2,12 +2,12 @@
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::FrankaResult;
 use crate::robot::control_types::RealtimeConfig;
-use crate::robot::robot_state::{PandaState, RobotState};
+use crate::robot::robot_state::RobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
 pub trait RobotControl {
-    type State2: RobotState;
+    type State: RobotState;
     fn start_motion(
         &mut self,
         controller_mode: MoveControllerMode,
@@ -26,11 +26,11 @@ pub trait RobotControl {
         &mut self,
         motion_command: Option<&MotionGeneratorCommand>,
         control_command: Option<&ControllerCommand>,
-    ) -> FrankaResult<Self::State2>;
+    ) -> FrankaResult<Self::State>;
     fn realtime_config(&self) -> RealtimeConfig;
     fn throw_on_motion_error(
         &mut self,
-        robot_state: &Self::State2,
+        robot_state: &Self::State,
         motion_id: u32,
     ) -> FrankaResult<()>;
 }

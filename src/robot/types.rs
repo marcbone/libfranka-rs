@@ -2,7 +2,6 @@
 // Licensed under the EUPL-1.2-or-later
 use std::fmt::Debug;
 
-use crate::network::MessageCommand;
 use crate::robot::types::RobotMode::Other;
 use serde::Deserialize;
 use serde::Serialize;

@@ -69,7 +69,7 @@ pub trait RobotModel {
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
     where
         Self: Sized;
-
+    #[allow(non_snake_case)]
     fn pose(
         &self,
         frame: &Frame,
@@ -79,6 +79,7 @@ pub trait RobotModel {
     ) -> [f64; 16];
 
     fn pose_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 16];
+    #[allow(non_snake_case)]
     fn body_jacobian(
         &self,
         frame: &Frame,
@@ -88,6 +89,7 @@ pub trait RobotModel {
     ) -> [f64; 42];
 
     fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42];
+    #[allow(non_snake_case)]
     fn zero_jacobian(
         &self,
         frame: &Frame,
@@ -96,6 +98,7 @@ pub trait RobotModel {
         EE_T_K: &[f64; 16],
     ) -> [f64; 42];
     fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42];
+    #[allow(non_snake_case)]
     fn mass(
         &self,
         q: &[f64; 7],
@@ -104,6 +107,7 @@ pub trait RobotModel {
         F_x_Ctotal: &[f64; 3],
     ) -> [f64; 49];
     fn mass_from_state(&self, robot_state: &Self::State) -> [f64; 49];
+    #[allow(non_snake_case)]
     fn coriolis(
         &self,
         q: &[f64; 7],
@@ -113,6 +117,7 @@ pub trait RobotModel {
         F_x_Ctotal: &[f64; 3],
     ) -> [f64; 7];
     fn coriolis_from_state(&self, robot_state: &Self::State) -> [f64; 7];
+    #[allow(non_snake_case)]
     fn gravity<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
         q: &[f64; 7],
@@ -120,6 +125,7 @@ pub trait RobotModel {
         F_x_Ctotal: &[f64; 3],
         gravity_earth: Grav,
     ) -> [f64; 7];
+    #[allow(non_snake_case)]
     fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
         robot_state: &Self::State,
