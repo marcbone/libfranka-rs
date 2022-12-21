@@ -2,11 +2,11 @@
 // Licensed under the EUPL-1.2-or-later
 use std::fmt::Debug;
 
+use crate::network::MessageCommand;
 use crate::robot::types::RobotMode::Other;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use crate::network::MessageCommand;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
@@ -97,13 +97,15 @@ pub struct PandaStateIntern {
     pub control_command_success_rate: f64,
 }
 
-pub trait RobotStateIntern :  Copy + Clone + PartialEq{
+pub type FR3StateIntern = PandaStateIntern;
+
+pub trait RobotStateIntern: Copy + Clone + PartialEq {
     fn get_message_id(&self) -> u64;
     fn get_motion_generator_mode(&self) -> MotionGeneratorMode;
     fn get_controller_mode(&self) -> ControllerMode;
 }
 
-impl RobotStateIntern for PandaStateIntern{
+impl RobotStateIntern for PandaStateIntern {
     fn get_message_id(&self) -> u64 {
         self.message_id
     }
@@ -113,7 +115,7 @@ impl RobotStateIntern for PandaStateIntern{
     }
 
     fn get_controller_mode(&self) -> ControllerMode {
-       self.controller_mode
+        self.controller_mode
     }
 }
 

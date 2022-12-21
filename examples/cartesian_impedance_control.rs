@@ -2,14 +2,14 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::{Frame, Panda, PandaState, RobotModel};
+use franka::robot::robot_state::FR3State;
+use franka::robot::{Robot, FR3};
 use franka::FrankaResult;
 use franka::Torques;
 use franka::{array_to_isometry, Matrix6x7, Vector7};
+use franka::{Frame, RobotModel};
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 use std::time::Duration;
-use franka::robot::{FR3, Robot};
-use franka::robot::robot_state::FR3State;
 
 /// An example showing a simple cartesian impedance controller without inertia shaping
 /// that renders a spring damper system where the equilibrium is the initial configuration.

@@ -66,7 +66,9 @@ impl fmt::Display for Frame {
 
 pub trait RobotModel {
     type State: RobotState;
-    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> where Self: Sized;
+    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
+    where
+        Self: Sized;
 
     fn pose(
         &self,
@@ -161,10 +163,7 @@ impl RobotModel for PandaModel {
     /// Why do we need it? - Because the model is not self contained and relies on some functions from libm
     ///
     /// How does the libfranka embed libm? They are not including <math.h> - Apparently it gets somehow included when using \<array> ¯\_(ツ)_/¯
-    fn new<S: AsRef<Path>>(
-        model_filename: S,
-        libm_filename: Option<&Path>,
-    ) -> FrankaResult<Self> {
+    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> {
         Ok(PandaModel {
             library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
         })
@@ -385,7 +384,7 @@ impl RobotModel for PandaModel {
     /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
     /// # Return
     /// Coriolis force vector.
-   fn coriolis(
+    fn coriolis(
         &self,
         q: &[f64; 7],
         dq: &[f64; 7],
@@ -493,10 +492,7 @@ impl RobotModel for FR3Model {
     /// Why do we need it? - Because the model is not self contained and relies on some functions from libm
     ///
     /// How does the libfranka embed libm? They are not including <math.h> - Apparently it gets somehow included when using \<array> ¯\_(ツ)_/¯
-    fn new<S: AsRef<Path>>(
-        model_filename: S,
-        libm_filename: Option<&Path>,
-    ) -> FrankaResult<Self> {
+    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> {
         Ok(FR3Model {
             library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
         })

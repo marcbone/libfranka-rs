@@ -3,8 +3,8 @@
 
 //! Contains exception and Result definitions
 use crate::robot::logger::Record;
-use thiserror::Error;
 use crate::PandaState;
+use thiserror::Error;
 
 /// Represents all kind of errors which correspond to the franka::Exception in the C++ version of
 /// this library

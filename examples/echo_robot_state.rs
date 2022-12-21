@@ -2,8 +2,8 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
+use franka::robot::{Robot, FR3};
 use franka::{FrankaResult, Panda, PandaState};
-use franka::robot::Robot;
 // use franka::Robot;
 // use franka::RobotState;
 
@@ -16,8 +16,10 @@ struct CommandLineArguments {
 }
 
 fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    let mut robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+    // let address = CommandLineArguments::parse();
+    let mut robot = FR3::new("localhost", None, None)?;
+    // robot.set_collision_behavior([0.;7],[0.;7],[0.;7],[0.;7],[0.;6],[0.;6],[0.;6],[0.;6]);
+    robot.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
     let mut count = 0;
     robot.read(|robot_state: &PandaState| {
         // Printing to standard output adds a delay. This is acceptable for a read loop such as this, but
@@ -26,6 +28,6 @@ fn main() -> FrankaResult<()> {
         count += 1;
         count <= 100
     })?;
-    println!("Done");
+    // println!("Done");
     Ok(())
 }

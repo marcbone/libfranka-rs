@@ -14,33 +14,44 @@ use crate::robot::logger::{Logger, Record};
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_state::{FR3State, PandaState, RobotState};
 use crate::robot::service_types::{
-    ConnectRequest, ConnectRequestWithHeader, ConnectResponse, ConnectStatus, MoveControllerMode,
-    MoveDeviation, MoveMotionGeneratorMode, MoveRequest, MoveRequestWithHeader, MoveResponse,
-    MoveStatus, PandaCommandEnum, PandaCommandHeader, StopMoveRequestWithHeader, StopMoveResponse,
-    StopMoveStatus, VERSION,
+    ConnectRequest, ConnectRequestWithPandaHeader, ConnectResponsePanda,
+    ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
+    MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveResponse,
+    MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, StopMoveRequestWithPandaHeader,
+    StopMoveStatusPanda, FR3_VERSION, PANDA_VERSION,
 };
-use crate::robot::types::{ControllerCommand, ControllerMode, RobotStateIntern, MotionGeneratorCommand, MotionGeneratorMode, PandaStateIntern, RobotCommand, RobotMode};
+use crate::robot::types::{
+    ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode,
+    PandaStateIntern, RobotCommand, RobotMode, RobotStateIntern,
+};
+use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;
-use crate::RobotModel;
 
-pub trait RobotImplementation: RobotControl<State2 =<<Self as RobotImplementation>::Data as RobotData>::State> {
+pub trait RobotImplementation:
+    RobotControl<State2 = <<Self as RobotImplementation>::Data as RobotData>::State>
+{
     type Data: RobotData;
     fn update2(
         &mut self,
         motion_command: Option<&MotionGeneratorCommand>,
         control_command: Option<&ControllerCommand>,
-     ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>; // todo remove commented out code
-    // {
-    //     let robot_command = self.send_robot_command(motion_command, control_command)?;
-    //     let state = Self::State::from(self.receive_robot_state()?);
-    //     if let Some(command) = robot_command {
-    //         self.logger.log(&state, &command);
-    //     }
-    //     Ok(state)
-    // }
-    fn read_once2(&mut self) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>;
-    fn load_model2(&mut self, persistent: bool) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::Model>;
+    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>; // todo remove commented out code
+                                                                                  // {
+                                                                                  //     let robot_command = self.send_robot_command(motion_command, control_command)?;
+                                                                                  //     let state = Self::State::from(self.receive_robot_state()?);
+                                                                                  //     if let Some(command) = robot_command {
+                                                                                  //         self.logger.log(&state, &command);
+                                                                                  //     }
+                                                                                  //     Ok(state)
+                                                                                  // }
+    fn read_once2(
+        &mut self,
+    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>;
+    fn load_model2(
+        &mut self,
+        persistent: bool,
+    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::Model>;
     fn server_version2(&self) -> u16;
 }
 
@@ -92,7 +103,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
         {
             match self
                 .network
-                .tcp_receive_response(move_command_id, |x| handle_command_response_move(&x))
+                .tcp_receive_response(move_command_id, |x| Data::handle_command_move_status(x))
             {
                 Ok(received_message) => {
                     if received_message {
@@ -140,21 +151,22 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
             robot_state = Some(self.update(Some(&motion_finished_command), control_command)?);
         }
         let robot_state = robot_state.unwrap();
-        let response: MoveResponse = self.network.tcp_blocking_receive_response(motion_id);
-        if response.status == MoveStatus::ReflexAborted {
-            return Err(create_control_exception(
-                String::from("Motion finished commanded, but the robot is still moving!"),
-                &response.status,
-                &robot_state.get_last_motion_errors(),
-                self.logger.flush(),
-            ));
-        }
-        match handle_command_response_move(&response) {
+
+        let status = self.network.tcp_blocking_receive_status(motion_id);
+
+        Data::create_control_exception_if_reflex_aborted(
+            String::from("Motion finished commanded, but the robot is still moving!"),
+            status,
+            &robot_state.get_last_motion_errors(),
+            self.logger.flush(),
+        )?;
+
+        match Data::handle_command_move_status(status) {
             Ok(_) => {}
             Err(FrankaException::CommandException { message }) => {
-                return Err(create_control_exception(
+                return Err(Data::create_control_exception(
                     message,
-                    &response.status,
+                    status,
                     &robot_state.get_last_motion_errors(),
                     self.logger.flush(),
                 ));
@@ -214,12 +226,12 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
             || self.motion_generator_mode.unwrap() != self.current_move_motion_generator_mode
             || self.controller_mode != self.current_move_controller_mode.unwrap()
         {
-            let response = self.network.tcp_blocking_receive_response(motion_id);
-            let result = handle_command_response_move(&response);
+            let status = self.network.tcp_blocking_receive_status(motion_id);
+            let result = Data::handle_command_move_status(status);
             return match result {
-                Err(error) => Err(create_control_exception(
+                Err(error) => Err(Data::create_control_exception(
                     error.to_string(),
-                    &response.status,
+                    status,
                     &robot_state.get_last_motion_errors(),
                     self.logger.flush(),
                 )),
@@ -230,10 +242,16 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
     }
 }
 
-impl<Data:RobotData + RobotData<DeviceData = Data>> RobotImplementation for RobotImplGeneric<Data> {
+impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
+    for RobotImplGeneric<Data>
+{
     type Data = Data;
 
-    fn update2(&mut self, motion_command: Option<&MotionGeneratorCommand>, control_command: Option<&ControllerCommand>) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
+    fn update2(
+        &mut self,
+        motion_command: Option<&MotionGeneratorCommand>,
+        control_command: Option<&ControllerCommand>,
+    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
         let robot_command = self.send_robot_command(motion_command, control_command)?;
         let state = Data::State::from(self.receive_robot_state()?);
         if let Some(command) = robot_command {
@@ -242,11 +260,13 @@ impl<Data:RobotData + RobotData<DeviceData = Data>> RobotImplementation for Robo
         Ok(state)
     }
 
-    fn read_once2(&mut self) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
+    fn read_once2(
+        &mut self,
+    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
     }
-    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Data::Model>{
+    fn load_model2(&mut self, persistent: bool) -> FrankaResult<Data::Model> {
         let model_file = Path::new("/tmp/model.so");
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
@@ -259,67 +279,46 @@ impl<Data:RobotData + RobotData<DeviceData = Data>> RobotImplementation for Robo
         Ok(model)
     }
 
-
     fn server_version2(&self) -> u16 {
         self.ri_version.unwrap()
     }
 }
 
-fn handle_command_response_move(response: &MoveResponse) -> Result<(), FrankaException> {
-    match response.status {
-        MoveStatus::Success => Ok(()),
-        MoveStatus::MotionStarted => {
-            //todo handle motion_generator_running == true
-            Ok(())
-        }
-        MoveStatus::EmergencyAborted => Err(create_command_exception(
-            "libfranka-rs: Move command aborted: User Stop pressed!",
-        )),
-        MoveStatus::ReflexAborted => Err(create_command_exception(
-            "libfranka-rs: Move command aborted: motion aborted by reflex!",
-        )),
-        MoveStatus::InputErrorAborted => Err(create_command_exception(
-            "libfranka-rs: Move command aborted: invalid input provided!",
-        )),
-        MoveStatus::CommandNotPossibleRejected => Err(create_command_exception(
-            "libfranka-rs: Move command rejected: command not possible in the current mode!",
-        )),
-        MoveStatus::StartAtSingularPoseRejected => Err(create_command_exception(
-            "libfranka-rs: Move command rejected: cannot start at singular pose!",
-        )),
-        MoveStatus::InvalidArgumentRejected => Err(create_command_exception(
-            "libfranka-rs: Move command rejected: maximum path deviation out of range!",
-        )),
-        MoveStatus::Preempted => Err(create_command_exception(
-            "libfranka-rs: Move command preempted!",
-        )),
-        MoveStatus::Aborted => Err(create_command_exception(
-            "libfranka-rs: Move command aborted!",
-        )),
-    }
-}
+// fn handle_command_move_status(status: &MoveStatusPanda) -> Result<(), FrankaException> {
+//     match status {
+//         MoveStatusPanda::Success => Ok(()),
+//         MoveStatusPanda::MotionStarted => {
+//             //todo handle motion_generator_running == true
+//             Ok(())
+//         }
+//         MoveStatusPanda::EmergencyAborted => Err(create_command_exception(
+//             "libfranka-rs: Move command aborted: User Stop pressed!",
+//         )),
+//         MoveStatusPanda::ReflexAborted => Err(create_command_exception(
+//             "libfranka-rs: Move command aborted: motion aborted by reflex!",
+//         )),
+//         MoveStatusPanda::InputErrorAborted => Err(create_command_exception(
+//             "libfranka-rs: Move command aborted: invalid input provided!",
+//         )),
+//         MoveStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
+//             "libfranka-rs: Move command rejected: command not possible in the current mode!",
+//         )),
+//         MoveStatusPanda::StartAtSingularPoseRejected => Err(create_command_exception(
+//             "libfranka-rs: Move command rejected: cannot start at singular pose!",
+//         )),
+//         MoveStatusPanda::InvalidArgumentRejected => Err(create_command_exception(
+//             "libfranka-rs: Move command rejected: maximum path deviation out of range!",
+//         )),
+//         MoveStatusPanda::Preempted => Err(create_command_exception(
+//             "libfranka-rs: Move command preempted!",
+//         )),
+//         MoveStatusPanda::Aborted => Err(create_command_exception(
+//             "libfranka-rs: Move command aborted!",
+//         )),
+//     }
+// }
 
-fn handle_command_response_stop(response: &StopMoveResponse) -> Result<(), FrankaException> {
-    match response.status {
-        StopMoveStatus::Success => Ok(()),
-        StopMoveStatus::EmergencyAborted => Err(create_command_exception(
-            "libfranka-rs: Stop command aborted: User Stop pressed!",
-        )),
-        StopMoveStatus::ReflexAborted => Err(create_command_exception(
-            "libfranka-rs: Stop command aborted: motion aborted by reflex!",
-        )),
-        StopMoveStatus::CommandNotPossibleRejected => Err(create_command_exception(
-            "libfranka-rs: Stop command rejected: command not possible in the current mode!",
-        )),
-        StopMoveStatus::Aborted => Err(create_command_exception(
-            "libfranka-rs: Stop command aborted!",
-        )),
-    }
-}
-
-
-
-impl<Data:RobotData> RobotImplGeneric<Data> {
+impl<Data: RobotData> RobotImplGeneric<Data> {
     pub fn new(
         network: Network<Data::DeviceData>,
         log_size: usize,
@@ -349,17 +348,11 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
     }
 
     fn connect_robot(&mut self) -> Result<(), FrankaException> {
-        let connect_command = ConnectRequestWithHeader {
-            header: PandaData::create_header(
-                &mut self.network.command_id,
-                PandaCommandEnum::Connect,
-                size_of::<ConnectRequestWithHeader>(),
-            ),
-            request: ConnectRequest::new(self.network.get_udp_port()),
-        };
+        let udp_port = self.network.get_udp_port();
+        let connect_command = Data::create_connect_request(&mut self.network.command_id, udp_port);
         let command_id: u32 = self.network.tcp_send_request(connect_command);
-        let connect_response: ConnectResponse =
-            self.network.tcp_blocking_receive_response(command_id);
+        let connect_response: ConnectResponseWithoutHeader =
+            self.network.tcp_blocking_receive_status(command_id);
         match connect_response.status {
             ConnectStatus::Success => {
                 self.ri_version = Some(connect_response.version);
@@ -367,7 +360,7 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
             }
             _ => Err(FrankaException::IncompatibleLibraryVersionError {
                 server_version: connect_response.version,
-                library_version: VERSION,
+                library_version: PANDA_VERSION,
             }),
         }
     }
@@ -386,9 +379,9 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
         while received_state.is_some() {
             if received_state.unwrap().get_message_id()
                 > match latest_accepted_state {
-                Some(s) => s.get_message_id(),
-                None => self.message_id,
-            }
+                    Some(s) => s.get_message_id(),
+                    None => self.message_id,
+                }
             {
                 latest_accepted_state = Some(received_state.unwrap());
             }
@@ -472,41 +465,40 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
         maximum_path_deviation: &MoveDeviation,
         maximum_goal_deviation: &MoveDeviation,
     ) -> FrankaResult<u32> {
-        let connect_command = MoveRequestWithHeader {
-            header: self.network.create_header_for_panda(
-                PandaCommandEnum::Move,
-                size_of::<MoveRequestWithHeader>(),
-            ),
-            request: MoveRequest::new(
+        // let connect_command = MoveRequestWithPandaHeader {
+        //     header: self.network.create_header_for_panda(
+        //         PandaCommandEnum::Move,
+        //         size_of::<MoveRequestWithPandaHeader>(),
+        //     ),
+        //     request: MoveRequest::new(
+        //         *controller_mode,
+        //         *motion_generator_mode,
+        //         *maximum_path_deviation,
+        //         *maximum_goal_deviation,
+        //     ),
+        // };
+        let command = Data::create_move_request(
+            &mut self.network.command_id,
+            MoveRequest::new(
                 *controller_mode,
                 *motion_generator_mode,
                 *maximum_path_deviation,
                 *maximum_goal_deviation,
             ),
-        };
-        let command_id: u32 = self.network.tcp_send_request(connect_command);
-        let response: MoveResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_command_response_move(&response)?;
+        );
+        let command_id: u32 = self.network.tcp_send_request(command);
+        let status = self.network.tcp_blocking_receive_status(command_id);
+        Data::handle_command_move_status(status)?;
         Ok(command_id)
     }
     fn execute_stop_command(&mut self) -> FrankaResult<u32> {
-        let command = StopMoveRequestWithHeader {
-            header: self.network.create_header_for_panda(
-                PandaCommandEnum::StopMove,
-                size_of::<StopMoveRequestWithHeader>(),
-            ),
-        };
+        let command = Data::create_stop_request(&mut self.network.command_id);
         let command_id: u32 = self.network.tcp_send_request(command);
-        let response: StopMoveResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_command_response_stop(&response)?;
+        let status = self.network.tcp_blocking_receive_status(command_id);
+        Data::handle_command_stop_move_status(status)?;
         Ok(command_id)
     }
 }
-
-
-
-
-
 
 // impl MotionGeneratorTrait for RobotImpl {
 //     fn get_motion_generator_mode() -> MoveMotionGeneratorMode {
@@ -514,14 +506,14 @@ impl<Data:RobotData> RobotImplGeneric<Data> {
 //     }
 // }
 
-fn create_control_exception(
+fn create_control_exception_old(
     message: String,
-    move_status: &MoveStatus,
+    move_status: &MoveStatusPanda,
     reflex_reasons: &FrankaErrors,
     log: Vec<Record<PandaState>>,
 ) -> FrankaException {
     let mut exception_string = String::from(&message);
-    if move_status == &MoveStatus::ReflexAborted {
+    if move_status == &MoveStatusPanda::ReflexAborted {
         exception_string += " ";
         exception_string += reflex_reasons.to_string().as_str();
         if log.len() >= 2 {

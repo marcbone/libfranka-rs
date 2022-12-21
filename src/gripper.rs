@@ -8,10 +8,9 @@ use std::mem::size_of;
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
 use crate::gripper::gripper_state::GripperState;
 use crate::gripper::types::{
-    GripperCommandEnum, ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
-    GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
-    HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
-    StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
+    ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
+    GraspRequestWithHeader, GripperCommandEnum, GripperCommandHeader, GripperStateIntern,
+    MoveRequest, MoveRequestWithHeader, Status, COMMAND_PORT, VERSION,
 };
 use crate::network::{GripperData, Network, NetworkType};
 
@@ -46,9 +45,10 @@ impl Gripper {
     }
     fn connect_gripper(&mut self, ri_version: &u16) -> FrankaResult<()> {
         let connect_command = ConnectRequestWithHeader {
-            header: self
-                .network
-                .create_header(GripperCommandEnum::Connect, size_of::<ConnectRequestWithHeader>()),
+            header: self.network.create_header(
+                GripperCommandEnum::Connect,
+                size_of::<ConnectRequestWithHeader>(),
+            ),
             request: ConnectRequest::new(self.network.get_udp_port()),
         };
         let command_id: u32 = self.network.tcp_send_request(connect_command);
@@ -82,8 +82,8 @@ impl Gripper {
             request: MoveRequest::new(width, speed),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
-        let response: MoveResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_response_status(&response.status)
+        let status: Status = self.network.tcp_blocking_receive_status(command_id);
+        handle_response_status(&status)
     }
     /// Performs homing of the gripper.
     ///
@@ -96,12 +96,13 @@ impl Gripper {
     /// # Return
     /// True if command was successful, false otherwise.
     pub fn homing(&mut self) -> FrankaResult<bool> {
-        let command: HomingRequestWithHeader = self
-            .network
-            .create_header(GripperCommandEnum::Homing, size_of::<HomingRequestWithHeader>());
+        let command: GripperCommandHeader = self.network.create_header(
+            GripperCommandEnum::Homing,
+            size_of::<GripperCommandHeader>(),
+        );
         let command_id: u32 = self.network.tcp_send_request(command);
-        let response: HomingResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_response_status(&response.status)
+        let status: Status = self.network.tcp_blocking_receive_status(command_id);
+        handle_response_status(&status)
     }
 
     /// Stops a currently running gripper move or grasp.
@@ -111,12 +112,12 @@ impl Gripper {
     /// # Return
     /// True if command was successful, false otherwise.
     pub fn stop(&mut self) -> FrankaResult<bool> {
-        let command: StopRequestWithHeader = self
+        let command: GripperCommandHeader = self
             .network
-            .create_header(GripperCommandEnum::Stop, size_of::<StopRequestWithHeader>());
+            .create_header(GripperCommandEnum::Stop, size_of::<GripperCommandHeader>());
         let command_id: u32 = self.network.tcp_send_request(command);
-        let response: StopResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_response_status(&response.status)
+        let status: Status = self.network.tcp_blocking_receive_status(command_id);
+        handle_response_status(&status)
     }
 
     /// Grasps an object.
@@ -147,14 +148,15 @@ impl Gripper {
         let epsilon_inner = epsilon_inner.unwrap_or(0.005);
         let epsilon_outer = epsilon_outer.unwrap_or(0.005);
         let command = GraspRequestWithHeader {
-            header: self
-                .network
-                .create_header(GripperCommandEnum::Grasp, size_of::<GraspRequestWithHeader>()),
+            header: self.network.create_header(
+                GripperCommandEnum::Grasp,
+                size_of::<GraspRequestWithHeader>(),
+            ),
             request: GraspRequest::new(width, speed, force, epsilon_inner, epsilon_outer),
         };
         let command_id: u32 = self.network.tcp_send_request(command);
-        let response: GraspResponse = self.network.tcp_blocking_receive_response(command_id);
-        handle_response_status(&response.status)
+        let status: Status = self.network.tcp_blocking_receive_status(command_id);
+        handle_response_status(&status)
     }
     /// Waits for a gripper state update and returns it.
     /// # Errors
@@ -194,10 +196,9 @@ fn handle_response_status(status: &Status) -> FrankaResult<bool> {
 #[cfg(test)]
 mod tests {
     use crate::gripper::types::{
-        GripperCommandEnum, GripperCommandHeader, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
-        GraspRequestWithHeader, GraspResponse, GripperStateIntern, HomingRequestWithHeader,
-        HomingResponse, MoveRequest, MoveRequestWithHeader, MoveResponse, Status,
-        StopRequestWithHeader, StopResponse, COMMAND_PORT, VERSION,
+        ConnectRequestWithHeader, ConnectResponse, GraspRequest, GraspRequestWithHeader,
+        GripperCommandEnum, GripperCommandHeader, GripperStateIntern, MoveRequest,
+        MoveRequestWithHeader, Status, COMMAND_PORT, VERSION,
     };
     use crate::gripper::Gripper;
     use crate::FrankaResult;
@@ -214,9 +215,16 @@ mod tests {
     use crate::exception::FrankaException;
     use crate::gripper::types::Status::{Fail, Success};
     use crate::network::MessageCommand;
+    use serde::{Deserialize, Serialize};
     use std::iter::FromIterator;
     use std::mem::size_of;
 
+    #[derive(Serialize, Deserialize, Clone, Copy)]
+    #[repr(packed)]
+    struct GripperResponse {
+        pub header: GripperCommandHeader,
+        pub status: Status,
+    }
     struct Socket<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)> {
         pub send_bytes: F,
         pub receive_bytes: G,
@@ -415,8 +423,12 @@ mod tests {
                         .for_each(|(x, y)| assert_eq!(x, y));
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
-                    let mut response = MoveResponse {
-                        header: GripperCommandHeader::new(GripperCommandEnum::Move, req.header.command_id, 0),
+                    let mut response = GripperResponse {
+                        header: GripperCommandHeader::new(
+                            GripperCommandEnum::Move,
+                            req.header.command_id,
+                            0,
+                        ),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -445,15 +457,19 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
-                    let req: StopRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: GripperCommandHeader = deserialize(&bytes).unwrap();
                     match req.command {
                         GripperCommandEnum::Stop => {}
                         _ => {
                             assert!(false)
                         }
                     }
-                    let mut response = StopResponse {
-                        header: GripperCommandHeader::new(GripperCommandEnum::Stop, req.command_id, 0),
+                    let mut response = GripperResponse {
+                        header: GripperCommandHeader::new(
+                            GripperCommandEnum::Stop,
+                            req.command_id,
+                            0,
+                        ),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -479,15 +495,19 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
-                    let req: HomingRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: GripperCommandHeader = deserialize(&bytes).unwrap();
                     match req.command {
                         GripperCommandEnum::Homing => {}
                         _ => {
                             assert!(false)
                         }
                     }
-                    let mut response = HomingResponse {
-                        header: GripperCommandHeader::new(GripperCommandEnum::Homing, req.command_id, 0),
+                    let mut response = GripperResponse {
+                        header: GripperCommandHeader::new(
+                            GripperCommandEnum::Homing,
+                            req.command_id,
+                            0,
+                        ),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
@@ -548,8 +568,12 @@ mod tests {
                         .for_each(|(x, y)| assert_eq!(x, y));
                     let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
                     counter += 1;
-                    let mut response = GraspResponse {
-                        header: GripperCommandHeader::new(GripperCommandEnum::Grasp, req.header.command_id, 0),
+                    let mut response = GripperResponse {
+                        header: GripperCommandHeader::new(
+                            GripperCommandEnum::Grasp,
+                            req.header.command_id,
+                            0,
+                        ),
                         status: Status::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;

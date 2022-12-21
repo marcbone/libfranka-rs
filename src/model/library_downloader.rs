@@ -2,7 +2,11 @@
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::FrankaException::ModelException;
 use crate::network::{DeviceData, FR3Data, Network, PandaData, RobotData};
-use crate::robot::service_types::{FR3CommandEnum, LoadModelLibraryArchitecture, LoadModelLibraryRequest, LoadModelLibraryRequestWithHeader, LoadModelLibraryResponse, LoadModelLibrarySystem, ModelRequestWithHeader, PandaCommandEnum, PandaCommandHeader, RobotHeader};
+use crate::robot::service_types::{
+    FR3CommandEnum, LoadModelLibraryArchitecture, LoadModelLibraryRequest,
+    LoadModelLibraryResponse, LoadModelLibrarySystem, PandaCommandEnum, PandaCommandHeader,
+    RobotHeader,
+};
 use crate::FrankaResult;
 use std::fmt;
 use std::fmt::Display;
@@ -12,24 +16,23 @@ use std::io::Write;
 use std::mem::size_of;
 use std::path::Path;
 
-
-pub trait LibraryDownloader{
-    type Data:RobotData;
+pub trait LibraryDownloader {
+    type Data: RobotData;
     fn download(network: &mut Network<Self::Data>, download_path: &Path) -> FrankaResult<()>;
 }
-pub struct LibraryDownloaderGeneric<Data:RobotData>{
-    data: std::marker::PhantomData<Data>
+pub struct LibraryDownloaderGeneric<Data: RobotData> {
+    data: std::marker::PhantomData<Data>,
 }
-impl<Data:RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
+impl<Data: RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
     type Data = Data;
 
     fn download(network: &mut Network<Data>, download_path: &Path) -> FrankaResult<()> {
         if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-            let request= LoadModelLibraryRequest {
+            let request = LoadModelLibraryRequest {
                 architecture: LoadModelLibraryArchitecture::X64,
                 system: LoadModelLibrarySystem::Linux,
             };
-            let command = Data::create_model_library_request(&mut network.command_id,request);
+            let command = Data::create_model_library_request(&mut network.command_id, request);
             let command_id: u32 = network.tcp_send_request(command);
             let mut buffer = Vec::<u8>::new();
             let _response: LoadModelLibraryResponse =
@@ -44,9 +47,9 @@ impl<Data:RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
         } else {
             Err(ModelException {
                 message:
-                "Your platform is not yet supported for Downloading models. Please use Linux on\
+                    "Your platform is not yet supported for Downloading models. Please use Linux on\
                         x86_64 for now"
-                    .to_string(),
+                        .to_string(),
             })
         }
     }

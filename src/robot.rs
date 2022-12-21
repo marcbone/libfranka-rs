@@ -21,17 +21,11 @@ use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_impl::{RobotImplGeneric, RobotImplementation};
 use crate::robot::robot_state::{FR3State, RobotState};
 use crate::robot::service_types::{
-    AutomaticErrorRecoveryRequestWithHeader, AutomaticErrorRecoveryResponse,
-    AutomaticErrorRecoveryStatus, GetCartesianLimitRequest, GetCartesianLimitRequestWithHeader,
-    GetCartesianLimitResponse, GetterSetterStatus, PandaCommandEnum, SetCartesianImpedanceRequest,
-    SetCartesianImpedanceRequestWithHeader, SetCartesianImpedanceResponse,
-    SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
-    SetCollisionBehaviorResponse, SetEeToKRequest, SetEeToKRequestWithHeader, SetEeToKResponse,
-    SetFiltersRequest, SetFiltersRequestWithHeader, SetFiltersResponse, SetGuidingModeRequest,
-    SetGuidingModeRequestWithHeader, SetGuidingModeResponse, SetJointImpedanceRequest,
-    SetJointImpedanceRequestWithHeader, SetJointImpedanceResponse, SetLoadRequest,
-    SetLoadRequestWithHeader, SetLoadResponse, SetNeToEeRequest, SetNeToEeRequestWithHeader,
-    SetNeToEeResponse, StopMoveRequestWithHeader, StopMoveResponse, StopMoveStatus,
+    GetCartesianLimitRequest, GetCartesianLimitRequestWithPandaHeader, GetCartesianLimitResponse,
+    GetterSetterStatusPanda, PandaCommandEnum, SetCartesianImpedanceRequest,
+    SetCollisionBehaviorRequest, SetEeToKRequest, SetFiltersRequest,
+    SetFiltersRequestWithPandaHeader, SetFiltersResponse, SetGuidingModeRequest,
+    SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest, StopMoveStatusPanda,
 };
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
@@ -63,24 +57,85 @@ where
 {
     type Data: RobotData;
     type Rob: RobotImplementation<Data = Self::Data>;
-    fn get_rob(&mut self) -> &mut Self::Rob;
+    fn get_rob_mut(&mut self) -> &mut Self::Rob;
+    fn get_rob(&self) -> &Self::Rob;
     fn get_net(&mut self) -> &mut Network<Self::Data>;
+    /// Starts a loop for reading the current robot state.
+    ///
+    /// Cannot be executed while a control or motion generator loop is running.
+    ///
+    /// This minimal example will print the robot state 100 times:
+    /// ```no_run
+    /// use franka::{Panda, PandaState, FrankaResult};
+    /// fn main() -> FrankaResult<()> {
+    ///     let mut robot = Panda::new("robotik-bs.de",None,None)?;
+    ///     let mut count = 0;
+    ///     robot.read(| robot_state:&PandaState | -> bool {
+    ///         println!("{:?}", robot_state);
+    ///         count += 1;
+    ///         count <= 100
+    ///     })
+    /// }
+    /// ```
+    /// # Arguments
+    /// * `read_callback` - Callback function for robot state reading. The callback hast to return true as long
+    /// as it wants to receive further robot states.
+    /// # Error
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     fn read<F: FnMut(&<<Self as Robot>::Data as RobotData>::State) -> bool>(
         &mut self,
         mut read_callback: F,
     ) -> FrankaResult<()> {
         loop {
-            let state = self.get_rob().update2(None, None)?;
+            let state = self.get_rob_mut().update2(None, None)?;
             if !read_callback(&state) {
                 break;
             }
         }
         Ok(())
     }
+    /// Waits for a robot state update and returns it.
+    ///
+    /// # Return
+    /// Current robot state.
+    /// # Error
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    ///
+    /// See [`Robot::read`](`Self::read`) for a way to repeatedly receive the robot state.
     fn read_once(&mut self) -> FrankaResult<<<Self as Robot>::Data as RobotData>::State> {
-        self.get_rob().read_once2()
+        self.get_rob_mut().read_once2()
     }
-
+    /// Changes the collision behavior.
+    ///
+    /// Set separate torque and force boundaries for acceleration/deceleration and constant velocity
+    /// movement phases.
+    ///
+    /// Forces or torques between lower and upper threshold are shown as contacts in the RobotState.
+    /// Forces or torques above the upper threshold are registered as collision and cause the robot to
+    /// stop moving.
+    ///
+    /// # Arguments
+    /// * `lower_torque_thresholds_acceleration` - Contact torque thresholds during
+    ///  acceleration/deceleration for each joint in \[Nm\]
+    /// * `upper_torque_thresholds_acceleration` - Collision torque thresholds during
+    ///  acceleration/deceleration for each joint in \[Nm\]
+    /// * `lower_torque_thresholds_nominal` - Contact torque thresholds for each joint in \[Nm\]
+    /// * `upper_torque_thresholds_nominal` - Collision torque thresholds for each joint in \[Nm\]
+    /// * `lower_force_thresholds_acceleration` -Contact force thresholds during
+    /// acceleration/deceleration for (x,y,z,R,P,Y) in \[N\].
+    /// * `upper_force_thresholds_acceleration` - Collision force thresholds during
+    /// acceleration/deceleration for (x,y,z,R,P,Y) in \[N\].
+    /// * `lower_force_thresholds_nominal` - Contact force thresholds for (x,y,z,R,P,Y) in \[N\]
+    /// * `upper_force_thresholds_nominal` - Collision force thresholds for (x,y,z,R,P,Y) in \[N\]
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// # See also
+    /// * [`RobotState::cartesian_contact`](`crate::RobotState::cartesian_contact`)
+    /// * [`RobotState::cartesian_collision`](`crate::RobotState::cartesian_collision`)
+    /// * [`RobotState::joint_contact`](`crate::RobotState::joint_contact`)
+    /// * [`RobotState::joint_collision`](`crate::RobotState::joint_collision`)
+    /// * [`automatic_error_recovery`](`Self::automatic_error_recovery`) for performing a reset after a collision.
     #[allow(clippy::too_many_arguments)]
     fn set_collision_behavior(
         &mut self,
@@ -93,12 +148,9 @@ where
         lower_force_thresholds_nominal: [f64; 6],
         upper_force_thresholds_nominal: [f64; 6],
     ) -> FrankaResult<()> {
-        let command = SetCollisionBehaviorRequestWithHeader {
-            header: self.get_net().create_header_for_panda(
-                PandaCommandEnum::SetCollisionBehavior,
-                size_of::<SetCollisionBehaviorRequestWithHeader>(),
-            ),
-            request: SetCollisionBehaviorRequest::new(
+        let command = Self::Data::create_set_collision_behavior_request(
+            &mut self.get_net().command_id,
+            SetCollisionBehaviorRequest::new(
                 lower_torque_thresholds_acceleration,
                 upper_torque_thresholds_acceleration,
                 lower_torque_thresholds_nominal,
@@ -108,41 +160,187 @@ where
                 lower_force_thresholds_nominal,
                 upper_force_thresholds_nominal,
             ),
-        };
+        );
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetCollisionBehaviorResponse =
-            self.get_net().tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
     }
 
+    /// Sets the impedance for each joint in the internal controller.
+    ///
+    /// User-provided torques are not affected by this setting.
+    /// # Arguments
+    /// * `K_theta` - Joint impedance values ![K_{\theta}](https://latex.codecogs.com/png.latex?K_{\theta}).
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     #[allow(non_snake_case)]
     fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
-        let command = SetJointImpedanceRequestWithHeader {
-            header: self.get_net().create_header_for_panda(
-                PandaCommandEnum::SetJointImpedance,
-                size_of::<SetJointImpedanceRequestWithHeader>(),
-            ),
-            request: SetJointImpedanceRequest::new(K_theta),
-        };
+        let command = Self::Data::create_set_joint_impedance_request(
+            &mut self.get_net().command_id,
+            SetJointImpedanceRequest::new(K_theta),
+        );
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetJointImpedanceResponse =
-            self.get_net().tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
     }
-
+    /// Sets the Cartesian impedance for (x, y, z, roll, pitch, yaw) in the internal controller.
+    ///
+    /// User-provided torques are not affected by this setting.
+    /// # Arguments
+    /// * `K_x` - Cartesian impedance values
+    ///
+    /// ![K_x=(x \in \[10,3000\] \frac{N}{m}, y \in \[10,3000\] \frac{N}{m}, z \in \[10,3000\] \frac{N}{m}, R \in \[1,300\] \frac{Nm}{rad}, P \in \[1,300\] \frac{Nm}{rad}, Y \in \[1,300\]  \frac{Nm}{rad})](https://latex.codecogs.com/png.latex?K_x=(x&space;\in&space;[10,3000]&space;\frac{N}{m},&space;y&space;\in&space;[10,3000]&space;\frac{N}{m},&space;z&space;\in&space;[10,3000]&space;\frac{N}{m},&space;R&space;\in&space;[1,300]&space;\frac{Nm}{rad},&space;P&space;\in&space;[1,300]&space;\frac{Nm}{rad},&space;Y&space;\in&space;[1,300]&space;\frac{Nm}{rad}))
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     #[allow(non_snake_case)]
     fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
-        let command = SetCartesianImpedanceRequestWithHeader {
-            header: self.get_net().create_header_for_panda(
-                PandaCommandEnum::SetCartesianImpedance,
-                size_of::<SetCartesianImpedanceRequestWithHeader>(),
-            ),
-            request: SetCartesianImpedanceRequest::new(K_x),
-        };
+        let command = Self::Data::create_set_cartesian_impedance_request(
+            &mut self.get_net().command_id,
+            SetCartesianImpedanceRequest::new(K_x),
+        );
         let command_id: u32 = self.get_net().tcp_send_request(command);
-        let response: SetCartesianImpedanceResponse =
-            self.get_net().tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
+    }
+
+    /// Sets dynamic parameters of a payload.
+    ///
+    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
+    /// # Note
+    /// This is not for setting end effector parameters, which have to be set in the administrator's
+    /// interface.
+    /// # Arguments
+    /// * `load_mass` - Mass of the load in \[kg\]
+    /// * `F_x_Cload` - Translation from flange to center of mass of load
+    ///  ![^Fx_{C_\text{load}}](https://latex.codecogs.com/png.latex?^Fx_{C_\text{load}}) in \[m\]
+    /// * `load_inertia` - Inertia matrix ![I_\text{load}](https://latex.codecogs.com/png.latex?I_\text{load}) in [kg \times m^2], column-major.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    #[allow(non_snake_case)]
+    fn set_load(
+        &mut self,
+        load_mass: f64,
+        F_x_Cload: [f64; 3],
+        load_inertia: [f64; 9],
+    ) -> FrankaResult<()> {
+        let command = Self::Data::create_set_load_request(
+            &mut self.get_net().command_id,
+            SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
+        );
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
+    }
+
+    /// Locks or unlocks guiding mode movement in (x, y, z, roll, pitch, yaw).
+    ///
+    /// If a flag is set to true, movement is unlocked.
+    /// # Note
+    /// Guiding mode can be enabled by pressing the two opposing buttons near the robot's flange.
+    /// # Arguments
+    /// * `guiding_mode` - Unlocked movement in (x, y, z, R, P, Y) in guiding mode.
+    /// * `elbow` - True if the elbow is free in guiding mode, false otherwise.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
+        let command = Self::Data::create_set_guiding_mode_request(
+            &mut self.get_net().command_id,
+            SetGuidingModeRequest::new(guiding_mode, elbow),
+        );
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
+    }
+
+    /// Sets the transformation ![^{EE}T_K](https://latex.codecogs.com/png.latex?^{EE}T_K) from end effector frame to stiffness frame.
+    ///
+    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
+    /// # Arguments
+    /// * `EE_T_K` - Vectorized EE-to-K transformation matrix ![^{EE}T_K](https://latex.codecogs.com/png.latex?^{EE}T_K), column-major.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    ///
+    /// See [Stiffness frame K](#stiffness-frame-k) for an explanation of the stiffness frame.
+    #[allow(non_snake_case)]
+    fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
+        let command = Self::Data::create_set_ee_to_k_request(
+            &mut self.get_net().command_id,
+            SetEeToKRequest::new(EE_T_K),
+        );
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
+    }
+
+    /// Sets the transformation ![^{NE}T_{EE}](https://latex.codecogs.com/png.latex?^{NE}T_{EE}) from nominal end effector to end effector frame.
+    ///
+    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
+    /// # Arguments
+    /// * `NE_T_EE` - Vectorized NE-to-EE transformation matrix ![^{NE}T_{EE}](https://latex.codecogs.com/png.latex?^{NE}T_{EE}), column-major.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    ///
+    /// # See also
+    /// * [`RobotState::NE_T_EE`](`crate::RobotState::NE_T_EE`)
+    /// * [`RobotState::O_T_EE`](`crate::RobotState::O_T_EE`)
+    /// * [`RobotState::F_T_EE`](`crate::RobotState::F_T_EE`)
+    /// * [NE](#nominal-end-effector-frame-ne) and [EE](#end-effector-frame-ee) for an explanation of those frames
+    #[allow(non_snake_case)]
+    fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
+        let command = Self::Data::create_set_ne_to_ee_request(
+            &mut self.get_net().command_id,
+            SetNeToEeRequest::new(NE_T_EE),
+        );
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_getter_setter_status(status)
+    }
+
+    ///Runs automatic error recovery on the robot.
+    ///
+    /// Automatic error recovery e.g. resets the robot after a collision occurred.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
+        let command =
+            Self::Data::create_automatic_error_recovery_request(&mut self.get_net().command_id);
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status = self.get_net().tcp_blocking_receive_status(command_id);
+        Self::Data::handle_automatic_error_recovery_status(status)
+    }
+
+    /// Stops all currently running motions.
+    ///
+    /// If a control or motion generator loop is running in another thread, it will be preempted
+    /// with a [`ControlException`](`crate::exception::FrankaException::ControlException`).
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    fn stop(&mut self) -> FrankaResult<()> {
+        let command = Self::Data::create_stop_request(&mut self.get_net().command_id);
+        let command_id: u32 = self.get_net().tcp_send_request(command);
+        let status: StopMoveStatusPanda = self.get_net().tcp_blocking_receive_status(command_id);
+        match status {
+            StopMoveStatusPanda::Success => Ok(()),
+            StopMoveStatusPanda::CommandNotPossibleRejected | StopMoveStatusPanda::Aborted => {
+                Err(create_command_exception(
+                    "libfranka-rs: command rejected: command not possible in current mode",
+                ))
+            }
+            StopMoveStatusPanda::EmergencyAborted => Err(create_command_exception(
+                "libfranka-rs: command aborted: User Stop pressed!",
+            )),
+            StopMoveStatusPanda::ReflexAborted => Err(create_command_exception(
+                "libfranka-rs: command aborted: motion aborted by reflex!",
+            )),
+        }
     }
 
     fn control_motion_intern<
@@ -162,7 +360,7 @@ where
         let limit_rate = limit_rate.unwrap_or(true);
         let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::from_control_mode(
-            self.get_rob(),
+            self.get_rob_mut(),
             controller_mode,
             motion_generator_callback,
             limit_rate,
@@ -170,9 +368,161 @@ where
         )?;
         control_loop.run()
     }
-
+    /// Starts a control loop for a joint position motion generator with a given controller mode.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    ///
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint position commands are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_joint_positions<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointPositions,
+        CM: Into<Option<ControllerMode>>,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        controller_mode: CM,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_motion_intern(
+            motion_generator_callback,
+            controller_mode.into(),
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+    /// Starts a control loop for a joint velocity motion generator with a given controller mode.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if joint velocity commands are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_joint_velocities<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointVelocities,
+        CM: Into<Option<ControllerMode>>,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        controller_mode: CM,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_motion_intern(
+            motion_generator_callback,
+            controller_mode.into(),
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+    /// Starts a control loop for a Cartesian pose motion generator with a given controller mode.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    ///
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if Cartesian pose command elements are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_cartesian_pose<
         F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianPose,
+        CM: Into<Option<ControllerMode>>,
+        L: Into<Option<bool>>,
+        CF: Into<Option<f64>>,
+    >(
+        &mut self,
+        motion_generator_callback: F,
+        controller_mode: CM,
+        limit_rate: L,
+        cutoff_frequency: CF,
+    ) -> FrankaResult<()> {
+        self.control_motion_intern(
+            motion_generator_callback,
+            controller_mode.into(),
+            limit_rate.into(),
+            cutoff_frequency.into(),
+        )
+    }
+
+    /// Starts a control loop for a Cartesian velocity motion generator with a given controller mode.
+    ///
+    /// Sets realtime priority for the current thread.
+    /// Cannot be executed while another control or motion generator loop is active.
+    ///
+    /// # Arguments
+    /// * `motion_generator_callback` Callback function for motion generation.
+    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
+    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
+    /// * `limit_rate` True if rate limiting should be activated. True by default.
+    /// This could distort your motion!
+    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
+    /// the user commanded signal.
+    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
+    /// Default is 100 Hz
+    ///
+    /// # Errors
+    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
+    /// # Panics
+    /// * if Cartesian velocity command elements are NaN or infinity.
+    ///
+    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
+    fn control_cartesian_velocities<
+        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianVelocities,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
@@ -210,7 +560,7 @@ where
         let limit_rate = limit_rate.unwrap_or(true);
         let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::new(
-            self.get_rob(),
+            self.get_rob_mut(),
             control_callback,
             motion_generator_callback,
             limit_rate,
@@ -451,7 +801,42 @@ where
     /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     fn load_model(&mut self, persistent: bool) -> FrankaResult<<Self::Data as RobotData>::Model> {
-        self.get_rob().load_model2(persistent)
+        self.get_rob_mut().load_model2(persistent)
+    }
+
+    /// Sets a default collision behavior, joint impedance and Cartesian impedance.
+    /// # Errors
+    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
+    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
+    fn set_default_behavior(&mut self) -> FrankaResult<()> {
+        self.set_collision_behavior(
+            [20.; 7], [20.; 7], [10.; 7], [10.; 7], [20.; 6], [20.; 6], [10.; 6], [10.; 6],
+        )?;
+        self.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
+        self.set_cartesian_impedance([3000., 3000., 3000., 300., 300., 300.])?;
+        Ok(())
+    }
+    /// Executes a joint pose motion to a goal position. Adapted from:
+    /// Wisama Khalil and Etienne Dombre. 2002. Modeling, Identification and Control of Robots
+    /// (Kogan Page Science Paper edition).
+    /// # Arguments
+    /// * `speed_factor` - General speed factor in range [0, 1].
+    /// * `q_goal` - Target joint positions.
+    fn joint_motion(&mut self, speed_factor: f64, q_goal: &[f64; 7]) -> FrankaResult<()> {
+        let mut motion_generator = MotionGenerator::new(speed_factor, q_goal);
+        self.control_joint_positions(
+            |state, time| motion_generator.generate_motion(state, time),
+            Some(ControllerMode::JointImpedance),
+            Some(true),
+            Some(MAX_CUTOFF_FREQUENCY),
+        )
+    }
+    /// Returns the software version reported by the connected server.
+    ///
+    /// # Return
+    /// Software version of the connected server.
+    fn server_version(&self) -> u16 {
+        self.get_rob().server_version2()
     }
 }
 
@@ -518,8 +903,12 @@ impl Robot for Panda {
     fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
-    fn get_rob(&mut self) -> &mut Self::Rob {
+    fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
+    }
+
+    fn get_rob(&self) -> &Self::Rob {
+        &self.robimpl
     }
 }
 
@@ -533,8 +922,12 @@ impl Robot for FR3 {
     fn get_net(&mut self) -> &mut Network<Self::Data> {
         &mut self.robimpl.network
     }
-    fn get_rob(&mut self) -> &mut Self::Rob {
+    fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
+    }
+
+    fn get_rob(&self) -> &Self::Rob {
+        &self.robimpl
     }
 }
 
@@ -602,289 +995,7 @@ impl Panda {
             robimpl: <Panda as Robot>::Rob::new(network, log_size, realtime_config)?,
         })
     }
-    /// Starts a loop for reading the current robot state.
-    ///
-    /// Cannot be executed while a control or motion generator loop is running.
-    ///
-    /// This minimal example will print the robot state 100 times:
-    /// ```no_run
-    /// use franka::{Panda, PandaState, FrankaResult};
-    /// fn main() -> FrankaResult<()> {
-    ///     let mut robot = Panda::new("robotik-bs.de",None,None)?;
-    ///     let mut count = 0;
-    ///     robot.read(| robot_state:&PandaState | -> bool {
-    ///         println!("{:?}", robot_state);
-    ///         count += 1;
-    ///         count <= 100
-    ///     })
-    /// }
-    /// ```
-    /// # Arguments
-    /// * `read_callback` - Callback function for robot state reading. The callback hast to return true as long
-    /// as it wants to receive further robot states.
-    /// # Error
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    // pub fn read<F: FnMut(&PandaState) -> bool>(
-    //     &mut self,
-    //     mut read_callback: F,
-    // ) -> FrankaResult<()> {
-    //     loop {
-    //         let state = self.robimpl.update(None, None)?;
-    //         if !read_callback(&state) {
-    //             break;
-    //         }
-    //     }
-    //     Ok(())
-    // }
-    /// Waits for a robot state update and returns it.
-    ///
-    /// # Return
-    /// Current robot state.
-    /// # Error
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    ///
-    /// See [`Robot::read`](`Self::read`) for a way to repeatedly receive the robot state.
-    // pub fn read_once(&mut self) -> FrankaResult<PandaState> {
-    //     self.robimpl.read_once()
-    // }
 
-    /// Changes the collision behavior.
-    ///
-    /// Set separate torque and force boundaries for acceleration/deceleration and constant velocity
-    /// movement phases.
-    ///
-    /// Forces or torques between lower and upper threshold are shown as contacts in the RobotState.
-    /// Forces or torques above the upper threshold are registered as collision and cause the robot to
-    /// stop moving.
-    ///
-    /// # Arguments
-    /// * `lower_torque_thresholds_acceleration` - Contact torque thresholds during
-    ///  acceleration/deceleration for each joint in \[Nm\]
-    /// * `upper_torque_thresholds_acceleration` - Collision torque thresholds during
-    ///  acceleration/deceleration for each joint in \[Nm\]
-    /// * `lower_torque_thresholds_nominal` - Contact torque thresholds for each joint in \[Nm\]
-    /// * `upper_torque_thresholds_nominal` - Collision torque thresholds for each joint in \[Nm\]
-    /// * `lower_force_thresholds_acceleration` -Contact force thresholds during
-    /// acceleration/deceleration for (x,y,z,R,P,Y) in \[N\].
-    /// * `upper_force_thresholds_acceleration` - Collision force thresholds during
-    /// acceleration/deceleration for (x,y,z,R,P,Y) in \[N\].
-    /// * `lower_force_thresholds_nominal` - Contact force thresholds for (x,y,z,R,P,Y) in \[N\]
-    /// * `upper_force_thresholds_nominal` - Collision force thresholds for (x,y,z,R,P,Y) in \[N\]
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// # See also
-    /// * [`RobotState::cartesian_contact`](`crate::RobotState::cartesian_contact`)
-    /// * [`RobotState::cartesian_collision`](`crate::RobotState::cartesian_collision`)
-    /// * [`RobotState::joint_contact`](`crate::RobotState::joint_contact`)
-    /// * [`RobotState::joint_collision`](`crate::RobotState::joint_collision`)
-    /// * [`automatic_error_recovery`](`Self::automatic_error_recovery`) for performing a reset after a collision.
-    // #[allow(clippy::too_many_arguments)]
-    // pub fn set_collision_behavior(
-    //     &mut self,
-    //     lower_torque_thresholds_acceleration: [f64; 7],
-    //     upper_torque_thresholds_acceleration: [f64; 7],
-    //     lower_torque_thresholds_nominal: [f64; 7],
-    //     upper_torque_thresholds_nominal: [f64; 7],
-    //     lower_force_thresholds_acceleration: [f64; 6],
-    //     upper_force_thresholds_acceleration: [f64; 6],
-    //     lower_force_thresholds_nominal: [f64; 6],
-    //     upper_force_thresholds_nominal: [f64; 6],
-    // ) -> FrankaResult<()> {
-    //     let command = SetCollisionBehaviorRequestWithHeader {
-    //         header: self.robimpl.network.create_header_for_robot(
-    //             RobotCommandEnum::SetCollisionBehavior,
-    //             size_of::<SetCollisionBehaviorRequestWithHeader>(),
-    //         ),
-    //         request: SetCollisionBehaviorRequest::new(
-    //             lower_torque_thresholds_acceleration,
-    //             upper_torque_thresholds_acceleration,
-    //             lower_torque_thresholds_nominal,
-    //             upper_torque_thresholds_nominal,
-    //             lower_force_thresholds_acceleration,
-    //             upper_force_thresholds_acceleration,
-    //             lower_force_thresholds_nominal,
-    //             upper_force_thresholds_nominal,
-    //         ),
-    //     };
-    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-    //     let response: SetCollisionBehaviorResponse = self
-    //         .robimpl
-    //         .network
-    //         .tcp_blocking_receive_response(command_id);
-    //     handle_getter_setter_status(response.status)
-    // }
-
-    /// Sets the impedance for each joint in the internal controller.
-    ///
-    /// User-provided torques are not affected by this setting.
-    /// # Arguments
-    /// * `K_theta` - Joint impedance values ![K_{\theta}](https://latex.codecogs.com/png.latex?K_{\theta}).
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    // #[allow(non_snake_case)]
-    // pub fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
-    //     let command = SetJointImpedanceRequestWithHeader {
-    //         header: self.robimpl.network.create_header_for_robot(
-    //             RobotCommandEnum::SetJointImpedance,
-    //             size_of::<SetJointImpedanceRequestWithHeader>(),
-    //         ),
-    //         request: SetJointImpedanceRequest::new(K_theta),
-    //     };
-    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-    //     let response: SetJointImpedanceResponse = self
-    //         .robimpl
-    //         .network
-    //         .tcp_blocking_receive_response(command_id);
-    //     handle_getter_setter_status(response.status)
-    // }
-
-    /// Sets the Cartesian impedance for (x, y, z, roll, pitch, yaw) in the internal controller.
-    ///
-    /// User-provided torques are not affected by this setting.
-    /// # Arguments
-    /// * `K_x` - Cartesian impedance values
-    ///
-    /// ![K_x=(x \in \[10,3000\] \frac{N}{m}, y \in \[10,3000\] \frac{N}{m}, z \in \[10,3000\] \frac{N}{m}, R \in \[1,300\] \frac{Nm}{rad}, P \in \[1,300\] \frac{Nm}{rad}, Y \in \[1,300\]  \frac{Nm}{rad})](https://latex.codecogs.com/png.latex?K_x=(x&space;\in&space;[10,3000]&space;\frac{N}{m},&space;y&space;\in&space;[10,3000]&space;\frac{N}{m},&space;z&space;\in&space;[10,3000]&space;\frac{N}{m},&space;R&space;\in&space;[1,300]&space;\frac{Nm}{rad},&space;P&space;\in&space;[1,300]&space;\frac{Nm}{rad},&space;Y&space;\in&space;[1,300]&space;\frac{Nm}{rad}))
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    // #[allow(non_snake_case)]
-    // pub fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
-    //     let command = SetCartesianImpedanceRequestWithHeader {
-    //         header: self.robimpl.network.create_header_for_robot(
-    //             RobotCommandEnum::SetCartesianImpedance,
-    //             size_of::<SetCartesianImpedanceRequestWithHeader>(),
-    //         ),
-    //         request: SetCartesianImpedanceRequest::new(K_x),
-    //     };
-    //     let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-    //     let response: SetCartesianImpedanceResponse = self
-    //         .robimpl
-    //         .network
-    //         .tcp_blocking_receive_response(command_id);
-    //     handle_getter_setter_status(response.status)
-    // }
-    /// Locks or unlocks guiding mode movement in (x, y, z, roll, pitch, yaw).
-    ///
-    /// If a flag is set to true, movement is unlocked.
-    /// # Note
-    /// Guiding mode can be enabled by pressing the two opposing buttons near the robot's flange.
-    /// # Arguments
-    /// * `guiding_mode` - Unlocked movement in (x, y, z, R, P, Y) in guiding mode.
-    /// * `elbow` - True if the elbow is free in guiding mode, false otherwise.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
-        let command = SetGuidingModeRequestWithHeader {
-            header: self.robimpl.network.create_header_for_panda(
-                PandaCommandEnum::SetGuidingMode,
-                size_of::<SetGuidingModeRequestWithHeader>(),
-            ),
-            request: SetGuidingModeRequest::new(guiding_mode, elbow),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetGuidingModeResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
-
-    /// Sets the transformation ![^{EE}T_K](https://latex.codecogs.com/png.latex?^{EE}T_K) from end effector frame to stiffness frame.
-    ///
-    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
-    /// # Arguments
-    /// * `EE_T_K` - Vectorized EE-to-K transformation matrix ![^{EE}T_K](https://latex.codecogs.com/png.latex?^{EE}T_K), column-major.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    ///
-    /// See [Stiffness frame K](#stiffness-frame-k) for an explanation of the stiffness frame.
-    #[allow(non_snake_case)]
-    pub fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
-        let command = SetEeToKRequestWithHeader {
-            header: self.robimpl.network.create_header_for_panda(
-                PandaCommandEnum::SetEeToK,
-                size_of::<SetEeToKRequestWithHeader>(),
-            ),
-            request: SetEeToKRequest::new(EE_T_K),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetEeToKResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
-
-    /// Sets the transformation ![^{NE}T_{EE}](https://latex.codecogs.com/png.latex?^{NE}T_{EE}) from nominal end effector to end effector frame.
-    ///
-    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
-    /// # Arguments
-    /// * `NE_T_EE` - Vectorized NE-to-EE transformation matrix ![^{NE}T_{EE}](https://latex.codecogs.com/png.latex?^{NE}T_{EE}), column-major.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    ///
-    /// # See also
-    /// * [`RobotState::NE_T_EE`](`crate::RobotState::NE_T_EE`)
-    /// * [`RobotState::O_T_EE`](`crate::RobotState::O_T_EE`)
-    /// * [`RobotState::F_T_EE`](`crate::RobotState::F_T_EE`)
-    /// * [NE](#nominal-end-effector-frame-ne) and [EE](#end-effector-frame-ee) for an explanation of those frames
-    #[allow(non_snake_case)]
-    pub fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
-        let command = SetNeToEeRequestWithHeader {
-            header: self.robimpl.network.create_header_for_panda(
-                PandaCommandEnum::SetNeToEe,
-                size_of::<SetNeToEeRequestWithHeader>(),
-            ),
-            request: SetNeToEeRequest::new(NE_T_EE),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetNeToEeResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
-    /// Sets dynamic parameters of a payload.
-    ///
-    /// The transformation matrix is represented as a vectorized 4x4 matrix in column-major format.
-    /// # Note
-    /// This is not for setting end effector parameters, which have to be set in the administrator's
-    /// interface.
-    /// # Arguments
-    /// * `load_mass` - Mass of the load in \[kg\]
-    /// * `F_x_Cload` - Translation from flange to center of mass of load
-    ///  ![^Fx_{C_\text{load}}](https://latex.codecogs.com/png.latex?^Fx_{C_\text{load}}) in \[m\]
-    /// * `load_inertia` - Inertia matrix ![I_\text{load}](https://latex.codecogs.com/png.latex?I_\text{load}) in [kg \times m^2], column-major.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    #[allow(non_snake_case)]
-    pub fn set_load(
-        &mut self,
-        load_mass: f64,
-        F_x_Cload: [f64; 3],
-        load_inertia: [f64; 9],
-    ) -> FrankaResult<()> {
-        let command = SetLoadRequestWithHeader {
-            header: self.robimpl.network.create_header_for_panda(
-                PandaCommandEnum::SetLoad,
-                size_of::<SetLoadRequestWithHeader>(),
-            ),
-            request: SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetLoadResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
-    }
     /// Sets the cut off frequency for the given motion generator or controller.
     ///
     /// Allowed input range for all the filters is between 1.0 Hz and 1000.0 Hz.
@@ -911,10 +1022,10 @@ impl Panda {
         cartesian_velocity_filter_frequency: f64,
         controller_filter_frequency: f64,
     ) -> FrankaResult<()> {
-        let command = SetFiltersRequestWithHeader {
+        let command = SetFiltersRequestWithPandaHeader {
             header: self.robimpl.network.create_header_for_panda(
                 PandaCommandEnum::SetFilters,
-                size_of::<SetFiltersRequestWithHeader>(),
+                size_of::<SetFiltersRequestWithPandaHeader>(),
             ),
             request: SetFiltersRequest::new(
                 joint_position_filter_frequency,
@@ -929,83 +1040,9 @@ impl Panda {
             .robimpl
             .network
             .tcp_blocking_receive_response(command_id);
-        handle_getter_setter_status(response.status)
+        PandaData::handle_getter_setter_status(response.status)
     }
 
-    ///Runs automatic error recovery on the robot.
-    ///
-    /// Automatic error recovery e.g. resets the robot after a collision occurred.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
-        let command = self.robimpl.network.create_header_for_panda(
-            PandaCommandEnum::AutomaticErrorRecovery,
-            size_of::<AutomaticErrorRecoveryRequestWithHeader>(),
-        );
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: AutomaticErrorRecoveryResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        match &response.status {
-            AutomaticErrorRecoveryStatus::Success => Ok(()),
-            AutomaticErrorRecoveryStatus::EmergencyAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: User Stop pressed!",
-            )),
-            AutomaticErrorRecoveryStatus::ReflexAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: motion aborted by reflex!",
-            )),
-            AutomaticErrorRecoveryStatus::CommandNotPossibleRejected => {
-                Err(create_command_exception(
-                    "libfranka-rs: command rejected: command not possible in current mode",
-                ))
-            }
-            AutomaticErrorRecoveryStatus::ManualErrorRecoveryRequiredRejected => {
-                Err(create_command_exception(
-                    "libfranka-rs: command rejected: manual error recovery required!",
-                ))
-            }
-            AutomaticErrorRecoveryStatus::Aborted => {
-                Err(create_command_exception("libfranka-rs: command aborted!"))
-            }
-        }
-    }
-
-    /// Stops all currently running motions.
-    ///
-    /// If a control or motion generator loop is running in another thread, it will be preempted
-    /// with a [`ControlException`](`crate::exception::FrankaException::ControlException`).
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn stop(&mut self) -> FrankaResult<()> {
-        let command = StopMoveRequestWithHeader {
-            header: self.robimpl.network.create_header_for_panda(
-                PandaCommandEnum::StopMove,
-                size_of::<StopMoveRequestWithHeader>(),
-            ),
-        };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: StopMoveResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        match response.status {
-            StopMoveStatus::Success => Ok(()),
-            StopMoveStatus::CommandNotPossibleRejected | StopMoveStatus::Aborted => {
-                Err(create_command_exception(
-                    "libfranka-rs: command rejected: command not possible in current mode",
-                ))
-            }
-            StopMoveStatus::EmergencyAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: User Stop pressed!",
-            )),
-            StopMoveStatus::ReflexAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: motion aborted by reflex!",
-            )),
-        }
-    }
     /// Returns the parameters of a virtual wall.
     /// # Arguments
     /// * `id` - ID of the virtual wall.
@@ -1015,10 +1052,10 @@ impl Panda {
     /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn get_virtual_wall(&mut self, id: i32) -> FrankaResult<VirtualWallCuboid> {
-        let command = GetCartesianLimitRequestWithHeader {
+        let command = GetCartesianLimitRequestWithPandaHeader {
             header: self.robimpl.network.create_header_for_panda(
                 PandaCommandEnum::GetCartesianLimit,
-                size_of::<GetCartesianLimitRequestWithHeader>(),
+                size_of::<GetCartesianLimitRequestWithPandaHeader>(),
             ),
             request: GetCartesianLimitRequest::new(id),
         };
@@ -1028,234 +1065,17 @@ impl Panda {
             .network
             .tcp_blocking_receive_response(command_id);
         match &response.status {
-            GetterSetterStatus::Success => Ok(VirtualWallCuboid::new(id, response)),
-            GetterSetterStatus::CommandNotPossibleRejected => Err(create_command_exception(
+            GetterSetterStatusPanda::Success => Ok(VirtualWallCuboid::new(id, response)),
+            GetterSetterStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
                 "libfranka-rs: command rejected: command not possible in current mode",
             )),
-            GetterSetterStatus::InvalidArgumentRejected => Err(create_command_exception(
+            GetterSetterStatusPanda::InvalidArgumentRejected => Err(create_command_exception(
                 "libfranka-rs: command rejected: invalid argument!",
             )),
         }
     }
-    /// Starts a control loop for a joint position motion generator with a given controller mode.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    ///
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint position commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_joint_positions<
-        F: FnMut(&PandaState, &Duration) -> JointPositions,
-        CM: Into<Option<ControllerMode>>,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        controller_mode: CM,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_motion_intern(
-            motion_generator_callback,
-            controller_mode.into(),
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-    /// Starts a control loop for a joint velocity motion generator with a given controller mode.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if joint velocity commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_joint_velocities<
-        F: FnMut(&PandaState, &Duration) -> JointVelocities,
-        CM: Into<Option<ControllerMode>>,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        controller_mode: CM,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_motion_intern(
-            motion_generator_callback,
-            controller_mode.into(),
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-    /// Starts a control loop for a Cartesian pose motion generator with a given controller mode.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    ///
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if Cartesian pose command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    // pub fn control_cartesian_pose<
-    //     F: FnMut(&PandaState, &Duration) -> CartesianPose,
-    //     CM: Into<Option<ControllerMode>>,
-    //     L: Into<Option<bool>>,
-    //     CF: Into<Option<f64>>,
-    // >(
-    //     &mut self,
-    //     motion_generator_callback: F,
-    //     controller_mode: CM,
-    //     limit_rate: L,
-    //     cutoff_frequency: CF,
-    // ) -> FrankaResult<()> {
-    //     self.control_motion_intern(
-    //         motion_generator_callback,
-    //         controller_mode.into(),
-    //         limit_rate.into(),
-    //         cutoff_frequency.into(),
-    //     )
-    // }
-    /// Starts a control loop for a Cartesian velocity motion generator with a given controller mode.
-    ///
-    /// Sets realtime priority for the current thread.
-    /// Cannot be executed while another control or motion generator loop is active.
-    ///
-    /// # Arguments
-    /// * `motion_generator_callback` Callback function for motion generation.
-    /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
-    /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
-    /// the user commanded signal.
-    /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
-    /// Default is 100 Hz
-    ///
-    /// # Errors
-    /// * [`ControlException`](`crate::exception::FrankaException::ControlException`) if an error related to torque control or motion generation occurred.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
-    /// # Panics
-    /// * if Cartesian velocity command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
-    pub fn control_cartesian_velocities<
-        F: FnMut(&PandaState, &Duration) -> CartesianVelocities,
-        CM: Into<Option<ControllerMode>>,
-        L: Into<Option<bool>>,
-        CF: Into<Option<f64>>,
-    >(
-        &mut self,
-        motion_generator_callback: F,
-        controller_mode: CM,
-        limit_rate: L,
-        cutoff_frequency: CF,
-    ) -> FrankaResult<()> {
-        self.control_motion_intern(
-            motion_generator_callback,
-            controller_mode.into(),
-            limit_rate.into(),
-            cutoff_frequency.into(),
-        )
-    }
-
-    /// Sets a default collision behavior, joint impedance and Cartesian impedance.
-    /// # Errors
-    /// * [`CommandException`](`crate::exception::FrankaException::CommandException`) if the Control reports an error.
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    pub fn set_default_behavior(&mut self) -> FrankaResult<()> {
-        self.set_collision_behavior(
-            [20.; 7], [20.; 7], [10.; 7], [10.; 7], [20.; 6], [20.; 6], [10.; 6], [10.; 6],
-        )?;
-        self.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
-        self.set_cartesian_impedance([3000., 3000., 3000., 300., 300., 300.])?;
-        Ok(())
-    }
-    /// Executes a joint pose motion to a goal position. Adapted from:
-    /// Wisama Khalil and Etienne Dombre. 2002. Modeling, Identification and Control of Robots
-    /// (Kogan Page Science Paper edition).
-    /// # Arguments
-    /// * `speed_factor` - General speed factor in range [0, 1].
-    /// * `q_goal` - Target joint positions.
-    pub fn joint_motion(&mut self, speed_factor: f64, q_goal: &[f64; 7]) -> FrankaResult<()> {
-        let mut motion_generator = MotionGenerator::new(speed_factor, q_goal);
-        self.control_joint_positions(
-            |state, time| motion_generator.generate_motion(state, time),
-            Some(ControllerMode::JointImpedance),
-            Some(true),
-            Some(MAX_CUTOFF_FREQUENCY),
-        )
-    }
-    /// Returns the software version reported by the connected server.
-    ///
-    /// # Return
-    /// Software version of the connected server.
-    pub fn server_version(&self) -> u16 {
-        self.robimpl.server_version()
-    }
 }
 
-fn handle_getter_setter_status(status: GetterSetterStatus) -> FrankaResult<()> {
-    match status {
-        GetterSetterStatus::Success => Ok(()),
-        GetterSetterStatus::CommandNotPossibleRejected => Err(create_command_exception(
-            "libfranka-rs: command rejected: command not possible in current mode",
-        )),
-        GetterSetterStatus::InvalidArgumentRejected => Err(create_command_exception(
-            "libfranka-rs: command rejected: invalid argument!",
-        )),
-    }
-}
 #[cfg(test)]
 mod tests {
     use mockall::{automock, predicate::*};
@@ -1268,14 +1088,15 @@ mod tests {
     use crate::exception::FrankaException;
     use crate::network::MessageCommand;
     use crate::robot::service_types::{
-        ConnectRequestWithHeader, ConnectResponse, ConnectStatus, GetterSetterStatus,
-        MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode, MoveRequest,
-        MoveRequestWithHeader, MoveResponse, MoveStatus, PandaCommandEnum, PandaCommandHeader,
-        SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithHeader,
-        SetCollisionBehaviorResponse, COMMAND_PORT, VERSION,
+        ConnectRequestWithPandaHeader, ConnectResponsePanda, ConnectStatus, FR3CommandEnum,
+        FR3CommandHeader, GetterSetterStatusPanda, MoveControllerMode, MoveDeviation,
+        MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveResponse,
+        MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, SetCollisionBehaviorRequest,
+        SetCollisionBehaviorRequestWithFR3Header, SetCollisionBehaviorRequestWithPandaHeader,
+        SetterResponseFR3, COMMAND_PORT, FR3_VERSION, PANDA_VERSION,
     };
     use crate::robot::types::PandaStateIntern;
-    use crate::robot::Robot;
+    use crate::robot::{Robot, FR3};
     use crate::{Finishable, FrankaResult, JointPositions, Panda, PandaState, RealtimeConfig};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
@@ -1409,18 +1230,18 @@ mod tests {
         fn receive_robot_connect_request<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)>(
             &self,
             tcp_socket: &mut Socket<F, G>,
-        ) -> ConnectRequestWithHeader {
+        ) -> ConnectRequestWithPandaHeader {
             let mut bytes = vec![0 as u8; 100];
             (tcp_socket.receive_bytes)(&mut bytes);
-            let request: ConnectRequestWithHeader = deserialize(bytes.as_slice()).unwrap();
+            let request: ConnectRequestWithPandaHeader = deserialize(bytes.as_slice()).unwrap();
             return request;
         }
         fn send_robot_connect_response<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)>(
             &self,
-            request: ConnectRequestWithHeader,
+            request: ConnectRequestWithPandaHeader,
             tcp_socket: &mut Socket<F, G>,
         ) {
-            let mut response = ConnectResponse {
+            let mut response = ConnectResponsePanda {
                 header: PandaCommandHeader {
                     command: PandaCommandEnum::Connect,
                     command_id: request.get_command_message_id(),
@@ -1462,11 +1283,11 @@ mod tests {
                   lower_force_thresholds_nominal: [f64; 6],
                   upper_force_thresholds_nominal: [f64; 6]| {
                 counter += 1;
-                SetCollisionBehaviorRequestWithHeader {
-                    header: PandaCommandHeader::new(
-                        PandaCommandEnum::SetCollisionBehavior,
+                SetCollisionBehaviorRequestWithFR3Header {
+                    header: FR3CommandHeader::new(
+                        FR3CommandEnum::SetCollisionBehavior,
                         counter,
-                        size_of::<SetCollisionBehaviorRequestWithHeader>() as u32,
+                        size_of::<SetCollisionBehaviorRequestWithFR3Header>() as u32,
                     ),
                     request: SetCollisionBehaviorRequest::new(
                         lower_torque_thresholds_acceleration,
@@ -1489,7 +1310,7 @@ mod tests {
         ));
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(VERSION);
+            let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -1502,15 +1323,16 @@ mod tests {
                         .iter()
                         .zip(serialized_expected_request.iter())
                         .for_each(|(x, y)| assert_eq!(x, y));
-                    let req: SetCollisionBehaviorRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: SetCollisionBehaviorRequestWithPandaHeader =
+                        deserialize(&bytes).unwrap();
                     counter += 1;
-                    let mut response = SetCollisionBehaviorResponse {
-                        header: PandaCommandHeader::new(
-                            PandaCommandEnum::SetCollisionBehavior,
+                    let mut response = SetterResponseFR3 {
+                        header: FR3CommandHeader::new(
+                            FR3CommandEnum::SetCollisionBehavior,
                             req.header.command_id,
                             0,
                         ),
-                        status: GetterSetterStatus::Success,
+                        status: GetterSetterStatusPanda::Success,
                     };
                     response.header.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
@@ -1521,8 +1343,8 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Panda::new("127.0.0.1", None, None).expect("robot failure");
-            assert_eq!(robot.server_version(), VERSION);
+            let mut robot = FR3::new("127.0.0.1", None, None).expect("robot failure");
+            assert_eq!(robot.server_version(), FR3_VERSION);
             for (a, b, c, d, e, f, g, h) in collision_behavior_request_values.iter() {
                 robot
                     .set_collision_behavior(*a, *b, *c, *d, *e, *f, *g, *h)
@@ -1536,11 +1358,11 @@ mod tests {
 
     #[test]
     fn fail_start_motion_test() {
-        let requests = Arc::new(vec![MoveRequestWithHeader {
+        let requests = Arc::new(vec![MoveRequestWithPandaHeader {
             header: PandaCommandHeader::new(
                 PandaCommandEnum::Move,
                 1,
-                size_of::<MoveRequestWithHeader>() as u32,
+                size_of::<MoveRequestWithPandaHeader>() as u32,
             ),
             request: MoveRequest::new(
                 MoveControllerMode::JointImpedance,
@@ -1559,7 +1381,7 @@ mod tests {
         }]);
         let requests_server = requests.clone();
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(VERSION);
+            let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -1567,22 +1389,19 @@ mod tests {
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let expected_request = requests_server.get(counter).unwrap();
                     let serialized_expected_request = serialize(expected_request).unwrap();
-                    let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: MoveRequestWithPandaHeader = deserialize(&bytes).unwrap();
                     assert_eq!(bytes.len(), serialized_expected_request.len());
                     bytes
                         .iter()
                         .zip(serialized_expected_request.iter())
                         .for_each(|(x, y)| assert_eq!(x, y));
                     counter += 1;
-                    let mut response = MoveResponse {
-                        header: PandaCommandHeader::new(
-                            PandaCommandEnum::Move,
-                            req.header.command_id,
-                            0,
-                        ),
-                        status: MoveStatus::Aborted,
-                    };
-                    response.header.size = serialized_size(&response).unwrap() as u32;
+
+                    let mut response = (
+                        PandaCommandHeader::new(PandaCommandEnum::Move, req.header.command_id, 0),
+                        MoveStatusPanda::Aborted,
+                    );
+                    response.0.size = serialized_size(&response).unwrap() as u32;
                     serialize(&response).unwrap()
                 })
                 .times(num_requests);
@@ -1592,7 +1411,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut robot =
-                Panda::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
+                FR3::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
             let mut counter = 0;
             let result = robot.control_joint_positions(
                 |_, _| {
@@ -1620,7 +1439,7 @@ mod tests {
     #[test]
     fn incompatible_library() {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(VERSION + 1);
+            let mut robot_server = RobotMockServer::new(FR3_VERSION + 1);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -1647,7 +1466,7 @@ mod tests {
     #[test]
     fn robot_read_once() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(VERSION);
+            let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -1657,7 +1476,7 @@ mod tests {
 
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Panda::new("127.0.0.1", None, None)?;
+            let mut robot = FR3::new("127.0.0.1", None, None)?;
             let _state = robot.read_once().unwrap();
         }
         thread.join().unwrap();
@@ -1667,7 +1486,7 @@ mod tests {
     #[test]
     fn robot_read() -> FrankaResult<()> {
         let thread = std::thread::spawn(|| {
-            let mut robot_server = RobotMockServer::new(VERSION);
+            let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -1676,7 +1495,7 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = Panda::new("127.0.0.1", None, None)?;
+            let mut robot = FR3::new("127.0.0.1", None, None)?;
             let mut counter = 0;
             let mut first_time = true;
             let mut start_counter = 0;

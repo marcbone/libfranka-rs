@@ -5,10 +5,10 @@ use core::f64::consts::PI;
 use franka::exception::FrankaResult;
 use franka::model::Frame;
 use franka::robot::control_types::Torques;
-use franka::robot::Robot;
+use franka::robot::{Robot, FR3};
 use franka::utils::{array_to_isometry, Matrix6x7, Vector7};
-use franka::Matrix7;
 use franka::PandaState;
+use franka::{Matrix7, RobotModel};
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 use std::sync::mpsc::channel;
 use std::time::Duration;
@@ -50,8 +50,8 @@ fn main() -> FrankaResult<()> {
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot_user = Robot::new(args.franka_ip_user.as_str(), None, None)?;
-    let mut robot_mirror = Robot::new(args.franka_ip_mirror.as_str(), None, None)?;
+    let mut robot_user = FR3::new(args.franka_ip_user.as_str(), None, None)?;
+    let mut robot_mirror = FR3::new(args.franka_ip_mirror.as_str(), None, None)?;
     let model = robot_mirror.load_model(true)?;
     robot_mirror.set_collision_behavior(
         [100.; 7], [100.; 7], [100.; 7], [100.; 7], [100.; 6], [100.; 6], [100.; 6], [100.; 6],

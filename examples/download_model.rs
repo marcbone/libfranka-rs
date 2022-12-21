@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::exception::FrankaException::ModelException;
-use franka::Robot;
+use franka::robot::{Robot, FR3};
 use franka::{FrankaResult, RealtimeConfig};
 use std::fs;
 use std::path::PathBuf;
@@ -24,7 +24,7 @@ fn main() -> FrankaResult<()> {
     let args: CommandLineArguments = CommandLineArguments::parse();
     let mut path = args.download_path;
     path.push("model.so");
-    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
+    let mut robot = FR3::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
     robot.load_model(true)?;
     fs::copy("/tmp/model.so", &path).map_err(|_| ModelException {
         message: "Could copy model to download location".to_string(),

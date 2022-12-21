@@ -1,35 +1,94 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
+macro_rules! make_printer {
+    ($($element: ident: $ty: ty),*) => {
+        struct Foo { $($element: $ty),* }
+    }
+}
+macro_rules! define_panda_request_with_header {
+    ($name: ident, $request: ty, $command: expr) => {
+        #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+        #[repr(packed)]
+        pub struct $name {
+            pub header: PandaCommandHeader,
+            pub request: $request,
+        }
+        impl MessageCommand for $name {
+            fn get_command_message_id(&self) -> u32 {
+                self.header.get_command_message_id()
+            }
+        }
+        impl From<(u32, $request)> for $name {
+            fn from(tuple: (u32, $request)) -> Self {
+                let command_id = tuple.0;
+                $name {
+                    header: PandaCommandHeader::new(
+                        $command,
+                        command_id,
+                        std::mem::size_of::<Self>() as u32,
+                    ),
+                    request: tuple.1,
+                }
+            }
+        }
+    };
+}
+macro_rules! define_fr3_request_with_header {
+    ($name: ident, $request: ty, $command: expr) => {
+        #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+        #[repr(packed)]
+        pub struct $name {
+            pub header: FR3CommandHeader,
+            pub request: $request,
+        }
+        impl MessageCommand for $name {
+            fn get_command_message_id(&self) -> u32 {
+                self.header.get_command_message_id()
+            }
+        }
+        impl From<(u32, $request)> for $name {
+            fn from(tuple: (u32, $request)) -> Self {
+                let command_id = tuple.0;
+                $name {
+                    header: FR3CommandHeader::new(
+                        $command,
+                        command_id,
+                        std::mem::size_of::<Self>() as u32,
+                    ),
+                    request: tuple.1,
+                }
+            }
+        }
+    };
+}
 use std::fmt::Debug;
 
+use crate::gripper::types::CommandHeader;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use crate::gripper::types::CommandHeader;
 
 use crate::network::MessageCommand;
 
-pub static VERSION: u16 = 5;
+pub static PANDA_VERSION: u16 = 5;
+pub static FR3_VERSION: u16 = 6;
 pub static COMMAND_PORT: u16 = 1337;
 
-pub trait RobotHeader : MessageCommand +Serialize+ Debug+ Copy+ Clone {
+make_printer!(x: i32, y: String);
+// define_request_with_header!(i32);
 
-}
+pub trait RobotHeader: MessageCommand + Serialize + Debug + Copy + Clone {}
 
-impl RobotHeader for PandaCommandHeader{
-
-}
+impl RobotHeader for PandaCommandHeader {}
 
 impl MessageCommand for FR3CommandHeader {
     fn get_command_message_id(&self) -> u32 {
-       self.command_id
+        self.command_id
     }
 }
 
-impl RobotHeader for FR3CommandHeader {
-
-}
+impl RobotHeader for FR3CommandHeader {}
 
 impl CommandHeader for FR3CommandHeader {
     fn get_command_id(&self) -> u32 {
@@ -50,8 +109,6 @@ impl CommandHeader for PandaCommandHeader {
         self.size
     }
 }
-
-
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u32)]
@@ -89,8 +146,6 @@ pub enum FR3CommandEnum {
     LoadModelLibrary,
 }
 
-
-
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum DefaultStatus {
@@ -107,7 +162,7 @@ pub enum ConnectStatus {
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
 #[repr(u8)]
-pub enum MoveStatus {
+pub enum MoveStatusPanda {
     Success,
     MotionStarted,
     Preempted,
@@ -120,9 +175,26 @@ pub enum MoveStatus {
     Aborted,
 }
 
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
+#[repr(u8)]
+pub enum MoveStatusFR3 {
+    Success,
+    MotionStarted,
+    Preempted,
+    PreemptedDueToActivatedSafetyFunctions,
+    CommandRejectedDueToActivatedSafetyFunctions,
+    CommandNotPossibleRejected,
+    StartAtSingularPoseRejected,
+    InvalidArgumentRejected,
+    ReflexAborted,
+    EmergencyAborted,
+    InputErrorAborted,
+    Aborted,
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-pub enum StopMoveStatus {
+pub enum StopMoveStatusPanda {
     Success,
     CommandNotPossibleRejected,
     EmergencyAborted,
@@ -132,9 +204,32 @@ pub enum StopMoveStatus {
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-pub enum AutomaticErrorRecoveryStatus {
+pub enum StopMoveStatusFR3 {
     Success,
     CommandNotPossibleRejected,
+    CommandRejectedDueToActivatedSafetyFunctions,
+    EmergencyAborted,
+    ReflexAborted,
+    Aborted,
+}
+
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum AutomaticErrorRecoveryStatusPanda {
+    Success,
+    CommandNotPossibleRejected,
+    ManualErrorRecoveryRequiredRejected,
+    ReflexAborted,
+    EmergencyAborted,
+    Aborted,
+}
+
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum AutomaticErrorRecoveryStatusFR3 {
+    Success,
+    CommandNotPossibleRejected,
+    CommandRejectedDueToActivatedSafetyFunctions,
     ManualErrorRecoveryRequiredRejected,
     ReflexAborted,
     EmergencyAborted,
@@ -150,10 +245,19 @@ pub enum LoadModelLibraryStatus {
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
-pub enum GetterSetterStatus {
+pub enum GetterSetterStatusPanda {
     Success,
     CommandNotPossibleRejected,
     InvalidArgumentRejected,
+}
+
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum GetterSetterStatusFR3 {
+    Success,
+    CommandNotPossibleRejected,
+    InvalidArgumentRejected,
+    CommandRejectedDueToActivatedSafetyFunctions,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -164,30 +268,33 @@ pub struct ConnectRequest {
 }
 
 impl ConnectRequest {
-    pub fn new(udp_port: u16) -> Self {
-        ConnectRequest {
-            version: VERSION,
-            udp_port,
-        }
+    pub fn new(udp_port: u16, version: u16) -> Self {
+        ConnectRequest { version, udp_port }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+define_panda_request_with_header!(
+    ConnectRequestWithPandaHeader,
+    ConnectRequest,
+    PandaCommandEnum::Connect
+);
+define_fr3_request_with_header!(
+    ConnectRequestWithFR3Header,
+    ConnectRequest,
+    FR3CommandEnum::Connect
+);
+
+#[derive(Serialize, Deserialize)]
 #[repr(packed)]
-pub struct ConnectRequestWithHeader {
+pub struct ConnectResponsePanda {
     pub header: PandaCommandHeader,
-    pub request: ConnectRequest,
+    pub status: ConnectStatus,
+    pub version: u16,
 }
 
-impl MessageCommand for ConnectRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ConnectResponse {
-    pub header: PandaCommandHeader,
+#[derive(Serialize, Deserialize)]
+#[repr(packed)]
+pub struct ConnectResponseWithoutHeader {
     pub status: ConnectStatus,
     pub version: u16,
 }
@@ -242,42 +349,42 @@ impl MoveRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct MoveRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: MoveRequest,
-}
-
-impl MessageCommand for MoveRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    MoveRequestWithPandaHeader,
+    MoveRequest,
+    PandaCommandEnum::Move
+);
+define_fr3_request_with_header!(MoveRequestWithFR3Header, MoveRequest, FR3CommandEnum::Move);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MoveResponse {
     pub header: PandaCommandHeader,
-    pub status: MoveStatus,
+    pub status: MoveStatusPanda,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
-pub struct StopMoveRequestWithHeader {
+pub struct StopMoveRequestWithPandaHeader {
     pub header: PandaCommandHeader,
 }
 
-impl MessageCommand for StopMoveRequestWithHeader {
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[repr(packed)]
+pub struct StopMoveRequestWithFR3Header {
+    pub header: FR3CommandHeader,
+}
+
+impl MessageCommand for StopMoveRequestWithPandaHeader {
     fn get_command_message_id(&self) -> u32 {
         self.header.get_command_message_id()
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StopMoveResponse {
-    pub header: PandaCommandHeader,
-    pub status: StopMoveStatus,
-}
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct StopMoveResponse {
+//     pub header: PandaCommandHeader,
+//     pub status: StopMoveStatus,
+// }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -290,24 +397,16 @@ impl GetCartesianLimitRequest {
         GetCartesianLimitRequest { id }
     }
 }
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct GetCartesianLimitRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: GetCartesianLimitRequest,
-}
-
-impl MessageCommand for GetCartesianLimitRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    GetCartesianLimitRequestWithPandaHeader,
+    GetCartesianLimitRequest,
+    PandaCommandEnum::GetCartesianLimit
+);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetCartesianLimitResponse {
     pub header: PandaCommandHeader,
-    pub status: GetterSetterStatus,
+    pub status: GetterSetterStatusPanda,
     pub object_world_size: [f64; 3],
     pub object_frame: [f64; 16],
     pub object_activation: bool,
@@ -350,21 +449,16 @@ impl SetCollisionBehaviorRequest {
         }
     }
 }
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetCollisionBehaviorRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetCollisionBehaviorRequest,
-}
-
-impl MessageCommand for SetCollisionBehaviorRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
-
-pub type SetCollisionBehaviorResponse = SetterResponse;
+define_panda_request_with_header!(
+    SetCollisionBehaviorRequestWithPandaHeader,
+    SetCollisionBehaviorRequest,
+    PandaCommandEnum::SetCollisionBehavior
+);
+define_fr3_request_with_header!(
+    SetCollisionBehaviorRequestWithFR3Header,
+    SetCollisionBehaviorRequest,
+    FR3CommandEnum::SetCollisionBehavior
+);
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -380,19 +474,16 @@ impl SetJointImpedanceRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetJointImpedanceRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetJointImpedanceRequest,
-}
-
-impl MessageCommand for SetJointImpedanceRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
-
+define_panda_request_with_header!(
+    SetJointImpedanceRequestWithPandaHeader,
+    SetJointImpedanceRequest,
+    PandaCommandEnum::SetJointImpedance
+);
+define_fr3_request_with_header!(
+    SetJointImpedanceRequestWithFR3Header,
+    SetJointImpedanceRequest,
+    FR3CommandEnum::SetJointImpedance
+);
 pub type SetJointImpedanceResponse = SetterResponse;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -409,18 +500,16 @@ impl SetCartesianImpedanceRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetCartesianImpedanceRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetCartesianImpedanceRequest,
-}
-
-impl MessageCommand for SetCartesianImpedanceRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    SetCartesianImpedanceRequestWithPandaHeader,
+    SetCartesianImpedanceRequest,
+    PandaCommandEnum::SetCartesianImpedance
+);
+define_fr3_request_with_header!(
+    SetCartesianImpedanceRequestWithFR3Header,
+    SetCartesianImpedanceRequest,
+    FR3CommandEnum::SetCartesianImpedance
+);
 
 pub type SetCartesianImpedanceResponse = SetterResponse;
 
@@ -442,18 +531,16 @@ impl SetGuidingModeRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetGuidingModeRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetGuidingModeRequest,
-}
-
-impl MessageCommand for SetGuidingModeRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    SetGuidingModeRequestWithPandaHeader,
+    SetGuidingModeRequest,
+    PandaCommandEnum::SetGuidingMode
+);
+define_fr3_request_with_header!(
+    SetGuidingModeRequestWithFR3Header,
+    SetGuidingModeRequest,
+    FR3CommandEnum::SetGuidingMode
+);
 
 pub type SetGuidingModeResponse = SetterResponse;
 
@@ -471,18 +558,16 @@ impl SetEeToKRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetEeToKRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetEeToKRequest,
-}
-
-impl MessageCommand for SetEeToKRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    SetEeToKRequestWithPandaHeader,
+    SetEeToKRequest,
+    PandaCommandEnum::SetEeToK
+);
+define_fr3_request_with_header!(
+    SetEeToKRequestWithFR3Header,
+    SetEeToKRequest,
+    FR3CommandEnum::SetEeToK
+);
 
 pub type SetEeToKResponse = SetterResponse;
 
@@ -500,18 +585,16 @@ impl SetNeToEeRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetNeToEeRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetNeToEeRequest,
-}
-
-impl MessageCommand for SetNeToEeRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    SetNeToEeRequestWithPandaHeader,
+    SetNeToEeRequest,
+    PandaCommandEnum::SetNeToEe
+);
+define_fr3_request_with_header!(
+    SetNeToEeRequestWithFR3Header,
+    SetNeToEeRequest,
+    FR3CommandEnum::SetNeToEe
+);
 
 pub type SetNeToEeResponse = SetterResponse;
 
@@ -535,20 +618,16 @@ impl SetLoadRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetLoadRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetLoadRequest,
-}
-
-impl MessageCommand for SetLoadRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
-
-pub type SetLoadResponse = SetterResponse;
+define_panda_request_with_header!(
+    SetLoadRequestWithPandaHeader,
+    SetLoadRequest,
+    PandaCommandEnum::SetLoad
+);
+define_fr3_request_with_header!(
+    SetLoadRequestWithFR3Header,
+    SetLoadRequest,
+    FR3CommandEnum::SetLoad
+);
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
@@ -580,34 +659,33 @@ impl SetFiltersRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct SetFiltersRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: SetFiltersRequest,
-}
-
-impl MessageCommand for SetFiltersRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    SetFiltersRequestWithPandaHeader,
+    SetFiltersRequest,
+    PandaCommandEnum::SetFilters
+);
 
 pub type SetFiltersResponse = SetterResponse;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SetterResponse {
     pub header: PandaCommandHeader,
-    pub status: GetterSetterStatus,
+    pub status: GetterSetterStatusPanda,
 }
-
-pub type AutomaticErrorRecoveryRequestWithHeader = PandaCommandHeader;
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct AutomaticErrorRecoveryResponse {
-    pub header: PandaCommandHeader,
-    pub status: AutomaticErrorRecoveryStatus,
+pub struct SetterResponseFR3 {
+    pub header: FR3CommandHeader,
+    pub status: GetterSetterStatusPanda,
 }
+
+pub type AutomaticErrorRecoveryRequestWithPandaHeader = PandaCommandHeader;
+pub type AutomaticErrorRecoveryRequestWithFR3Header = FR3CommandHeader;
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct AutomaticErrorRecoveryResponse {
+//     pub header: PandaCommandHeader,
+//     pub status: AutomaticErrorRecoveryStatusPanda,
+// }
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u8)]
@@ -632,32 +710,71 @@ pub struct LoadModelLibraryRequest {
     pub system: LoadModelLibrarySystem,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[repr(packed)]
-pub struct LoadModelLibraryRequestWithHeader {
-    pub header: PandaCommandHeader,
-    pub request: LoadModelLibraryRequest,
-}
+// #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+// #[repr(packed)]
+// pub struct LoadModelLibraryRequestWithHeader {
+//     pub header: PandaCommandHeader,
+//     pub request: LoadModelLibraryRequest,
+// }
 
-// this is a very hacky generic struct that is a generic version of LoadModelLibraryRequestWithHeader
-// todo find a better solution to deal with the model downloader
-#[derive(Serialize, Debug, Copy, Clone)]
-pub struct ModelRequestWithHeader<Header: RobotHeader> {
-    pub header: Header,
-    pub request: LoadModelLibraryRequest,
-}
+// // this is a very hacky generic struct that is a generic version of LoadModelLibraryRequestWithHeader
+// // todo find a better solution to deal with the model downloader
+// #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+// pub struct ModelRequestWithHeader<Header: RobotHeader> {
+//     pub header: Header,
+//     pub request: LoadModelLibraryRequest,
+// }
+//
+// impl<Header: RobotHeader> MessageCommand for ModelRequestWithHeader<Header> {
+//     fn get_command_message_id(&self) -> u32 {
+//         self.header.get_command_message_id()
+//     }
+// }
 
-impl<Header:RobotHeader> MessageCommand for ModelRequestWithHeader<Header> {
-    fn get_command_message_id(&self) -> u32 {
-       self.header.get_command_message_id()
-    }
-}
+define_panda_request_with_header!(
+    LoadModelLibraryRequestWithPandaHeader,
+    LoadModelLibraryRequest,
+    PandaCommandEnum::LoadModelLibrary
+);
+define_fr3_request_with_header!(
+    LoadModelLibraryRequestWithFR3Header,
+    LoadModelLibraryRequest,
+    FR3CommandEnum::LoadModelLibrary
+);
+//
+// impl MessageCommand for LoadModelLibraryRequestWithHeader {
+//     fn get_command_message_id(&self) -> u32 {
+//         self.header.get_command_message_id()
+//     }
+// }
 
-impl MessageCommand for LoadModelLibraryRequestWithHeader {
-    fn get_command_message_id(&self) -> u32 {
-        self.header.get_command_message_id()
-    }
-}
+// impl From<(u32, LoadModelLibraryRequest)> for LoadModelLibraryRequestWithPandaHeader {
+//     fn from(tuple: (u32, LoadModelLibraryRequest)) -> Self {
+//         let command_id = tuple.0;
+//         LoadModelLibraryRequestWithPandaHeader {
+//             header: PandaCommandHeader::new(
+//                 PandaCommandEnum::LoadModelLibrary,
+//                 command_id,
+//                 std::mem::size_of::<Self>() as u32,
+//             ),
+//             request: tuple.1,
+//         }
+//     }
+// }
+
+// impl From<(u32, LoadModelLibraryRequest)> for LoadModelLibraryRequestWithFR3Header {
+//     fn from(tuple: (u32, LoadModelLibraryRequest)) -> Self {
+//         let command_id = tuple.0;
+//         LoadModelLibraryRequestWithFR3Header {
+//             header: FR3CommandHeader::new(
+//                 FR3CommandEnum::LoadModelLibrary,
+//                 command_id,
+//                 std::mem::size_of::<Self>() as u32,
+//             ),
+//             request: tuple.1,
+//         }
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoadModelLibraryResponse {
@@ -673,13 +790,12 @@ pub struct PandaCommandHeader {
     pub size: u32,
 }
 
-
 impl Default for PandaCommandHeader {
-     fn default() -> Self {
-        PandaCommandHeader{
+    fn default() -> Self {
+        PandaCommandHeader {
             command: PandaCommandEnum::Connect,
             command_id: 0,
-            size: 0
+            size: 0,
         }
     }
 }

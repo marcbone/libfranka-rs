@@ -2,7 +2,9 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::{CartesianVelocities, FrankaResult, MotionFinished, Robot, RobotState};
+use franka::robot::robot_state::FR3State;
+use franka::robot::{Robot, FR3};
+use franka::{CartesianVelocities, Finishable, FrankaResult};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -18,7 +20,7 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let address = CommandLineArguments::parse();
-    let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
+    let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");
@@ -54,7 +56,7 @@ fn main() -> FrankaResult<()> {
     let v_max = 0.1;
     let angle = PI / 4.;
     let mut time = 0.;
-    let callback = |_state: &RobotState, period: &Duration| -> CartesianVelocities {
+    let callback = |_state: &FR3State, period: &Duration| -> CartesianVelocities {
         time += period.as_secs_f64();
 
         let cycle = f64::floor(f64::powf(

@@ -4,12 +4,12 @@
 use clap::Parser;
 use franka::{ConvertMotion, Finishable, FrankaResult, Panda};
 // use franka::Robot;
+use franka::robot::robot_state::FR3State;
+use franka::robot::{Robot, FR3};
+use franka::CartesianPose;
 use franka::PandaState;
-use franka::{CartesianPose};
 use std::f64::consts::PI;
 use std::time::Duration;
-use franka::robot::{FR3, Robot};
-use franka::robot::robot_state::FR3State;
 
 /// An example showing how to generate a Cartesian motion.
 ///

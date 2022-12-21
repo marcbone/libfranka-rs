@@ -68,7 +68,7 @@ name = "print_joint_poses"
 path = "examples/print_joint_poses.rs"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

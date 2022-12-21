@@ -8,8 +8,8 @@ use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::network::MessageCommand;
-use std::time::Duration;
 use serde::de::DeserializeOwned;
+use std::time::Duration;
 
 pub static VERSION: u16 = 3;
 pub static COMMAND_PORT: u16 = 1338;
@@ -24,7 +24,7 @@ pub enum GripperCommandEnum {
     Stop,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum Status {
     Success,
@@ -49,7 +49,7 @@ impl GripperStateIntern {
     }
 }
 // TODO is static a problem?
-pub trait CommandHeader : Debug + DeserializeOwned + 'static {
+pub trait CommandHeader: Serialize + MessageCommand + Debug + DeserializeOwned + 'static {
     fn get_command_id(&self) -> u32;
     fn get_size(&self) -> u32;
 }
@@ -68,7 +68,7 @@ impl CommandHeader for GripperCommandHeader {
     }
 
     fn get_size(&self) -> u32 {
-       self.size
+        self.size
     }
 }
 
@@ -154,9 +154,6 @@ pub struct MoveRequestWithHeader {
     pub request: MoveRequest,
 }
 
-pub type HomingRequestWithHeader = GripperCommandHeader;
-pub type StopRequestWithHeader = GripperCommandHeader;
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct GraspRequestWithHeader {
@@ -194,13 +191,3 @@ pub struct ConnectResponse {
     pub status: Status,
     pub version: u16,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MoveResponse {
-    pub header: GripperCommandHeader,
-    pub status: Status,
-}
-
-pub type GraspResponse = MoveResponse;
-pub type HomingResponse = MoveResponse;
-pub type StopResponse = HomingResponse;

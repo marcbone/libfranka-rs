@@ -1,7 +1,8 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 use clap::Parser;
-use franka::{Frame, FrankaResult, RealtimeConfig, Robot};
+use franka::robot::{Robot, FR3};
+use franka::{Frame, FrankaResult, RealtimeConfig, RobotModel};
 use nalgebra::Matrix4;
 
 /// An example showing how to use the model library that prints the transformation
@@ -15,7 +16,7 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
-    let mut robot = Robot::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
+    let mut robot = FR3::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
     let model = robot.load_model(false)?;
     let state = robot.read_once()?;
     let frames = vec![

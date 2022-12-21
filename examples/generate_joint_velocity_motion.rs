@@ -2,10 +2,10 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::FrankaResult;
-use franka::Robot;
+use franka::robot::{Robot, FR3};
+use franka::JointVelocities;
 use franka::PandaState;
-use franka::{JointVelocities, MotionFinished};
+use franka::{Finishable, FrankaResult};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -21,7 +21,7 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let address = CommandLineArguments::parse();
-    let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
+    let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");

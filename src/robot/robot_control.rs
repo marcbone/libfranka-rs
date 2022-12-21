@@ -7,7 +7,7 @@ use crate::robot::service_types::{MoveControllerMode, MoveDeviation, MoveMotionG
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
 pub trait RobotControl {
-    type State2:RobotState;
+    type State2: RobotState;
     fn start_motion(
         &mut self,
         controller_mode: MoveControllerMode,

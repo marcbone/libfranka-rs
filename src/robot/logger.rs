@@ -33,7 +33,7 @@ pub struct RobotCommandLog {
 /// corresponding robot state of timestamp n+1.
 /// Provided by the [`ControlException`](`crate::exception::FrankaException::ControlException`).
 #[derive(Debug, Clone)]
-pub struct Record<State:Debug> {
+pub struct Record<State: Debug> {
     /// Robot state of timestamp n+1.
     pub state: State,
     /// Robot command of timestamp n, after rate limiting (if activated).
@@ -47,7 +47,7 @@ impl<State: Debug> Record<State> {
     }
 }
 
-pub(crate) struct Logger<State:RobotState> {
+pub(crate) struct Logger<State: RobotState> {
     states: VecDeque<State>,
     commands: VecDeque<RobotCommand>,
     ring_front: usize,
@@ -55,7 +55,7 @@ pub(crate) struct Logger<State:RobotState> {
     log_size: usize,
 }
 
-impl<State:RobotState> Logger<State> {
+impl<State: RobotState> Logger<State> {
     pub fn new(log_size: usize) -> Self {
         Logger {
             states: VecDeque::with_capacity(log_size),

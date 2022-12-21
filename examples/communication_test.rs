@@ -1,10 +1,10 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 use clap::Parser;
-use franka::FrankaResult;
-use franka::Robot;
-use franka::RobotState;
-use franka::{MotionFinished, Torques};
+use franka::robot::robot_state::FR3State;
+use franka::robot::{Robot, FR3};
+use franka::Torques;
+use franka::{Finishable, FrankaResult, PandaState};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -20,7 +20,7 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
-    let mut robot = Robot::new(args.franka_ip.as_str(), None, None)?;
+    let mut robot = FR3::new(args.franka_ip.as_str(), None, None)?;
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
@@ -47,7 +47,7 @@ fn main() -> FrankaResult<()> {
     let mut min_success_rate = 1.;
     let mut max_success_rate = 0.;
 
-    let callback = |state: &RobotState, time_step: &Duration| -> Torques {
+    let callback = |state: &PandaState, time_step: &Duration| -> Torques {
         time += time_step.as_millis() as u64;
         if time == 0 {
             return zero_torques;

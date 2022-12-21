@@ -3,10 +3,10 @@
 
 //! contains useful type definitions and conversion functions.
 use crate::robot::control_types::{ConvertMotion, JointPositions};
-use crate::robot::robot_state::PandaState;
+use crate::robot::robot_state::{PandaState, RobotState};
+use crate::Finishable;
 use nalgebra::{Isometry3, Matrix4, MatrixMN, MatrixN, Rotation3, Vector3, VectorN, U6, U7};
 use std::time::Duration;
-use crate::Finishable;
 
 /// converts a 4x4 column-major homogenous matrix to an Isometry
 pub fn array_to_isometry(array: &[f64; 16]) -> Isometry3<f64> {
@@ -170,15 +170,15 @@ impl MotionGenerator {
     ///
     /// # Return
     /// Joint positions for use inside a control loop.
-    pub fn generate_motion(
+    pub fn generate_motion<State: RobotState>(
         &mut self,
-        robot_state: &PandaState,
+        robot_state: &State,
         period: &Duration,
     ) -> JointPositions {
         self.time += period.as_secs_f64();
 
         if self.time == 0. {
-            self.q_start = Vector7::from_column_slice(&robot_state.q_d);
+            self.q_start = Vector7::from_column_slice(&robot_state.get_q_d());
             self.delta_q = self.q_goal - self.q_start;
             self.calculate_synchronized_values();
         }
