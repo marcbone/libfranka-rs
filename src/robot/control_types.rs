@@ -41,11 +41,11 @@ pub enum RealtimeConfig {
 /// Helper type for control and motion generation loops.
 ///
 /// Used to determine whether to terminate a loop after the control callback has returned.
-pub trait ConvertMotion<State3: RobotState> {
+pub trait ConvertMotion<State: RobotState> {
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
     fn convert_motion(
         &self,
-        robot_state: &State3,
+        robot_state: &State,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
