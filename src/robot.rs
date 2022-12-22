@@ -63,11 +63,11 @@ where
     ///
     /// This minimal example will print the robot state 100 times:
     /// ```no_run
-    /// use franka::{Panda, PandaState, FrankaResult};
+    /// use franka::{Panda, RobotState, FrankaResult};
     /// fn main() -> FrankaResult<()> {
     ///     let mut robot = Panda::new("robotik-bs.de",None,None)?;
     ///     let mut count = 0;
-    ///     robot.read(| robot_state:&PandaState | -> bool {
+    ///     robot.read(| robot_state:&RobotState | -> bool {
     ///         println!("{:?}", robot_state);
     ///         count += 1;
     ///         count <= 100
@@ -872,12 +872,12 @@ where
 /// The following incomplete example shows the general structure of a callback function:
 ///
 /// ```no_run
-/// use franka::robot::robot_state::PandaState;
+/// use franka::robot::robot_state::RobotState;
 /// use franka::robot::control_types::{JointPositions, MotionFinished};
 /// use std::time::Duration;
 /// # fn your_function_which_generates_joint_positions(time:f64) -> JointPositions {JointPositions::new([0.;7])}
 /// let mut time = 0.;
-/// let callback = |state: &PandaState, time_step: &Duration| -> JointPositions {
+/// let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
 ///     time += time_step.as_secs_f64();
 ///     let out: JointPositions = your_function_which_generates_joint_positions(time);
 ///     if time >= 5.0 {
@@ -1088,7 +1088,7 @@ mod tests {
     };
     use crate::robot::types::PandaStateIntern;
     use crate::robot::{Robot, FR3};
-    use crate::{Finishable, FrankaResult, JointPositions, Panda, PandaState, RealtimeConfig};
+    use crate::{Finishable, FrankaResult, JointPositions, Panda, RealtimeConfig, RobotState};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
     use std::mem::size_of;
@@ -1491,7 +1491,7 @@ mod tests {
             let mut first_time = true;
             let mut start_counter = 0;
             robot
-                .read(|state: &PandaState| {
+                .read(|state: &RobotState| {
                     if first_time {
                         first_time = false;
                         counter = state.time.as_millis();

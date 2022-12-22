@@ -3,9 +3,7 @@
 
 use clap::Parser;
 use franka::robot::{Robot, FR3};
-use franka::{FrankaResult, PandaState};
-// use franka::Robot;
-// use franka::RobotState;
+use franka::{FrankaResult, RobotState};
 
 /// An example showing how to continuously read the robot state.
 #[derive(Parser, Debug)]
@@ -17,17 +15,18 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     // let address = CommandLineArguments::parse();
-    let mut robot = FR3::new("localhost", None, None)?;
-    // robot.set_collision_behavior([0.;7],[0.;7],[0.;7],[0.;7],[0.;6],[0.;6],[0.;6],[0.;6]);
+    let mut robot = FR3::new("172.116.0.5", None, None)?;
+    robot.set_collision_behavior(
+        [0.; 7], [0.; 7], [0.; 7], [0.; 7], [0.; 6], [0.; 6], [0.; 6], [0.; 6],
+    )?;
     robot.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
     let mut count = 0;
-    robot.read(|robot_state: &PandaState| {
+    robot.read(|robot_state: &RobotState| {
         // Printing to standard output adds a delay. This is acceptable for a read loop such as this, but
         // should not be done in a control loop.
         println!("{:?}", robot_state);
         count += 1;
         count <= 100
     })?;
-    // println!("Done");
     Ok(())
 }

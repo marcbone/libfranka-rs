@@ -13,7 +13,7 @@ use crate::robot::low_pass_filter::{low_pass_filter, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, MAX_TORQUE_RATE};
 use crate::robot::robot_impl::RobotImplementation;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 use crate::Finishable;

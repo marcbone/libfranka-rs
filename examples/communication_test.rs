@@ -3,7 +3,7 @@
 use clap::Parser;
 use franka::robot::{Robot, FR3};
 use franka::Torques;
-use franka::{Finishable, FrankaResult, PandaState};
+use franka::{Finishable, FrankaResult, RobotState};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -46,7 +46,7 @@ fn main() -> FrankaResult<()> {
     let mut min_success_rate = 1.;
     let mut max_success_rate = 0.;
 
-    let callback = |state: &PandaState, time_step: &Duration| -> Torques {
+    let callback = |state: &RobotState, time_step: &Duration| -> Torques {
         time += time_step.as_millis() as u64;
         if time == 0 {
             return zero_torques;

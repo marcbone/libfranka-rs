@@ -5,7 +5,7 @@
 use nalgebra::Matrix4;
 
 use crate::model::model_library::ModelLibrary;
-use crate::robot::robot_state::{FR3State, PandaState, RobotState};
+use crate::robot::robot_state::{AbstractRobotState, RobotState};
 use crate::FrankaResult;
 use std::fmt;
 use std::path::Path;
@@ -65,7 +65,7 @@ impl fmt::Display for Frame {
 }
 
 pub trait RobotModel {
-    type State: RobotState;
+    type State: AbstractRobotState;
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
     where
         Self: Sized;
@@ -140,7 +140,7 @@ pub struct PandaModel {
 
 #[allow(non_snake_case)]
 impl RobotModel for PandaModel {
-    type State = PandaState;
+    type State = RobotState;
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
@@ -469,7 +469,7 @@ pub struct FR3Model {
 
 #[allow(non_snake_case)]
 impl RobotModel for FR3Model {
-    type State = FR3State;
+    type State = RobotState;
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use

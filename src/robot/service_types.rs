@@ -348,12 +348,6 @@ define_panda_request_with_header!(
 );
 define_fr3_request_with_header!(MoveRequestWithFR3Header, MoveRequest, FR3CommandEnum::Move);
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MoveResponse {
-    pub header: PandaCommandHeader,
-    pub status: MoveStatusPanda,
-}
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct StopMoveRequestWithPandaHeader {

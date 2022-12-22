@@ -2,12 +2,12 @@
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::FrankaResult;
 use crate::robot::control_types::RealtimeConfig;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
 pub trait RobotControl {
-    type State: RobotState;
+    type State: AbstractRobotState;
     fn start_motion(
         &mut self,
         controller_mode: MoveControllerMode,

@@ -7,14 +7,14 @@ use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
 
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
     ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
-    MoveMotionGeneratorMode, MoveRequest, MoveResponse,
+    MoveMotionGeneratorMode, MoveRequest,
 };
 use crate::robot::types::{
-    ControllerCommand, ControllerMode, MotionGeneratorCommand, MotionGeneratorMode, RobotCommand,
-    RobotStateIntern,
+    AbstractRobotStateIntern, ControllerCommand, ControllerMode, MotionGeneratorCommand,
+    MotionGeneratorMode, RobotCommand,
 };
 use crate::RobotModel;
 use std::fs::remove_file;
@@ -173,7 +173,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
         // TODO (FWA): It is not guaranteed that the Move response won't come later
 
         self.network
-            .tcp_receive_response(motion_id, |_x: MoveResponse| Ok(()))
+            .tcp_receive_response(motion_id, |_x: Data::MoveStatus| Ok(()))
             .expect("This should be impossible as the handler always returns Ok(())");
         self.current_move_motion_generator_mode = MotionGeneratorMode::Idle;
         self.current_move_controller_mode = Some(ControllerMode::Other);

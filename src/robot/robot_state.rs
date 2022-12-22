@@ -9,7 +9,7 @@ use crate::robot::errors::{FrankaErrorKind, FrankaErrors};
 use crate::robot::types::{PandaStateIntern, RobotMode};
 use nalgebra::{Matrix3, Vector3};
 
-pub trait RobotState: Clone + Debug {
+pub trait AbstractRobotState: Clone + Debug {
     fn get_time(&self) -> Duration;
     #[allow(non_snake_case)]
     fn get_tau_J_d(&self) -> [f64; 7];
@@ -21,7 +21,7 @@ pub trait RobotState: Clone + Debug {
 /// Describes the robot state.
 #[derive(Debug, Clone, Default)]
 #[allow(non_snake_case)]
-pub struct PandaState {
+pub struct RobotState {
     /// ![^{O}T_{EE}](https://latex.codecogs.com/png.latex?^{O}T_{EE})
     ///
     /// Measured end effector pose in base frame.
@@ -265,9 +265,7 @@ pub struct PandaState {
     pub time: Duration,
 }
 
-pub type FR3State = PandaState;
-
-impl From<PandaStateIntern> for PandaState {
+impl From<PandaStateIntern> for RobotState {
     #[allow(non_snake_case)]
     fn from(robot_state: PandaStateIntern) -> Self {
         let O_T_EE = robot_state.O_T_EE;
@@ -332,7 +330,7 @@ impl From<PandaStateIntern> for PandaState {
         let current_errors = FrankaErrors::new(robot_state.errors, FrankaErrorKind::Error);
         let last_motion_errors =
             FrankaErrors::new(robot_state.errors, FrankaErrorKind::ReflexReason);
-        PandaState {
+        RobotState {
             O_T_EE,
             O_T_EE_d,
             F_T_EE,
@@ -451,7 +449,7 @@ fn skew_symmetric_matrix_from_vector(vector: &Vector3<f64>) -> Matrix3<f64> {
     )
 }
 
-impl RobotState for PandaState {
+impl AbstractRobotState for RobotState {
     fn get_time(&self) -> Duration {
         self.time
     }

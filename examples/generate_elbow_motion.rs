@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::robot::{Robot, FR3};
-use franka::{CartesianPose, Finishable, FrankaResult, PandaState};
+use franka::{CartesianPose, Finishable, FrankaResult, RobotState};
 use std::f64::consts::PI;
 use std::time::Duration;
 
@@ -43,7 +43,7 @@ fn main() -> FrankaResult<()> {
     let mut initial_pose = [0.; 16];
     let mut initial_elbow = [0.; 2];
     let mut time = 0.;
-    let callback = |state: &PandaState, time_step: &Duration| -> CartesianPose {
+    let callback = |state: &RobotState, time_step: &Duration| -> CartesianPose {
         time += time_step.as_secs_f64();
         if time == 0. {
             initial_pose = state.O_T_EE_c;

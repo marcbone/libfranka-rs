@@ -23,7 +23,7 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, PandaState, Panda, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, RobotState, Panda, FrankaResult};
 //! fn main() -> FrankaResult<()> {
 //! let mut robot = Panda::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
@@ -35,7 +35,7 @@
 //!     robot.joint_motion(0.5, &q_goal)?;
 //!     let mut initial_position = JointPositions::new([0.0; 7]);
 //!     let mut time = 0.;
-//!     let callback = |state: &PandaState, time_step: &Duration| -> JointPositions {
+//!     let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
 //!         time += time_step.as_secs_f64();
 //!         if time == 0. {
 //!             initial_position.q = state.q_d;
@@ -60,7 +60,7 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, PandaState, Panda, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Panda, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! let mut robot = Robot::new("robotik-bs.de", None, None)?;
 //! # Ok(())
@@ -80,7 +80,7 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, PandaState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
@@ -124,8 +124,8 @@
 //! to the robot, therefore we use a cosine function. Without it we would get a CommandException
 //! while running.
 //!
-//! ```no_run
-//! # use franka::{JointPositions, MotionFinished};
+//!```no_run
+//! # use franka::{Finishable, JointPositions};
 //! # fn joint_positions() -> JointPositions {
 //! # let time = 0.;
 //! # let mut out = JointPositions::new([0.;7]);
@@ -181,6 +181,6 @@ pub use model::RobotModel;
 pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
-pub use robot::robot_state::PandaState;
+pub use robot::robot_state::RobotState;
 pub use robot::Panda;
 pub use utils::*;

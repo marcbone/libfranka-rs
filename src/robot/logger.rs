@@ -5,7 +5,7 @@
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, JointPositions, JointVelocities, Torques,
 };
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::types::RobotCommand;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -47,7 +47,7 @@ impl<State: Debug> Record<State> {
     }
 }
 
-pub(crate) struct Logger<State: RobotState> {
+pub(crate) struct Logger<State: AbstractRobotState> {
     states: VecDeque<State>,
     commands: VecDeque<RobotCommand>,
     ring_front: usize,
@@ -55,7 +55,7 @@ pub(crate) struct Logger<State: RobotState> {
     log_size: usize,
 }
 
-impl<State: RobotState> Logger<State> {
+impl<State: AbstractRobotState> Logger<State> {
     pub fn new(log_size: usize) -> Self {
         Logger {
             states: VecDeque::with_capacity(log_size),

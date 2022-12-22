@@ -2,7 +2,7 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::robot::robot_state::FR3State;
+use franka::robot::robot_state::RobotState;
 use franka::robot::{Robot, FR3};
 use franka::FrankaResult;
 use franka::Torques;
@@ -66,7 +66,7 @@ fn main() -> FrankaResult<()> {
     println!("Press Enter to continue...");
     std::io::stdin().read_line(&mut String::new()).unwrap();
     let result = robot.control_torques(
-        |state: &FR3State, _step: &Duration| -> Torques {
+        |state: &RobotState, _step: &Duration| -> Torques {
             let coriolis: Vector7 = model.coriolis_from_state(&state).into();
             let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);

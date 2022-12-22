@@ -18,7 +18,7 @@ use crate::robot::rate_limiting::{
     MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
     MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
 };
-use crate::robot::robot_state::{PandaState, RobotState};
+use crate::robot::robot_state::{AbstractRobotState, RobotState};
 use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;
@@ -41,7 +41,7 @@ pub enum RealtimeConfig {
 /// Helper type for control and motion generation loops.
 ///
 /// Used to determine whether to terminate a loop after the control callback has returned.
-pub trait ConvertMotion<State: RobotState> {
+pub trait ConvertMotion<State: AbstractRobotState> {
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
     fn convert_motion(
         &self,
@@ -140,7 +140,7 @@ impl Finishable for Torques {
     }
 }
 
-impl<Statee: RobotState> ConvertMotion<Statee> for Torques {
+impl<Statee: AbstractRobotState> ConvertMotion<Statee> for Torques {
     #[allow(unused_variables)]
     //todo pull  convert motion out of the Finishable trait
     fn convert_motion(
@@ -212,10 +212,10 @@ impl Finishable for JointPositions {
         self
     }
 }
-impl ConvertMotion<PandaState> for JointPositions {
+impl ConvertMotion<RobotState> for JointPositions {
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -323,10 +323,10 @@ impl Finishable for JointVelocities {
         self
     }
 }
-impl ConvertMotion<PandaState> for JointVelocities {
+impl ConvertMotion<RobotState> for JointVelocities {
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -475,10 +475,10 @@ impl Finishable for CartesianPose {
     }
 }
 
-impl ConvertMotion<PandaState> for CartesianPose {
+impl ConvertMotion<RobotState> for CartesianPose {
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,
@@ -665,10 +665,10 @@ impl Finishable for CartesianVelocities {
         self
     }
 }
-impl ConvertMotion<PandaState> for CartesianVelocities {
+impl ConvertMotion<RobotState> for CartesianVelocities {
     fn convert_motion(
         &self,
-        robot_state: &PandaState,
+        robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
         cutoff_frequency: f64,
         limit_rate: bool,

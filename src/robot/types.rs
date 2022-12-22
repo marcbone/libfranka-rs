@@ -98,13 +98,13 @@ pub struct PandaStateIntern {
 
 pub type FR3StateIntern = PandaStateIntern;
 
-pub trait RobotStateIntern: Copy + Clone + PartialEq {
+pub trait AbstractRobotStateIntern: Copy + Clone + PartialEq {
     fn get_message_id(&self) -> u64;
     fn get_motion_generator_mode(&self) -> MotionGeneratorMode;
     fn get_controller_mode(&self) -> ControllerMode;
 }
 
-impl RobotStateIntern for PandaStateIntern {
+impl AbstractRobotStateIntern for PandaStateIntern {
     fn get_message_id(&self) -> u64 {
         self.message_id
     }

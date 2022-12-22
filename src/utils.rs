@@ -3,7 +3,7 @@
 
 //! contains useful type definitions and conversion functions.
 use crate::robot::control_types::JointPositions;
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::Finishable;
 use nalgebra::{Isometry3, Matrix4, MatrixMN, MatrixN, Rotation3, Vector3, VectorN, U6, U7};
 use std::time::Duration;
@@ -170,7 +170,7 @@ impl MotionGenerator {
     ///
     /// # Return
     /// Joint positions for use inside a control loop.
-    pub fn generate_motion<State: RobotState>(
+    pub fn generate_motion<State: AbstractRobotState>(
         &mut self,
         robot_state: &State,
         period: &Duration,
@@ -193,7 +193,7 @@ impl MotionGenerator {
 
 #[cfg(test)]
 mod test {
-    use crate::{array_to_isometry, Finishable, MotionGenerator, PandaState};
+    use crate::{array_to_isometry, Finishable, MotionGenerator, RobotState};
     use nalgebra::Rotation3;
     use std::time::Duration;
 
@@ -303,7 +303,7 @@ mod test {
             ],
             [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         ];
-        let mut state = PandaState::default();
+        let mut state = RobotState::default();
         let mut motion_generator = MotionGenerator::new(1.0, &[1.; 7]);
         let mut joint_pos = motion_generator.generate_motion(&state, &Duration::from_secs_f64(0.0));
         slice_compare(&joint_pos.q, &q_des[0], 1e-10);

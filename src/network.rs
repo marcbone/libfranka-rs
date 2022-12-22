@@ -32,7 +32,7 @@ use crate::gripper::types::{
 };
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
-use crate::robot::robot_state::{FR3State, RobotState};
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
     AutomaticErrorRecoveryStatusFR3, AutomaticErrorRecoveryStatusPanda, ConnectRequest,
     ConnectRequestWithFR3Header, ConnectRequestWithPandaHeader, FR3CommandEnum, FR3CommandHeader,
@@ -51,8 +51,8 @@ use crate::robot::service_types::{
     SetNeToEeRequestWithFR3Header, SetNeToEeRequestWithPandaHeader, StopMoveStatusFR3,
     StopMoveStatusPanda, FR3_VERSION, PANDA_VERSION,
 };
-use crate::robot::types::{FR3StateIntern, PandaStateIntern, RobotStateIntern};
-use crate::{FR3Model, PandaModel, PandaState, RobotModel};
+use crate::robot::types::{AbstractRobotStateIntern, FR3StateIntern, PandaStateIntern};
+use crate::{FR3Model, PandaModel, RobotModel, RobotState};
 
 const CLIENT: Token = Token(1);
 
@@ -76,8 +76,8 @@ pub trait DeviceData {
 pub trait RobotData: DeviceData {
     type DeviceData: DeviceData;
     type Header: RobotHeader;
-    type State: RobotState + From<Self::StateIntern>;
-    type StateIntern: Debug + DeserializeOwned + Serialize + RobotStateIntern + 'static;
+    type State: AbstractRobotState + From<Self::StateIntern>;
+    type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     type Model: RobotModel;
     type LoadModelRequestWithHeader: MessageCommand
         + Serialize
@@ -229,7 +229,7 @@ impl DeviceData for PandaData {
 }
 
 impl RobotData for PandaData {
-    type State = PandaState;
+    type State = RobotState;
     type DeviceData = Self;
     type StateIntern = PandaStateIntern;
     type Model = PandaModel;
@@ -463,7 +463,7 @@ impl DeviceData for FR3Data {
 impl RobotData for FR3Data {
     type DeviceData = Self;
     type Header = FR3CommandHeader;
-    type State = FR3State;
+    type State = RobotState;
     type StateIntern = FR3StateIntern;
     type Model = FR3Model;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFR3Header;
@@ -923,11 +923,11 @@ impl<Data: DeviceData> Network<Data> {
         if message.is_none() {
             return Ok(false);
         }
-        if message.unwrap().len() != size_of::<T>() {
+        if message.unwrap().len() != size_of::<T>() + size_of::<Data::CommandHeader>() {
             panic!("libfranka-rs: Incorrect TCP message size.");
         }
-        let message: T = deserialize(message.unwrap());
-        let result = handler(message);
+        let message: (Data::CommandHeader, T) = deserialize(message.unwrap());
+        let result = handler(message.1);
         match result {
             Ok(_) => {
                 self.received_responses.remove(&command_id);

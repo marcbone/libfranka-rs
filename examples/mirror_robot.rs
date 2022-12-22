@@ -7,7 +7,7 @@ use franka::model::Frame;
 use franka::robot::control_types::Torques;
 use franka::robot::{Robot, FR3};
 use franka::utils::{array_to_isometry, Matrix6x7, Vector7};
-use franka::PandaState;
+use franka::RobotState;
 use franka::{Matrix7, RobotModel};
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 use std::sync::mpsc::channel;
@@ -99,7 +99,7 @@ fn main() -> FrankaResult<()> {
     });
 
     robot_mirror.control_torques(
-        |state: &PandaState, _step: &Duration| -> Torques {
+        |state: &RobotState, _step: &Duration| -> Torques {
             let home: Vector7 = q_goal.into();
             let coriolis: Vector7 = model.coriolis_from_state(&state).into();
             let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
