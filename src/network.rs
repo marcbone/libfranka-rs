@@ -76,7 +76,7 @@ pub trait DeviceData {
 pub trait RobotData: DeviceData {
     type DeviceData: DeviceData;
     type Header: RobotHeader;
-    type State: AbstractRobotState + From<Self::StateIntern>;
+    type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
     type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     type Model: RobotModel;
     type LoadModelRequestWithHeader: MessageCommand

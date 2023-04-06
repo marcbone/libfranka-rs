@@ -178,6 +178,7 @@ pub use model::FR3Model;
 pub use model::Frame;
 pub use model::PandaModel;
 pub use model::RobotModel;
+pub use network::RobotData;
 pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;

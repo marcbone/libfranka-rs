@@ -3,7 +3,10 @@
 
 use clap::Parser;
 use franka::robot::{Robot, FR3};
-use franka::{CartesianPose, RobotState};
+use franka::{
+    CartesianPose, CartesianVelocities, ConvertMotion, JointPositions, JointVelocities, Panda,
+    RobotData, RobotState,
+};
 use franka::{Finishable, FrankaResult};
 use std::f64::consts::PI;
 use std::time::Duration;
@@ -16,11 +19,20 @@ use std::time::Duration;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
-fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()>
+where
+    CartesianPose: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
+    CartesianVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
+    JointPositions: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
+    JointVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
+    RobotState: From<<<R as Robot>::Data as RobotData>::State>,
+{
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");
@@ -63,4 +75,18 @@ fn main() -> FrankaResult<()> {
         out
     };
     robot.control_cartesian_pose(callback, None, None, None)
+}
+
+fn main() -> FrankaResult<()> {
+    let address = CommandLineArguments::parse();
+    match address.panda {
+        true => {
+            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
 }

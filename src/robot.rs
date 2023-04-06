@@ -27,7 +27,7 @@ use crate::robot::service_types::{
 };
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
-use crate::Finishable;
+use crate::{Finishable, RobotState};
 
 mod control_loop;
 mod control_tools;
@@ -51,6 +51,7 @@ where
     JointVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
     JointPositions: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
     CartesianVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
+    RobotState: From<<<Self as Robot>::Data as RobotData>::State>,
 {
     type Data: RobotData;
     type Rob: RobotImplementation<Data = Self::Data>;
@@ -79,13 +80,10 @@ where
     /// as it wants to receive further robot states.
     /// # Error
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    fn read<F: FnMut(&<<Self as Robot>::Data as RobotData>::State) -> bool>(
-        &mut self,
-        mut read_callback: F,
-    ) -> FrankaResult<()> {
+    fn read<F: FnMut(&RobotState) -> bool>(&mut self, mut read_callback: F) -> FrankaResult<()> {
         loop {
             let state = self.get_rob_mut().update(None, None)?;
-            if !read_callback(&state) {
+            if !read_callback(&state.into()) {
                 break;
             }
         }
@@ -390,19 +388,22 @@ where
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_joint_positions<
-        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointPositions,
+        F: FnMut(&RobotState, &Duration) -> JointPositions,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
         &mut self,
-        motion_generator_callback: F,
+        mut motion_generator_callback: F,
         controller_mode: CM,
         limit_rate: L,
         cutoff_frequency: CF,
     ) -> FrankaResult<()> {
+        let cb = |state: &<<Self as Robot>::Data as RobotData>::State, duration: &Duration| {
+            motion_generator_callback(&(state.clone().into()), duration)
+        };
         self.control_motion_intern(
-            motion_generator_callback,
+            cb,
             controller_mode.into(),
             limit_rate.into(),
             cutoff_frequency.into(),
@@ -432,19 +433,22 @@ where
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_joint_velocities<
-        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> JointVelocities,
+        F: FnMut(&RobotState, &Duration) -> JointVelocities,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
         &mut self,
-        motion_generator_callback: F,
+        mut motion_generator_callback: F,
         controller_mode: CM,
         limit_rate: L,
         cutoff_frequency: CF,
     ) -> FrankaResult<()> {
+        let cb = |state: &<<Self as Robot>::Data as RobotData>::State, duration: &Duration| {
+            motion_generator_callback(&(state.clone().into()), duration) // todo make this without cloning
+        };
         self.control_motion_intern(
-            motion_generator_callback,
+            cb,
             controller_mode.into(),
             limit_rate.into(),
             cutoff_frequency.into(),
@@ -475,19 +479,22 @@ where
     ///
     /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_cartesian_pose<
-        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> CartesianPose,
+        F: FnMut(&RobotState, &Duration) -> CartesianPose,
         CM: Into<Option<ControllerMode>>,
         L: Into<Option<bool>>,
         CF: Into<Option<f64>>,
     >(
         &mut self,
-        motion_generator_callback: F,
+        mut motion_generator_callback: F,
         controller_mode: CM,
         limit_rate: L,
         cutoff_frequency: CF,
     ) -> FrankaResult<()> {
+        let cb = |state: &<<Self as Robot>::Data as RobotData>::State, duration: &Duration| {
+            motion_generator_callback(&(state.clone().into()), duration)
+        };
         self.control_motion_intern(
-            motion_generator_callback,
+            cb,
             controller_mode.into(),
             limit_rate.into(),
             cutoff_frequency.into(),
