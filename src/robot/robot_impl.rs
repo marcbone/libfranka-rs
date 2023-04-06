@@ -233,7 +233,7 @@ impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
         Ok(Data::State::from(self.receive_robot_state()?))
     }
     fn load_model(&mut self, persistent: bool) -> FrankaResult<Data::Model> {
-        let model_file = Path::new("/tmp/model.so");
+        let model_file = Path::new("/tmp/model.so"); // TODO when we load from file we need to distinguish between FR3 and panda
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
             LibraryDownloaderGeneric::<Data>::download(&mut self.network, model_file)?;

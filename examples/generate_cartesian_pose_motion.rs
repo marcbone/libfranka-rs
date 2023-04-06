@@ -2,10 +2,11 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
+use franka::model::RobotModel;
 use franka::robot::{Robot, RobotWrapper, FR3};
 use franka::{
-    CartesianPose, CartesianVelocities, ConvertMotion, JointPositions, JointVelocities, Panda,
-    RobotData, RobotState,
+    CartesianPose, CartesianVelocities, ConvertMotion, Frame, JointPositions, JointVelocities,
+    Panda, RobotData, RobotState,
 };
 use franka::{Finishable, FrankaResult};
 use std::f64::consts::PI;
@@ -77,56 +78,16 @@ where
     robot.control_cartesian_pose(callback, None, None, None)
 }
 
-// fn get_robot(t:bool
-// ) -> Box<dyn RobotWrapper> {
-//     match t {
-//         true => { Box::new(Panda::new("localhost", None, None).unwrap())}
-//         false => {Box::new(FR3::new("localhost", None, None).unwrap())}
-//     }
-// }
-
-fn dyn_generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()>
-// where
-    //     CartesianPose: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    //     CartesianVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    //     JointPositions: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    //     JointVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    //     RobotState: From<<<R as Robot>::Data as RobotData>::State>,
-{
-    let mut count = 0;
-    robot.read(|robot_state: &RobotState| {
-        // Printing to standard output adds a delay. This is acceptable for a read loop such as this, but
-        // should not be done in a control loop.
-        println!("{:?}", robot_state);
-        count += 1;
-        count <= 100
-    });
-    let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
-    let res = robot.joint_motion(0.5, &q_goal);
-    println!("Finished moving to initial joint configuration.");
-    res
-}
-
 fn main() -> FrankaResult<()> {
     let address = CommandLineArguments::parse();
     match address.panda {
         true => {
             let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
-            dyn_generate_motion(robot)
+            generate_motion(robot)
         }
         false => {
             let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
-            let mut count = 0;
-            println!("{:?}", robot.read_once()?);
-            Ok(())
-            // robot.read(|robot_state: &RobotState| {
-            //     // Printing to standard output adds a delay. This is acceptable for a read loop such as this, but
-            //     // should not be done in a control loop.
-            //     println!("{:?}", robot_state);
-            //     count += 1;
-            //     count <= 100
-            // });
-            // dyn_generate_motion(robot)
+            generate_motion(robot)
         }
     }
 }

@@ -5,7 +5,7 @@
 use nalgebra::Matrix4;
 
 use crate::model::model_library::ModelLibrary;
-use crate::robot::robot_state::{AbstractRobotState, RobotState};
+use crate::robot::robot_state::RobotState;
 use crate::FrankaResult;
 use std::fmt;
 use std::path::Path;
@@ -65,7 +65,6 @@ impl fmt::Display for Frame {
 }
 
 pub trait RobotModel {
-    type State: AbstractRobotState;
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
     where
         Self: Sized;
@@ -78,7 +77,7 @@ pub trait RobotModel {
         EE_T_K: &[f64; 16],
     ) -> [f64; 16];
 
-    fn pose_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 16];
+    fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16];
     #[allow(non_snake_case)]
     fn body_jacobian(
         &self,
@@ -88,7 +87,7 @@ pub trait RobotModel {
         EE_T_K: &[f64; 16],
     ) -> [f64; 42];
 
-    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42];
+    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42];
     #[allow(non_snake_case)]
     fn zero_jacobian(
         &self,
@@ -97,7 +96,7 @@ pub trait RobotModel {
         F_T_EE: &[f64; 16],
         EE_T_K: &[f64; 16],
     ) -> [f64; 42];
-    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42];
+    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42];
     #[allow(non_snake_case)]
     fn mass(
         &self,
@@ -106,7 +105,7 @@ pub trait RobotModel {
         m_total: f64,
         F_x_Ctotal: &[f64; 3],
     ) -> [f64; 49];
-    fn mass_from_state(&self, robot_state: &Self::State) -> [f64; 49];
+    fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49];
     #[allow(non_snake_case)]
     fn coriolis(
         &self,
@@ -116,7 +115,7 @@ pub trait RobotModel {
         m_total: f64,
         F_x_Ctotal: &[f64; 3],
     ) -> [f64; 7];
-    fn coriolis_from_state(&self, robot_state: &Self::State) -> [f64; 7];
+    fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7];
     #[allow(non_snake_case)]
     fn gravity<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
@@ -128,7 +127,7 @@ pub trait RobotModel {
     #[allow(non_snake_case)]
     fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
-        robot_state: &Self::State,
+        robot_state: &RobotState,
         gravity_earth: Grav,
     ) -> [f64; 7];
 }
@@ -140,7 +139,6 @@ pub struct PandaModel {
 
 #[allow(non_snake_case)]
 impl RobotModel for PandaModel {
-    type State = RobotState;
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
@@ -222,7 +220,7 @@ impl RobotModel for PandaModel {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
-    fn pose_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 16] {
+    fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16] {
         self.pose(
             frame,
             &robot_state.q,
@@ -280,7 +278,7 @@ impl RobotModel for PandaModel {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42] {
+    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.body_jacobian(
             frame,
             &robot_state.q,
@@ -337,7 +335,7 @@ impl RobotModel for PandaModel {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42] {
+    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.zero_jacobian(
             frame,
             &robot_state.q,
@@ -371,7 +369,7 @@ impl RobotModel for PandaModel {
     /// * `robot_state` - State from which the mass matrix should be calculated.
     /// # Return
     /// Vectorized 7x7 mass matrix, column-major.
-    fn mass_from_state(&self, robot_state: &Self::State) -> [f64; 49] {
+    fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49] {
         self.mass(
             &robot_state.q,
             &robot_state.I_total,
@@ -410,7 +408,7 @@ impl RobotModel for PandaModel {
     /// * `robot_state` - State from which the Coriolis force vector should be calculated.
     /// # Return
     /// Coriolis force vector.
-    fn coriolis_from_state(&self, robot_state: &Self::State) -> [f64; 7] {
+    fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7] {
         self.coriolis(
             &robot_state.q,
             &robot_state.dq,
@@ -450,7 +448,7 @@ impl RobotModel for PandaModel {
     /// Gravity vector.
     fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
-        robot_state: &Self::State,
+        robot_state: &RobotState,
         gravity_earth: Grav,
     ) -> [f64; 7] {
         self.gravity(
@@ -469,7 +467,6 @@ pub struct FR3Model {
 
 #[allow(non_snake_case)]
 impl RobotModel for FR3Model {
-    type State = RobotState;
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
@@ -551,7 +548,7 @@ impl RobotModel for FR3Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
-    fn pose_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 16] {
+    fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16] {
         self.pose(
             frame,
             &robot_state.q,
@@ -609,7 +606,7 @@ impl RobotModel for FR3Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42] {
+    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.body_jacobian(
             frame,
             &robot_state.q,
@@ -666,7 +663,7 @@ impl RobotModel for FR3Model {
     /// * `robot_state` - State from which the pose should be calculated.
     /// # Return
     /// Vectorized 6x7 Jacobian, column-major.
-    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &Self::State) -> [f64; 42] {
+    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.zero_jacobian(
             frame,
             &robot_state.q,
@@ -700,7 +697,7 @@ impl RobotModel for FR3Model {
     /// * `robot_state` - State from which the mass matrix should be calculated.
     /// # Return
     /// Vectorized 7x7 mass matrix, column-major.
-    fn mass_from_state(&self, robot_state: &Self::State) -> [f64; 49] {
+    fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49] {
         self.mass(
             &robot_state.q,
             &robot_state.I_total,
@@ -739,7 +736,7 @@ impl RobotModel for FR3Model {
     /// * `robot_state` - State from which the Coriolis force vector should be calculated.
     /// # Return
     /// Coriolis force vector.
-    fn coriolis_from_state(&self, robot_state: &Self::State) -> [f64; 7] {
+    fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7] {
         self.coriolis(
             &robot_state.q,
             &robot_state.dq,
@@ -779,7 +776,7 @@ impl RobotModel for FR3Model {
     /// Gravity vector.
     fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
-        robot_state: &Self::State,
+        robot_state: &RobotState,
         gravity_earth: Grav,
     ) -> [f64; 7] {
         self.gravity(

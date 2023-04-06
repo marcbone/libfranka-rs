@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::robot::robot_state::RobotState;
-use franka::robot::{Robot, RobotWrapper, FR3};
+use franka::robot::{Panda, Robot, RobotWrapper, FR3};
 use franka::FrankaResult;
 use franka::Torques;
 use franka::{array_to_isometry, Matrix6x7, Vector7};
@@ -21,10 +21,13 @@ use std::time::Duration;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
-fn main() -> FrankaResult<()> {
-    let args = CommandLineArguments::parse();
+fn generate_motion<R: RobotWrapper, M: RobotModel>(mut robot: R, model: M) -> FrankaResult<()> {
     let translational_stiffness = 150.;
     let rotational_stiffness = 10.;
 
@@ -43,9 +46,6 @@ fn main() -> FrankaResult<()> {
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot = FR3::new(args.franka_ip.as_str(), None, None)?;
-    let model = robot.load_model(true)?;
-
     // Set additional parameters always before the control loop, NEVER in the control loop!
     // Set collision behavior.
     robot.set_collision_behavior(
@@ -109,6 +109,22 @@ fn main() -> FrankaResult<()> {
         Err(e) => {
             eprintln!("{}", e);
             Ok(())
+        }
+    }
+}
+
+fn main() -> FrankaResult<()> {
+    let address = CommandLineArguments::parse();
+    match address.panda {
+        true => {
+            let mut robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            let model = robot.load_model(false).unwrap();
+            generate_motion(robot, model)
+        }
+        false => {
+            let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            let model = robot.load_model(false).unwrap();
+            generate_motion(robot, model)
         }
     }
 }

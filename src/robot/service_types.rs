@@ -745,12 +745,6 @@ define_fr3_request_with_header!(
 //     }
 // }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LoadModelLibraryResponse {
-    pub header: PandaCommandHeader,
-    pub status: LoadModelLibraryStatus,
-}
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct PandaCommandHeader {

@@ -38,13 +38,13 @@ use crate::robot::service_types::{
     ConnectRequestWithFR3Header, ConnectRequestWithPandaHeader, FR3CommandEnum, FR3CommandHeader,
     GetterSetterStatusFR3, GetterSetterStatusPanda, LoadModelLibraryRequest,
     LoadModelLibraryRequestWithFR3Header, LoadModelLibraryRequestWithPandaHeader,
-    LoadModelLibraryResponse, LoadModelLibraryStatus, MoveRequest, MoveRequestWithFR3Header,
-    MoveRequestWithPandaHeader, MoveStatusFR3, MoveStatusPanda, PandaCommandEnum,
-    PandaCommandHeader, RobotHeader, SetCartesianImpedanceRequest,
-    SetCartesianImpedanceRequestWithFR3Header, SetCartesianImpedanceRequestWithPandaHeader,
-    SetCollisionBehaviorRequest, SetCollisionBehaviorRequestWithFR3Header,
-    SetCollisionBehaviorRequestWithPandaHeader, SetEeToKRequest, SetEeToKRequestWithFR3Header,
-    SetEeToKRequestWithPandaHeader, SetGuidingModeRequest, SetGuidingModeRequestWithFR3Header,
+    LoadModelLibraryStatus, MoveRequest, MoveRequestWithFR3Header, MoveRequestWithPandaHeader,
+    MoveStatusFR3, MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, RobotHeader,
+    SetCartesianImpedanceRequest, SetCartesianImpedanceRequestWithFR3Header,
+    SetCartesianImpedanceRequestWithPandaHeader, SetCollisionBehaviorRequest,
+    SetCollisionBehaviorRequestWithFR3Header, SetCollisionBehaviorRequestWithPandaHeader,
+    SetEeToKRequest, SetEeToKRequestWithFR3Header, SetEeToKRequestWithPandaHeader,
+    SetGuidingModeRequest, SetGuidingModeRequestWithFR3Header,
     SetGuidingModeRequestWithPandaHeader, SetJointImpedanceRequest,
     SetJointImpedanceRequestWithFR3Header, SetJointImpedanceRequestWithPandaHeader, SetLoadRequest,
     SetLoadRequestWithFR3Header, SetLoadRequestWithPandaHeader, SetNeToEeRequest,
@@ -103,6 +103,7 @@ pub trait RobotData: DeviceData {
     type GetterSetterStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
     type StopMoveStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
     type AutomaticErrorRecoveryStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
+                                                                                  // type LoadModelResponse: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
 
     fn create_model_library_request(
         command_id: &mut u32,
@@ -875,11 +876,13 @@ impl<Data: DeviceData> Network<Data> {
         &mut self,
         command_id: u32,
         buffer: &mut Vec<u8>,
-    ) -> FrankaResult<LoadModelLibraryResponse> {
+    ) -> FrankaResult<LoadModelLibraryStatus> {
         let response_bytes = self.wait_for_response_to_arrive(&command_id);
-        let lib_response: LoadModelLibraryResponse =
-            deserialize(&response_bytes[0..size_of::<LoadModelLibraryResponse>()]);
-        match lib_response.status {
+        let (header, status): (Data::CommandHeader, LoadModelLibraryStatus) = deserialize(
+            &response_bytes
+                [0..size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()],
+        );
+        match status {
             LoadModelLibraryStatus::Success => {}
             LoadModelLibraryStatus::Error => {
                 return Err(FrankaException::ModelException {
@@ -889,13 +892,14 @@ impl<Data: DeviceData> Network<Data> {
             }
         }
         assert_ne!(
-            lib_response.header.size as usize,
-            size_of::<LoadModelLibraryResponse>()
+            header.get_size() as usize,
+            size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()
         );
         buffer.append(&mut Vec::from(
-            &response_bytes[size_of::<LoadModelLibraryResponse>()..],
+            &response_bytes
+                [size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()..],
         ));
-        Ok(lib_response)
+        Ok(status)
     }
     /// Tries to receive a Response message with the given command ID (non-blocking).
     ///
@@ -1025,7 +1029,7 @@ impl<Data: DeviceData> Network<Data> {
             match event.token() {
                 CLIENT => {
                     if event.is_readable() {
-                        let mut buffer = [0_u8; 70000];
+                        let mut buffer = [0_u8; 150000];
                         let available_bytes = self.tcp_socket.peek(&mut buffer);
                         let available_bytes = match available_bytes {
                             Ok(a) => a,
