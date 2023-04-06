@@ -2,7 +2,7 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::robot::{Robot, FR3};
+use franka::robot::{Robot, RobotWrapper, FR3};
 use franka::JointVelocities;
 use franka::RobotState;
 use franka::{Finishable, FrankaResult};

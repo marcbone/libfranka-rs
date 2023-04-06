@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::exception::FrankaException;
-use franka::robot::{Robot, FR3};
+use franka::robot::{Robot, RobotWrapper, FR3};
 use franka::{Finishable, FrankaResult, JointVelocities, RobotState};
 use std::f64::consts::PI;
 use std::time::Duration;

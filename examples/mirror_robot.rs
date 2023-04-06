@@ -5,7 +5,7 @@ use core::f64::consts::PI;
 use franka::exception::FrankaResult;
 use franka::model::Frame;
 use franka::robot::control_types::Torques;
-use franka::robot::{Robot, FR3};
+use franka::robot::{Robot, RobotWrapper, FR3};
 use franka::utils::{array_to_isometry, Matrix6x7, Vector7};
 use franka::RobotState;
 use franka::{Matrix7, RobotModel};
