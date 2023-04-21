@@ -34,31 +34,31 @@ use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
-    AutomaticErrorRecoveryStatusFR3, AutomaticErrorRecoveryStatusPanda, ConnectRequest,
-    ConnectRequestWithFR3Header, ConnectRequestWithPandaHeader, FR3CommandEnum, FR3CommandHeader,
-    GetterSetterStatusFR3, GetterSetterStatusPanda, LoadModelLibraryRequest,
-    LoadModelLibraryRequestWithFR3Header, LoadModelLibraryRequestWithPandaHeader,
-    LoadModelLibraryStatus, MoveRequest, MoveRequestWithFR3Header, MoveRequestWithPandaHeader,
-    MoveStatusFR3, MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, RobotHeader,
-    SetCartesianImpedanceRequest, SetCartesianImpedanceRequestWithFR3Header,
+    AutomaticErrorRecoveryStatusFr3, AutomaticErrorRecoveryStatusPanda, ConnectRequest,
+    ConnectRequestWithFr3Header, ConnectRequestWithPandaHeader, Fr3CommandEnum, Fr3CommandHeader,
+    GetterSetterStatusFr3, GetterSetterStatusPanda, LoadModelLibraryRequest,
+    LoadModelLibraryRequestWithFr3Header, LoadModelLibraryRequestWithPandaHeader,
+    LoadModelLibraryStatus, MoveRequest, MoveRequestWithFr3Header, MoveRequestWithPandaHeader,
+    MoveStatusFr3, MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, RobotHeader,
+    SetCartesianImpedanceRequest, SetCartesianImpedanceRequestWithFr3Header,
     SetCartesianImpedanceRequestWithPandaHeader, SetCollisionBehaviorRequest,
-    SetCollisionBehaviorRequestWithFR3Header, SetCollisionBehaviorRequestWithPandaHeader,
-    SetEeToKRequest, SetEeToKRequestWithFR3Header, SetEeToKRequestWithPandaHeader,
-    SetGuidingModeRequest, SetGuidingModeRequestWithFR3Header,
+    SetCollisionBehaviorRequestWithFr3Header, SetCollisionBehaviorRequestWithPandaHeader,
+    SetEeToKRequest, SetEeToKRequestWithFr3Header, SetEeToKRequestWithPandaHeader,
+    SetGuidingModeRequest, SetGuidingModeRequestWithFr3Header,
     SetGuidingModeRequestWithPandaHeader, SetJointImpedanceRequest,
-    SetJointImpedanceRequestWithFR3Header, SetJointImpedanceRequestWithPandaHeader, SetLoadRequest,
-    SetLoadRequestWithFR3Header, SetLoadRequestWithPandaHeader, SetNeToEeRequest,
-    SetNeToEeRequestWithFR3Header, SetNeToEeRequestWithPandaHeader, StopMoveStatusFR3,
+    SetJointImpedanceRequestWithFr3Header, SetJointImpedanceRequestWithPandaHeader, SetLoadRequest,
+    SetLoadRequestWithFr3Header, SetLoadRequestWithPandaHeader, SetNeToEeRequest,
+    SetNeToEeRequestWithFr3Header, SetNeToEeRequestWithPandaHeader, StopMoveStatusFr3,
     StopMoveStatusPanda, FR3_VERSION, PANDA_VERSION,
 };
-use crate::robot::types::{AbstractRobotStateIntern, FR3StateIntern, PandaStateIntern};
-use crate::{FR3Model, PandaModel, RobotModel, RobotState};
+use crate::robot::types::{AbstractRobotStateIntern, Fr3StateIntern, PandaStateIntern};
+use crate::{Fr3Model, PandaModel, RobotModel, RobotState};
 
 const CLIENT: Token = Token(1);
 
 pub enum NetworkType {
     Panda,
-    FR3,
+    Fr3,
     Gripper,
 }
 
@@ -206,7 +206,7 @@ pub trait RobotData: DeviceData {
 
 pub struct PandaData {}
 
-pub struct FR3Data {}
+pub struct Fr3Data {}
 
 pub struct GripperData {}
 
@@ -430,15 +430,15 @@ impl RobotData for PandaData {
         }
     }
 }
-impl DeviceData for FR3Data {
-    type CommandHeader = FR3CommandHeader;
-    type CommandEnum = FR3CommandEnum;
+impl DeviceData for Fr3Data {
+    type CommandHeader = Fr3CommandHeader;
+    type CommandEnum = Fr3CommandEnum;
     fn create_header(
         command_id: &mut u32,
         command: Self::CommandEnum,
         size: usize,
     ) -> Self::CommandHeader {
-        let header = FR3CommandHeader::new(command, *command_id, size as u32);
+        let header = Fr3CommandHeader::new(command, *command_id, size as u32);
         *command_id += 1;
         header
     }
@@ -447,29 +447,29 @@ impl DeviceData for FR3Data {
         FR3_VERSION
     }
 }
-impl RobotData for FR3Data {
+impl RobotData for Fr3Data {
     type DeviceData = Self;
-    type Header = FR3CommandHeader;
+    type Header = Fr3CommandHeader;
     type State = RobotState;
-    type StateIntern = FR3StateIntern;
-    type Model = FR3Model;
-    type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFR3Header;
-    type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithFR3Header;
-    type SetLoadRequestWithHeader = SetLoadRequestWithFR3Header;
-    type SetJointImpedanceRequestWithHeader = SetJointImpedanceRequestWithFR3Header;
-    type SetCartesianImpedanceRequestWithHeader = SetCartesianImpedanceRequestWithFR3Header;
-    type SetGuidingModeRequestWithHeader = SetGuidingModeRequestWithFR3Header;
-    type ConnectRequestWithHeader = ConnectRequestWithFR3Header;
-    type SetEeToKRequestWithHeader = SetEeToKRequestWithFR3Header;
-    type SetNeToEeRequestWithHeader = SetNeToEeRequestWithFR3Header;
-    type MoveRequestWithHeader = MoveRequestWithFR3Header;
-    type MoveStatus = MoveStatusFR3;
+    type StateIntern = Fr3StateIntern;
+    type Model = Fr3Model;
+    type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFr3Header;
+    type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithFr3Header;
+    type SetLoadRequestWithHeader = SetLoadRequestWithFr3Header;
+    type SetJointImpedanceRequestWithHeader = SetJointImpedanceRequestWithFr3Header;
+    type SetCartesianImpedanceRequestWithHeader = SetCartesianImpedanceRequestWithFr3Header;
+    type SetGuidingModeRequestWithHeader = SetGuidingModeRequestWithFr3Header;
+    type ConnectRequestWithHeader = ConnectRequestWithFr3Header;
+    type SetEeToKRequestWithHeader = SetEeToKRequestWithFr3Header;
+    type SetNeToEeRequestWithHeader = SetNeToEeRequestWithFr3Header;
+    type MoveRequestWithHeader = MoveRequestWithFr3Header;
+    type MoveStatus = MoveStatusFr3;
 
-    type GetterSetterStatus = GetterSetterStatusFR3;
+    type GetterSetterStatus = GetterSetterStatusFr3;
 
-    type StopMoveStatus = StopMoveStatusFR3;
+    type StopMoveStatus = StopMoveStatusFr3;
 
-    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusFR3;
+    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusFr3;
     fn create_connect_request(
         command_id: &mut u32,
         udp_port: u16,
@@ -478,10 +478,10 @@ impl RobotData for FR3Data {
             version: FR3_VERSION,
             udp_port,
         };
-        ConnectRequestWithFR3Header {
+        ConnectRequestWithFr3Header {
             header: Self::create_header(
                 command_id,
-                FR3CommandEnum::Connect,
+                Fr3CommandEnum::Connect,
                 size_of::<Self::ConnectRequestWithHeader>(),
             ),
             request,
@@ -491,54 +491,54 @@ impl RobotData for FR3Data {
     fn create_automatic_error_recovery_request(command_id: &mut u32) -> Self::CommandHeader {
         Self::create_header(
             command_id,
-            FR3CommandEnum::AutomaticErrorRecovery,
-            size_of::<FR3CommandHeader>(),
+            Fr3CommandEnum::AutomaticErrorRecovery,
+            size_of::<Fr3CommandHeader>(),
         )
     }
 
     fn create_stop_request(command_id: &mut u32) -> Self::CommandHeader {
         Self::create_header(
             command_id,
-            FR3CommandEnum::StopMove,
-            size_of::<FR3CommandHeader>(),
+            Fr3CommandEnum::StopMove,
+            size_of::<Fr3CommandHeader>(),
         )
     }
 
     fn handle_command_move_status(status: Self::MoveStatus) -> Result<(), FrankaException> {
         match status {
-            MoveStatusFR3::Success => Ok(()),
-            MoveStatusFR3::MotionStarted => {
+            MoveStatusFr3::Success => Ok(()),
+            MoveStatusFr3::MotionStarted => {
             //todo handle motion_generator_running == true
             Ok(())
             }
-            MoveStatusFR3::EmergencyAborted => Err(create_command_exception(
+            MoveStatusFr3::EmergencyAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: User Stop pressed!",
             )),
-            MoveStatusFR3::ReflexAborted => Err(create_command_exception(
+            MoveStatusFr3::ReflexAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: motion aborted by reflex!",
             )),
-            MoveStatusFR3::InputErrorAborted => Err(create_command_exception(
+            MoveStatusFr3::InputErrorAborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted: invalid input provided!",
             )),
-            MoveStatusFR3::CommandNotPossibleRejected => Err(create_command_exception(
+            MoveStatusFr3::CommandNotPossibleRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: command not possible in the current mode!",
             )),
-            MoveStatusFR3::StartAtSingularPoseRejected => Err(create_command_exception(
+            MoveStatusFr3::StartAtSingularPoseRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: cannot start at singular pose!",
             )),
-            MoveStatusFR3::InvalidArgumentRejected => Err(create_command_exception(
+            MoveStatusFr3::InvalidArgumentRejected => Err(create_command_exception(
             "libfranka-rs: Move command rejected: maximum path deviation out of range!",
             )),
-            MoveStatusFR3::Preempted => Err(create_command_exception(
+            MoveStatusFr3::Preempted => Err(create_command_exception(
             "libfranka-rs: Move command preempted!",
             )),
-            MoveStatusFR3::Aborted => Err(create_command_exception(
+            MoveStatusFr3::Aborted => Err(create_command_exception(
             "libfranka-rs: Move command aborted!",
             )),
-            MoveStatusFR3::PreemptedDueToActivatedSafetyFunctions =>Err(create_command_exception(
+            MoveStatusFr3::PreemptedDueToActivatedSafetyFunctions =>Err(create_command_exception(
                 "libfranka-rs: Move command preempted due to activated safety function! Please disable all safety functions.",
             )),
-            MoveStatusFR3::CommandRejectedDueToActivatedSafetyFunctions =>
+            MoveStatusFr3::CommandRejectedDueToActivatedSafetyFunctions =>
                 Err(create_command_exception(
                     "libfranka-rs: Move command rejected due to activated safety function! Please disable all safety functions.",
                 ))
@@ -554,7 +554,7 @@ impl RobotData for FR3Data {
         log: Vec<Record<Self::State>>,
     ) -> FrankaException {
         let mut exception_string = String::from(&message);
-        if move_status == MoveStatusFR3::ReflexAborted {
+        if move_status == MoveStatusFr3::ReflexAborted {
             exception_string += " ";
             exception_string += reflex_reasons.to_string().as_str();
             if log.len() >= 2 {
@@ -587,7 +587,7 @@ impl RobotData for FR3Data {
         reflex_reasons: &FrankaErrors,
         log: Vec<Record<Self::State>>,
     ) -> FrankaResult<()> {
-        if move_status == MoveStatusFR3::ReflexAborted {
+        if move_status == MoveStatusFr3::ReflexAborted {
             return Err(Self::create_control_exception(
                 message,
                 move_status,
@@ -600,14 +600,14 @@ impl RobotData for FR3Data {
 
     fn handle_getter_setter_status(status: Self::GetterSetterStatus) -> FrankaResult<()> {
         match status {
-                GetterSetterStatusFR3::Success => Ok(()),
-                GetterSetterStatusFR3::CommandNotPossibleRejected => Err(create_command_exception(
+                GetterSetterStatusFr3::Success => Ok(()),
+                GetterSetterStatusFr3::CommandNotPossibleRejected => Err(create_command_exception(
                     "libfranka-rs: command rejected: command not possible in current mode",
                 )),
-                GetterSetterStatusFR3::InvalidArgumentRejected => Err(create_command_exception(
+                GetterSetterStatusFr3::InvalidArgumentRejected => Err(create_command_exception(
                     "libfranka-rs: command rejected: invalid argument!",
                 )),
-                GetterSetterStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
+                GetterSetterStatusFr3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
                     "libfranka-rs: command rejected due to activated safety function! Please disable all safety functions.",
                 )),
             }
@@ -617,27 +617,27 @@ impl RobotData for FR3Data {
         status: Self::AutomaticErrorRecoveryStatus,
     ) -> FrankaResult<()> {
         match &status {
-            AutomaticErrorRecoveryStatusFR3::Success => Ok(()),
-            AutomaticErrorRecoveryStatusFR3::EmergencyAborted => Err(create_command_exception(
+            AutomaticErrorRecoveryStatusFr3::Success => Ok(()),
+            AutomaticErrorRecoveryStatusFr3::EmergencyAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: User Stop pressed!",
             )),
-            AutomaticErrorRecoveryStatusFR3::ReflexAborted => Err(create_command_exception(
+            AutomaticErrorRecoveryStatusFr3::ReflexAborted => Err(create_command_exception(
                 "libfranka-rs: command aborted: motion aborted by reflex!",
             )),
-            AutomaticErrorRecoveryStatusFR3::CommandNotPossibleRejected => {
+            AutomaticErrorRecoveryStatusFr3::CommandNotPossibleRejected => {
                 Err(create_command_exception(
                     "libfranka-rs: command rejected: command not possible in current mode",
                 ))
             }
-            AutomaticErrorRecoveryStatusFR3::ManualErrorRecoveryRequiredRejected => {
+            AutomaticErrorRecoveryStatusFr3::ManualErrorRecoveryRequiredRejected => {
                 Err(create_command_exception(
                     "libfranka-rs: command rejected: manual error recovery required!",
                 ))
             }
-            AutomaticErrorRecoveryStatusFR3::Aborted => {
+            AutomaticErrorRecoveryStatusFr3::Aborted => {
                 Err(create_command_exception("libfranka-rs: command aborted!"))
             }
-            AutomaticErrorRecoveryStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
+            AutomaticErrorRecoveryStatusFr3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
                 "libfranka-rs: command rejected due to activated safety function! Please disable all safety functions.",
             )),
         }
@@ -647,20 +647,20 @@ impl RobotData for FR3Data {
         status: Self::StopMoveStatus,
     ) -> Result<(), FrankaException> {
         match status {
-            StopMoveStatusFR3::Success => Ok(()),
-            StopMoveStatusFR3::EmergencyAborted => Err(create_command_exception(
+            StopMoveStatusFr3::Success => Ok(()),
+            StopMoveStatusFr3::EmergencyAborted => Err(create_command_exception(
                 "libfranka-rs: Stop command aborted: User Stop pressed!",
             )),
-            StopMoveStatusFR3::ReflexAborted => Err(create_command_exception(
+            StopMoveStatusFr3::ReflexAborted => Err(create_command_exception(
                 "libfranka-rs: Stop command aborted: motion aborted by reflex!",
             )),
-            StopMoveStatusFR3::CommandNotPossibleRejected => Err(create_command_exception(
+            StopMoveStatusFr3::CommandNotPossibleRejected => Err(create_command_exception(
                 "libfranka-rs: Stop command rejected: command not possible in the current mode!",
             )),
-            StopMoveStatusFR3::Aborted => Err(create_command_exception(
+            StopMoveStatusFr3::Aborted => Err(create_command_exception(
                 "libfranka-rs: Stop command aborted!",
             )),
-            StopMoveStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
+            StopMoveStatusFr3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
                 "libfranka-rs: Move command rejected due to activated safety function! Please disable all safety functions.",
             ))
         }

@@ -9,8 +9,8 @@ use clap::Parser;
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 
 use franka::{
-    array_to_isometry, Frame, FrankaResult, Matrix6x7, Matrix7, Panda, RobotModel, RobotState,
-    RobotWrapper, Torques, Vector7, FR3,
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Matrix7, Panda, RobotModel, RobotState,
+    RobotWrapper, Torques, Vector7,
 };
 
 /// An example where one robot is guided by the user and the other robot acts as a mirror. In this
@@ -46,7 +46,7 @@ fn main() -> FrankaResult<()> {
             initialize_and_start_robots(&args, robot_user)
         }
         false => {
-            let robot_user = FR3::new(args.franka_ip_user.as_str(), None, None)?;
+            let robot_user = Fr3::new(args.franka_ip_user.as_str(), None, None)?;
             initialize_and_start_robots(&args, robot_user)
         }
     }
@@ -62,7 +62,7 @@ fn initialize_and_start_robots<User: RobotWrapper + Send + 'static>(
             control_robots(robot_user, robot_mirror)
         }
         false => {
-            let robot_mirror = FR3::new(args.franka_ip_mirror.as_str(), None, None)?;
+            let robot_mirror = Fr3::new(args.franka_ip_mirror.as_str(), None, None)?;
             control_robots(robot_user, robot_mirror)
         }
     }

@@ -91,7 +91,7 @@ pub struct PandaStateIntern {
     pub control_command_success_rate: f64,
 }
 
-pub type FR3StateIntern = PandaStateIntern;
+pub type Fr3StateIntern = PandaStateIntern;
 
 pub trait AbstractRobotStateIntern: Copy + Clone + PartialEq {
     fn get_message_id(&self) -> u64;

@@ -8,7 +8,7 @@ use std::time::Duration;
 use std::fmt::Debug;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::network::{FR3Data, Network, PandaData, RobotData};
+use crate::network::{Fr3Data, Network, PandaData, RobotData};
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, JointPositions,
@@ -54,9 +54,9 @@ pub trait RobotWrapper {
     ///
     /// This minimal example will print the robot state 100 times:
     /// ```no_run
-    /// use franka::{FR3, RobotState, RobotWrapper, FrankaResult};
+    /// use franka::{Fr3, RobotState, RobotWrapper, FrankaResult};
     /// fn main() -> FrankaResult<()> {
-    ///     let mut robot = FR3::new("robotik-bs.de",None,None)?;
+    ///     let mut robot = Fr3::new("robotik-bs.de",None,None)?;
     ///     let mut count = 0;
     ///     robot.read(| robot_state:&RobotState | -> bool {
     ///         println!("{:?}", robot_state);
@@ -1168,10 +1168,10 @@ impl PrivateRobot for Panda {
     }
 }
 
-pub struct FR3 {
-    robimpl: RobotImplGeneric<FR3Data>,
+pub struct Fr3 {
+    robimpl: RobotImplGeneric<Fr3Data>,
 }
-impl PrivateRobot for FR3 {
+impl PrivateRobot for Fr3 {
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
@@ -1183,17 +1183,17 @@ impl PrivateRobot for FR3 {
         &mut self.robimpl.network
     }
 }
-impl Robot for FR3 {
-    type Data = FR3Data;
+impl Robot for Fr3 {
+    type Data = Fr3Data;
     type Rob = RobotImplGeneric<Self::Data>;
 }
 
-impl FR3 {
+impl Fr3 {
     pub fn new<RtConfig: Into<Option<RealtimeConfig>>, LogSize: Into<Option<usize>>>(
         franka_address: &str,
         realtime_config: RtConfig,
         log_size: LogSize,
-    ) -> FrankaResult<FR3> {
+    ) -> FrankaResult<Fr3> {
         let realtime_config = realtime_config.into().unwrap_or(RealtimeConfig::Enforce);
         let log_size = log_size.into().unwrap_or(50);
         let network = Network::new(franka_address, service_types::COMMAND_PORT).map_err(|_| {
@@ -1201,8 +1201,8 @@ impl FR3 {
                 message: "Connection could not be established".to_string(),
             }
         })?;
-        Ok(FR3 {
-            robimpl: <FR3 as Robot>::Rob::new(network, log_size, realtime_config)?,
+        Ok(Fr3 {
+            robimpl: <Fr3 as Robot>::Rob::new(network, log_size, realtime_config)?,
         })
     }
 }
@@ -1339,15 +1339,15 @@ mod tests {
     use crate::exception::FrankaException;
     use crate::network::MessageCommand;
     use crate::robot::service_types::{
-        ConnectRequestWithPandaHeader, ConnectResponsePanda, ConnectStatus, FR3CommandEnum,
-        FR3CommandHeader, GetterSetterStatusPanda, MoveControllerMode, MoveDeviation,
+        ConnectRequestWithPandaHeader, ConnectResponsePanda, ConnectStatus, Fr3CommandEnum,
+        Fr3CommandHeader, GetterSetterStatusPanda, MoveControllerMode, MoveDeviation,
         MoveMotionGeneratorMode, MoveRequest, MoveRequestWithPandaHeader, MoveStatusPanda,
         PandaCommandEnum, PandaCommandHeader, SetCollisionBehaviorRequest,
-        SetCollisionBehaviorRequestWithFR3Header, SetCollisionBehaviorRequestWithPandaHeader,
-        SetterResponseFR3, COMMAND_PORT, FR3_VERSION,
+        SetCollisionBehaviorRequestWithFr3Header, SetCollisionBehaviorRequestWithPandaHeader,
+        SetterResponseFr3, COMMAND_PORT, FR3_VERSION,
     };
     use crate::robot::types::PandaStateIntern;
-    use crate::robot::{RobotWrapper, FR3};
+    use crate::robot::{Fr3, RobotWrapper};
     use crate::{FrankaResult, JointPositions, MotionFinished, Panda, RealtimeConfig, RobotState};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
@@ -1534,11 +1534,11 @@ mod tests {
                   lower_force_thresholds_nominal: [f64; 6],
                   upper_force_thresholds_nominal: [f64; 6]| {
                 counter += 1;
-                SetCollisionBehaviorRequestWithFR3Header {
-                    header: FR3CommandHeader::new(
-                        FR3CommandEnum::SetCollisionBehavior,
+                SetCollisionBehaviorRequestWithFr3Header {
+                    header: Fr3CommandHeader::new(
+                        Fr3CommandEnum::SetCollisionBehavior,
                         counter,
-                        size_of::<SetCollisionBehaviorRequestWithFR3Header>() as u32,
+                        size_of::<SetCollisionBehaviorRequestWithFr3Header>() as u32,
                     ),
                     request: SetCollisionBehaviorRequest::new(
                         lower_torque_thresholds_acceleration,
@@ -1577,9 +1577,9 @@ mod tests {
                     let req: SetCollisionBehaviorRequestWithPandaHeader =
                         deserialize(&bytes).unwrap();
                     counter += 1;
-                    let mut response = SetterResponseFR3 {
-                        header: FR3CommandHeader::new(
-                            FR3CommandEnum::SetCollisionBehavior,
+                    let mut response = SetterResponseFr3 {
+                        header: Fr3CommandHeader::new(
+                            Fr3CommandEnum::SetCollisionBehavior,
                             req.header.command_id,
                             0,
                         ),
@@ -1594,7 +1594,7 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = FR3::new("127.0.0.1", None, None).expect("robot failure");
+            let mut robot = Fr3::new("127.0.0.1", None, None).expect("robot failure");
             assert_eq!(robot.server_version(), FR3_VERSION);
             for (a, b, c, d, e, f, g, h) in collision_behavior_request_values.iter() {
                 robot
@@ -1662,7 +1662,7 @@ mod tests {
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut robot =
-                FR3::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
+                Fr3::new("127.0.0.1", RealtimeConfig::Ignore, None).expect("robot failure");
             let mut counter = 0;
             let result = robot.control_joint_positions(
                 |_, _| {
@@ -1727,7 +1727,7 @@ mod tests {
 
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = FR3::new("127.0.0.1", None, None)?;
+            let mut robot = Fr3::new("127.0.0.1", None, None)?;
             let _state = robot.read_once().unwrap();
         }
         thread.join().unwrap();
@@ -1746,7 +1746,7 @@ mod tests {
         });
         {
             std::thread::sleep(Duration::from_secs_f64(0.01));
-            let mut robot = FR3::new("127.0.0.1", None, None)?;
+            let mut robot = Fr3::new("127.0.0.1", None, None)?;
             let mut counter = 0;
             let mut first_time = true;
             let mut start_counter = 0;

@@ -7,7 +7,7 @@ use std::time::Duration;
 use clap::Parser;
 
 use franka::exception::FrankaException;
-use franka::{FrankaResult, JointVelocities, MotionFinished, Panda, RobotState, RobotWrapper, FR3};
+use franka::{Fr3, FrankaResult, JointVelocities, MotionFinished, Panda, RobotState, RobotWrapper};
 
 /// An example showing how to execute consecutive motions with error recovery.
 ///
@@ -31,7 +31,7 @@ fn main() -> FrankaResult<()> {
             generate_motion(robot)
         }
         false => {
-            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
     }

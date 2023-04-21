@@ -3,7 +3,7 @@
 use clap::Parser;
 use nalgebra::Matrix4;
 
-use franka::{Frame, FrankaResult, Panda, RobotModel, RobotWrapper, FR3};
+use franka::{Fr3, Frame, FrankaResult, Panda, RobotModel, RobotWrapper};
 
 /// An example showing how to use the model library that prints the transformation
 /// matrix of each joint with respect to the base frame.
@@ -25,7 +25,7 @@ fn main() -> FrankaResult<()> {
             generate_motion(robot)
         }
         false => {
-            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
     }

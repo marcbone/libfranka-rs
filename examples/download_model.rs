@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use franka::exception::FrankaException::ModelException;
-use franka::{FrankaResult, Panda, RealtimeConfig, RobotWrapper, FR3};
+use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, RobotWrapper};
 
 /// Downloads the model for offline usage
 #[derive(Parser, Debug)]
@@ -34,7 +34,7 @@ fn main() -> FrankaResult<()> {
             download_model(robot, path)
         }
         false => {
-            let robot = FR3::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
+            let robot = Fr3::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
             download_model(robot, path)
         }
     }

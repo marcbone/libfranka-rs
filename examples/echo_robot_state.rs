@@ -3,7 +3,7 @@
 
 use clap::Parser;
 
-use franka::{FrankaResult, Panda, RobotState, RobotWrapper, FR3};
+use franka::{Fr3, FrankaResult, Panda, RobotState, RobotWrapper};
 
 /// An example showing how to continuously read the robot state.
 #[derive(Parser, Debug)]
@@ -24,7 +24,7 @@ fn main() -> FrankaResult<()> {
             echo_robot_state(robot)
         }
         false => {
-            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
             echo_robot_state(robot)
         }
     }

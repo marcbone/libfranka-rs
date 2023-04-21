@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{FrankaResult, JointPositions, MotionFinished, Panda, RobotState, RobotWrapper, FR3};
+use franka::{Fr3, FrankaResult, JointPositions, MotionFinished, Panda, RobotState, RobotWrapper};
 
 /// An example showing how to generate a joint position motion.
 ///
@@ -29,7 +29,7 @@ fn main() -> FrankaResult<()> {
             generate_motion(robot)
         }
         false => {
-            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
     }

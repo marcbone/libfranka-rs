@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, Torques, FR3};
+use franka::{Fr3, FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, Torques};
 
 /// An example indicating the network performance.
 ///
@@ -28,7 +28,7 @@ fn main() -> FrankaResult<()> {
             generate_motion(robot)
         }
         false => {
-            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            let robot = Fr3::new(address.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
     }

@@ -23,9 +23,9 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, RobotWrapper, RobotState, FR3, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, RobotWrapper, RobotState, Fr3, FrankaResult};
 //! fn main() -> FrankaResult<()> {
-//! let mut robot = FR3::new("robotik-bs.de", None, None)?;
+//! let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
 //!     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
 //!                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -60,9 +60,9 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, FR3, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! let mut robot = FR3::new("robotik-bs.de", None, None)?;
+//! let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -80,9 +80,9 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, FR3, RobotWrapper, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, RobotWrapper, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = FR3::new("robotik-bs.de", None, None)?;
+//! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 //! robot.joint_motion(0.5, &q_goal)?;
 //! # Ok(())
@@ -150,12 +150,12 @@
 //! and returns JointPositions.
 //!
 //! With this callback we can now control the joint positions of the robot:
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, FR3, RobotWrapper, RobotState, FrankaResult};
+//! # use franka::{JointPositions, Fr3, RobotWrapper, RobotState, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = FR3::new("robotik-bs.de", None, None)?;
+//! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! # let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {JointPositions::new([0.;7])};
 //! robot.control_joint_positions(callback, None, None, None)
 //! # }
@@ -174,7 +174,7 @@ pub mod utils;
 pub use exception::FrankaResult;
 pub use gripper::gripper_state::GripperState;
 pub use gripper::Gripper;
-pub use model::FR3Model;
+pub use model::Fr3Model;
 pub use model::Frame;
 pub use model::PandaModel;
 pub use model::RobotModel;
@@ -183,7 +183,7 @@ pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
 pub use robot::robot_state::RobotState;
+pub use robot::Fr3;
 pub use robot::Panda;
 pub use robot::RobotWrapper;
-pub use robot::FR3;
 pub use utils::*;
