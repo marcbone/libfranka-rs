@@ -1,16 +1,12 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-use clap::Parser;
-use franka::model::RobotModel;
-use franka::robot::{RobotWrapper, FR3};
-use franka::{
-    CartesianPose, CartesianVelocities, ConvertMotion, Frame, JointPositions, JointVelocities,
-    Panda, RobotData, RobotState,
-};
-use franka::{Finishable, FrankaResult};
 use std::f64::consts::PI;
 use std::time::Duration;
+
+use clap::Parser;
+
+use franka::{CartesianPose, Finishable, FrankaResult, Panda, RobotState, RobotWrapper, FR3};
 
 /// An example showing how to generate a Cartesian motion.
 ///
@@ -24,6 +20,20 @@ struct CommandLineArguments {
     /// Use this option to run the example on a Panda
     #[clap(short, long, action)]
     pub panda: bool,
+}
+
+fn main() -> FrankaResult<()> {
+    let args = CommandLineArguments::parse();
+    match args.panda {
+        true => {
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
 }
 
 fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
@@ -69,18 +79,4 @@ fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
         out
     };
     robot.control_cartesian_pose(callback, None, None, None)
-}
-
-fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    match address.panda {
-        true => {
-            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
-            generate_motion(robot)
-        }
-        false => {
-            let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
-            generate_motion(robot)
-        }
-    }
 }

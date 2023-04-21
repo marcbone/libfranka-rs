@@ -27,7 +27,7 @@ use crate::robot::service_types::{
 };
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::utils::MotionGenerator;
-use crate::{FR3Model, Finishable, PandaModel, RobotModel, RobotState};
+use crate::{Finishable, RobotModel, RobotState};
 
 mod control_loop;
 mod control_tools;

@@ -184,4 +184,6 @@ pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
 pub use robot::robot_state::RobotState;
 pub use robot::Panda;
+pub use robot::RobotWrapper;
+pub use robot::FR3;
 pub use utils::*;

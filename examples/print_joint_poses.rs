@@ -1,9 +1,9 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 use clap::Parser;
-use franka::robot::{Robot, RobotWrapper, FR3};
-use franka::{Frame, FrankaResult, RealtimeConfig, RobotModel};
 use nalgebra::Matrix4;
+
+use franka::{Frame, FrankaResult, Panda, RobotModel, RobotWrapper, FR3};
 
 /// An example showing how to use the model library that prints the transformation
 /// matrix of each joint with respect to the base frame.
@@ -12,11 +12,26 @@ use nalgebra::Matrix4;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
-    let mut robot = FR3::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
+    match args.panda {
+        true => {
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
+}
+
+fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
     let model = robot.load_model(false)?;
     let state = robot.read_once()?;
     let frames = vec![

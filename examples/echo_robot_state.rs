@@ -2,8 +2,8 @@
 // Licensed under the EUPL-1.2-or-later
 
 use clap::Parser;
-use franka::robot::{Robot, RobotWrapper, FR3};
-use franka::{FrankaResult, RobotState};
+
+use franka::{FrankaResult, Panda, RobotState, RobotWrapper, FR3};
 
 /// An example showing how to continuously read the robot state.
 #[derive(Parser, Debug)]
@@ -11,11 +11,26 @@ use franka::{FrankaResult, RobotState};
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
 fn main() -> FrankaResult<()> {
-    // let address = CommandLineArguments::parse();
-    let mut robot = FR3::new("172.116.0.5", None, None)?;
+    let args = CommandLineArguments::parse();
+    match args.panda {
+        true => {
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
+            echo_robot_state(robot)
+        }
+        false => {
+            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
+            echo_robot_state(robot)
+        }
+    }
+}
+
+fn echo_robot_state<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
     robot.set_collision_behavior(
         [0.; 7], [0.; 7], [0.; 7], [0.; 7], [0.; 6], [0.; 6], [0.; 6], [0.; 6],
     )?;

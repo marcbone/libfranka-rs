@@ -1,8 +1,10 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-use clap::Parser;
-use franka::{FrankaResult, Gripper};
 use std::time::Duration;
+
+use clap::Parser;
+
+use franka::{FrankaResult, Gripper};
 
 /// An example showing how to control FRANKA's gripper.
 #[derive(Parser, Debug)]

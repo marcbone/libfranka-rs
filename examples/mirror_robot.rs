@@ -1,17 +1,17 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-use clap::Parser;
+
 use core::f64::consts::PI;
-use franka::exception::FrankaResult;
-use franka::model::Frame;
-use franka::robot::control_types::Torques;
-use franka::robot::{Robot, RobotWrapper, FR3};
-use franka::utils::{array_to_isometry, Matrix6x7, Vector7};
-use franka::RobotState;
-use franka::{Matrix7, RobotModel};
-use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 use std::sync::mpsc::channel;
 use std::time::Duration;
+
+use clap::Parser;
+use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
+
+use franka::{
+    array_to_isometry, Frame, FrankaResult, Matrix6x7, Matrix7, Panda, RobotModel, RobotState,
+    RobotWrapper, Torques, Vector7, FR3,
+};
 
 /// An example where one robot is guided by the user and the other robot acts as a mirror. In this
 /// case mirror does not mean equal joint positions. Instead, it acts like a real physical mirror that
@@ -27,11 +27,51 @@ struct CommandLineArguments {
     /// IP-Address or hostname of the robot which mirrors the movement
     #[clap(long)]
     pub franka_ip_mirror: String,
+
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda_user: bool,
+
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda_mirror: bool,
 }
 
 const NULLSPACE_TORQUE_SCALING: f64 = 5.;
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
+    match args.panda_user {
+        true => {
+            let robot_user = Panda::new(args.franka_ip_user.as_str(), None, None)?;
+            initialize_and_start_robots(&args, robot_user)
+        }
+        false => {
+            let robot_user = FR3::new(args.franka_ip_user.as_str(), None, None)?;
+            initialize_and_start_robots(&args, robot_user)
+        }
+    }
+}
+
+fn initialize_and_start_robots<User: RobotWrapper + Send + 'static>(
+    args: &CommandLineArguments,
+    robot_user: User,
+) -> FrankaResult<()> {
+    match args.panda_mirror {
+        true => {
+            let robot_mirror = Panda::new(args.franka_ip_mirror.as_str(), None, None)?;
+            control_robots(robot_user, robot_mirror)
+        }
+        false => {
+            let robot_mirror = FR3::new(args.franka_ip_mirror.as_str(), None, None)?;
+            control_robots(robot_user, robot_mirror)
+        }
+    }
+}
+
+fn control_robots<User: RobotWrapper + Send + 'static, Mirror: RobotWrapper>(
+    mut robot_user: User,
+    mut robot_mirror: Mirror,
+) -> FrankaResult<()> {
     let translational_stiffness = 400.;
     let rotational_stiffness = 50.;
 
@@ -50,8 +90,6 @@ fn main() -> FrankaResult<()> {
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot_user = FR3::new(args.franka_ip_user.as_str(), None, None)?;
-    let mut robot_mirror = FR3::new(args.franka_ip_mirror.as_str(), None, None)?;
     let model = robot_mirror.load_model(true)?;
     robot_mirror.set_collision_behavior(
         [100.; 7], [100.; 7], [100.; 7], [100.; 7], [100.; 6], [100.; 6], [100.; 6], [100.; 6],

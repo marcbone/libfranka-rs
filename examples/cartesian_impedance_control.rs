@@ -1,15 +1,15 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-use clap::Parser;
-use franka::robot::robot_state::RobotState;
-use franka::robot::{Panda, RobotWrapper, FR3};
-use franka::FrankaResult;
-use franka::Torques;
-use franka::{array_to_isometry, Matrix6x7, Vector7};
-use franka::{Frame, RobotModel};
-use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 use std::time::Duration;
+
+use clap::Parser;
+use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
+
+use franka::{
+    array_to_isometry, Frame, FrankaResult, Matrix6x7, Panda, RobotModel, RobotState, RobotWrapper,
+    Torques, Vector7, FR3,
+};
 
 /// An example showing a simple cartesian impedance controller without inertia shaping
 /// that renders a spring damper system where the equilibrium is the initial configuration.
@@ -28,14 +28,14 @@ struct CommandLineArguments {
 }
 
 fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    match address.panda {
+    let args = CommandLineArguments::parse();
+    match args.panda {
         true => {
-            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
         false => {
-            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            let robot = FR3::new(args.franka_ip.as_str(), None, None)?;
             generate_motion(robot)
         }
     }
