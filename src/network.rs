@@ -26,30 +26,19 @@ use nix::sys::socket::sockopt::{KeepAlive, TcpKeepCount, TcpKeepIdle, TcpKeepInt
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::exception::{create_command_exception, FrankaException, FrankaResult};
+use crate::exception::{FrankaException, FrankaResult};
 use crate::gripper::types::{
-    CommandHeader, GripperCommandEnum, GripperCommandHeader, GRIPPER_VERSION,
+    CommandHeader,
 };
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
-    AutomaticErrorRecoveryStatusFr3, AutomaticErrorRecoveryStatusPanda, ConnectRequest,
-    ConnectRequestWithFr3Header, ConnectRequestWithPandaHeader, Fr3CommandEnum, Fr3CommandHeader,
-    GetterSetterStatusFr3, GetterSetterStatusPanda, LoadModelLibraryRequest,
-    LoadModelLibraryRequestWithFr3Header, LoadModelLibraryRequestWithPandaHeader,
-    LoadModelLibraryStatus, MoveRequest, MoveRequestWithFr3Header, MoveRequestWithPandaHeader,
-    MoveStatusFr3, MoveStatusPanda, PandaCommandEnum, PandaCommandHeader, RobotHeader,
-    SetCartesianImpedanceRequest, SetCartesianImpedanceRequestWithFr3Header,
-    SetCartesianImpedanceRequestWithPandaHeader, SetCollisionBehaviorRequest,
-    SetCollisionBehaviorRequestWithFr3Header, SetCollisionBehaviorRequestWithPandaHeader,
-    SetEeToKRequest, SetEeToKRequestWithFr3Header, SetEeToKRequestWithPandaHeader,
-    SetGuidingModeRequest, SetGuidingModeRequestWithFr3Header,
-    SetGuidingModeRequestWithPandaHeader, SetJointImpedanceRequest,
-    SetJointImpedanceRequestWithFr3Header, SetJointImpedanceRequestWithPandaHeader, SetLoadRequest,
-    SetLoadRequestWithFr3Header, SetLoadRequestWithPandaHeader, SetNeToEeRequest,
-    SetNeToEeRequestWithFr3Header, SetNeToEeRequestWithPandaHeader, StopMoveStatusFr3,
-    StopMoveStatusPanda, FR3_VERSION, PANDA_VERSION,
+    ConnectRequest, LoadModelLibraryRequest,
+    LoadModelLibraryStatus, MoveRequest, PandaCommandEnum, PandaCommandHeader, RobotHeader,
+    SetCartesianImpedanceRequest, SetCollisionBehaviorRequest,
+    SetEeToKRequest,
+    SetGuidingModeRequest, SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest,
 };
 use crate::robot::types::AbstractRobotStateIntern;
 use crate::{RobotModel, RobotState};

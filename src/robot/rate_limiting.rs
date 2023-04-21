@@ -504,7 +504,7 @@ mod tests {
         eps: f64,
         delta_t: f64,
     ) -> [f64; 6] {
-        let mut result = last_cmd_values.clone();
+        let mut result = *last_cmd_values;
         result[0] += (max_translational_derivative
             - f64::min(
                 f64::max(f64::abs(eps), 0.),
@@ -527,7 +527,7 @@ mod tests {
         eps: f64,
         delta_t: f64,
     ) -> [f64; 6] {
-        let mut result = last_cmd_values.clone();
+        let mut result = *last_cmd_values;
         result[0] += (max_translational_derivative + f64::max(f64::abs(eps), LIMIT_EPS)) * delta_t;
         result[3] += (max_rotational_derivative + f64::max(f64::abs(eps), LIMIT_EPS)) * delta_t;
         result

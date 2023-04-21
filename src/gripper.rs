@@ -272,7 +272,7 @@ mod tests {
                 },
                 receive_bytes: |bytes| {
                     let mut soc = tcp_socket.lock().unwrap();
-                    let mut buffer = vec![0 as u8; 100];
+                    let mut buffer = vec![0_u8; 100];
                     let num_bytes = soc.read(&mut buffer).unwrap();
                     buffer.resize(num_bytes, 0);
                     assert_eq!(buffer.len(), num_bytes);
@@ -347,7 +347,7 @@ mod tests {
             F: Fn(&Vec<u8>),
             G: Fn(&mut Vec<u8>),
         {
-            let mut bytes = vec![0 as u8; 100];
+            let mut bytes = vec![0_u8; 100];
             (tcp_socket.receive_bytes)(&mut bytes);
             let response = reaction.process_received_bytes(&mut bytes);
             (tcp_socket.send_bytes)(&response);
@@ -356,10 +356,10 @@ mod tests {
             &self,
             tcp_socket: &mut Socket<F, G>,
         ) -> ConnectRequestWithHeader {
-            let mut bytes = vec![0 as u8; 100];
+            let mut bytes = vec![0_u8; 100];
             (tcp_socket.receive_bytes)(&mut bytes);
             let request: ConnectRequestWithHeader = deserialize(bytes.as_slice()).unwrap();
-            return request;
+            request
         }
         fn send_gripper_connect_response<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)>(
             &self,
@@ -406,7 +406,7 @@ mod tests {
                 .map(|(x, y)| generate_move_request(*x, *y)),
         ));
 
-        let requests_server = requests.clone();
+        let requests_server = requests;
         let thread = std::thread::spawn(|| {
             let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
@@ -421,7 +421,7 @@ mod tests {
                         .iter()
                         .zip(serialized_expected_request.iter())
                         .for_each(|(x, y)| assert_eq!(x, y));
-                    let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: MoveRequestWithHeader = deserialize(bytes).unwrap();
                     counter += 1;
                     let mut response = GripperResponse {
                         header: GripperCommandHeader::new(
@@ -457,7 +457,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
-                    let req: GripperCommandHeader = deserialize(&bytes).unwrap();
+                    let req: GripperCommandHeader = deserialize(bytes).unwrap();
                     match req.command {
                         GripperCommandEnum::Stop => {}
                         _ => {
@@ -476,7 +476,7 @@ mod tests {
                     serialize(&response).unwrap()
                 })
                 .times(1);
-            mock.expect_number_of_reactions().return_const(1 as usize);
+            mock.expect_number_of_reactions().return_const(1_usize);
             mock_gripper.server_thread(&mut mock);
         });
         {
@@ -495,7 +495,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
-                    let req: GripperCommandHeader = deserialize(&bytes).unwrap();
+                    let req: GripperCommandHeader = deserialize(bytes).unwrap();
                     match req.command {
                         GripperCommandEnum::Homing => {}
                         _ => {
@@ -514,7 +514,7 @@ mod tests {
                     serialize(&response).unwrap()
                 })
                 .times(1);
-            mock.expect_number_of_reactions().return_const(1 as usize);
+            mock.expect_number_of_reactions().return_const(1_usize);
             mock_gripper.server_thread(&mut mock);
         });
         {
@@ -551,7 +551,7 @@ mod tests {
                 |(a, b, c, d, e)| generate_grasp_request(*a, *b, *c, *d, *e),
             )));
 
-        let requests_server = requests.clone();
+        let requests_server = requests;
         let thread = std::thread::spawn(|| {
             let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
             let mut mock = MockServerReaction::default();
@@ -566,7 +566,7 @@ mod tests {
                         .iter()
                         .zip(serialized_expected_request.iter())
                         .for_each(|(x, y)| assert_eq!(x, y));
-                    let req: MoveRequestWithHeader = deserialize(&bytes).unwrap();
+                    let req: MoveRequestWithHeader = deserialize(bytes).unwrap();
                     counter += 1;
                     let mut response = GripperResponse {
                         header: GripperCommandHeader::new(
@@ -609,7 +609,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
-            mock.expect_number_of_reactions().return_const(0 as usize);
+            mock.expect_number_of_reactions().return_const(0_usize);
             mock_gripper.server_thread(&mut mock);
         });
         let gripper_result;
@@ -638,7 +638,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
-            mock.expect_number_of_reactions().return_const(0 as usize);
+            mock.expect_number_of_reactions().return_const(0_usize);
             server.server_thread(&mut mock);
         });
         {

@@ -99,7 +99,7 @@ mod tests {
                 },
                 receive_bytes: |bytes| {
                     let mut soc = tcp_socket.lock().unwrap();
-                    let mut buffer = vec![0 as u8; 3000];
+                    let mut buffer = vec![0_u8; 3000];
                     let num_bytes = soc.read(&mut buffer).unwrap();
                     buffer.resize(num_bytes, 0);
                     assert_eq!(buffer.len(), num_bytes);
@@ -169,7 +169,7 @@ mod tests {
             F: Fn(&Vec<u8>),
             G: Fn(&mut Vec<u8>),
         {
-            let mut bytes = vec![0 as u8; 100];
+            let mut bytes = vec![0_u8; 100];
             (tcp_socket.receive_bytes)(&mut bytes);
             let response = reaction.process_received_bytes(&mut bytes);
             (tcp_socket.send_bytes)(&response);
@@ -178,10 +178,10 @@ mod tests {
             &self,
             tcp_socket: &mut Socket<F, G>,
         ) -> ConnectRequestWithPandaHeader {
-            let mut bytes = vec![0 as u8; 100];
+            let mut bytes = vec![0_u8; 100];
             (tcp_socket.receive_bytes)(&mut bytes);
             let request: ConnectRequestWithPandaHeader = deserialize(bytes.as_slice()).unwrap();
-            return request;
+            request
         }
         fn send_robot_connect_response<F: Fn(&Vec<u8>), G: Fn(&mut Vec<u8>)>(
             &self,
@@ -255,7 +255,7 @@ mod tests {
                     generate_collision_behavior_request(*a, *b, *c, *d, *e, *f, *g, *h)
                 }),
         ));
-        let requests_server = requests.clone();
+        let requests_server = requests;
         let thread = std::thread::spawn(|| {
             let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
@@ -271,7 +271,7 @@ mod tests {
                         .zip(serialized_expected_request.iter())
                         .for_each(|(x, y)| assert_eq!(x, y));
                     let req: SetCollisionBehaviorRequestWithPandaHeader =
-                        deserialize(&bytes).unwrap();
+                        deserialize(bytes).unwrap();
                     counter += 1;
                     let mut response = SetterResponseFr3 {
                         header: Fr3CommandHeader::new(
@@ -326,7 +326,7 @@ mod tests {
                 },
             ),
         }]);
-        let requests_server = requests.clone();
+        let requests_server = requests;
         let thread = std::thread::spawn(|| {
             let mut robot_server = RobotMockServer::new(FR3_VERSION);
             let mut mock = MockServerReaction::default();
@@ -336,7 +336,7 @@ mod tests {
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
                     let expected_request = requests_server.get(counter).unwrap();
                     let serialized_expected_request = serialize(expected_request).unwrap();
-                    let req: MoveRequestWithPandaHeader = deserialize(&bytes).unwrap();
+                    let req: MoveRequestWithPandaHeader = deserialize(bytes).unwrap();
                     assert_eq!(bytes.len(), serialized_expected_request.len());
                     bytes
                         .iter()
@@ -390,7 +390,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
-            mock.expect_number_of_reactions().return_const(0 as usize);
+            mock.expect_number_of_reactions().return_const(0_usize);
             robot_server.server_thread(&mut mock);
         });
         std::thread::sleep(Duration::from_secs_f64(0.01));
@@ -417,7 +417,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
-            mock.expect_number_of_reactions().return_const(0 as usize);
+            mock.expect_number_of_reactions().return_const(0_usize);
             robot_server.server_thread(&mut mock);
         });
 
@@ -437,7 +437,7 @@ mod tests {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
-            mock.expect_number_of_reactions().return_const(0 as usize);
+            mock.expect_number_of_reactions().return_const(0_usize);
             robot_server.server_thread(&mut mock);
         });
         {

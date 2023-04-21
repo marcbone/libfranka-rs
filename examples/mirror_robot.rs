@@ -139,8 +139,8 @@ fn control_robots<User: RobotWrapper + Send + 'static, Mirror: RobotWrapper>(
     robot_mirror.control_torques(
         |state: &RobotState, _step: &Duration| -> Torques {
             let home: Vector7 = q_goal.into();
-            let coriolis: Vector7 = model.coriolis_from_state(&state).into();
-            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
+            let coriolis: Vector7 = model.coriolis_from_state(state).into();
+            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);
             let q = Vector7::from_column_slice(&state.q);
             let dq = Vector7::from_column_slice(&state.dq);
