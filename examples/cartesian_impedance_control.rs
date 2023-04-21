@@ -27,6 +27,20 @@ struct CommandLineArguments {
     pub panda: bool,
 }
 
+fn main() -> FrankaResult<()> {
+    let address = CommandLineArguments::parse();
+    match address.panda {
+        true => {
+            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
+}
+
 fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
     let model = robot.load_model(false)?;
     let translational_stiffness = 150.;
@@ -110,20 +124,6 @@ fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
         Err(e) => {
             eprintln!("{}", e);
             Ok(())
-        }
-    }
-}
-
-fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    match address.panda {
-        true => {
-            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
-            generate_motion(robot)
-        }
-        false => {
-            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
-            generate_motion(robot)
         }
     }
 }

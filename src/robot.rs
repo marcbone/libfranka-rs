@@ -577,6 +577,7 @@ pub trait RobotWrapper {
         limit_rate: L,
         cutoff_frequency: CF,
     ) -> FrankaResult<()>;
+
     /// Loads the model library from the robot.
     /// # Arguments
     /// * `persistent` - If set to true the model will be stored at `/tmp/model.so`
@@ -1012,18 +1013,6 @@ where
         <Self as PrivateRobot>::get_rob(self).server_version()
     }
 }
-
-// impl<R: Robot> RobotWrapper for FR3 {
-//     fn read<F: FnMut(&RobotState) -> bool>(&mut self, mut read_callback: F) -> FrankaResult<()> {
-//         loop {
-//             let state = self.get_rob_mut().update(None, None)?;
-//             if !read_callback(&state.into()) {
-//                 break;
-//             }
-//         }
-//         Ok(())
-//     }
-// }
 
 trait PrivateRobot: Robot
 where
