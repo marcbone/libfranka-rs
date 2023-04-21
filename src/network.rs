@@ -234,19 +234,6 @@ impl RobotData for PandaData {
     type DeviceData = Self;
     type StateIntern = PandaStateIntern;
     type Model = PandaModel;
-
-    // fn create_model_library_request(
-    //     mut command_id: &mut u32,
-    //     request: LoadModelLibraryRequest,
-    // ) -> Self::LoadModelRequestWithHeader {
-    //     let header = Self::create_header(
-    //         &mut command_id,
-    //         PandaCommandEnum::LoadModelLibrary,
-    //         size_of::<LoadModelLibraryRequestWithPandaHeader>(),
-    //     );
-    //     Self::LoadModelRequestWithHeader { header, request }
-    // }
-
     type Header = PandaCommandHeader;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithPandaHeader;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithPandaHeader;
@@ -679,25 +666,6 @@ impl RobotData for FR3Data {
             )),
         }
     }
-
-    // fn create_model_library_request(
-    //     mut command_id: &mut u32,
-    //     request: LoadModelLibraryRequest,
-    // ) -> Self::LoadModelRequestWithHeader
-    // where
-    //     <<Self as RobotData>::DeviceData as DeviceData>::CommandHeader: RobotHeader,
-    // {
-    //     // let header = Self::create_header(
-    //     //     &mut command_id,
-    //     //     FR3CommandEnum::LoadModelLibrary,
-    //     //     size_of::<LoadModelLibraryRequestWithFR3Header>(),
-    //     // );
-    //     // Self::LoadModelRequestWithHeader {
-    //     //     header,
-    //     //     request,
-    //     // }
-    //     (command_id,request).into()
-    // }
 }
 
 impl DeviceData for GripperData {
@@ -795,15 +763,7 @@ impl<Data: DeviceData> Network<Data> {
             data: PhantomData,
         })
     }
-    // pub fn create_header_for_gripper(
-    //     &mut self,
-    //     command: gripper::types::GripperCommandEnum,
-    //     size: usize,
-    // ) -> GripperCommandHeader {
-    //     let header = gripper::types::GripperCommandHeader::new(command, self.command_id, size as u32);
-    //     self.command_id += 1;
-    //     header
-    // }
+
     pub fn create_header_for_panda(
         &mut self,
         command: PandaCommandEnum,
@@ -821,15 +781,6 @@ impl<Data: DeviceData> Network<Data> {
     ) -> Data::CommandHeader {
         Data::create_header(&mut self.command_id, command, size)
     }
-    // pub fn create_header_for_fr3(
-    //     &mut self,
-    //     command: FR3CommandEnum,
-    //     size: usize,
-    // ) -> FR3CommandHeader {
-    //     let header = FR3CommandHeader::new(command, self.command_id, size as u32);
-    //     self.command_id += 1;
-    //     header
-    // }
 
     pub fn tcp_send_request<T: Serialize + MessageCommand>(&mut self, request: T) -> u32 {
         let encoded_request = serialize(&request);

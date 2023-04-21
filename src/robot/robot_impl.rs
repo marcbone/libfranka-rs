@@ -250,40 +250,6 @@ impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
     }
 }
 
-// fn handle_command_move_status(status: &MoveStatusPanda) -> Result<(), FrankaException> {
-//     match status {
-//         MoveStatusPanda::Success => Ok(()),
-//         MoveStatusPanda::MotionStarted => {
-//             //todo handle motion_generator_running == true
-//             Ok(())
-//         }
-//         MoveStatusPanda::EmergencyAborted => Err(create_command_exception(
-//             "libfranka-rs: Move command aborted: User Stop pressed!",
-//         )),
-//         MoveStatusPanda::ReflexAborted => Err(create_command_exception(
-//             "libfranka-rs: Move command aborted: motion aborted by reflex!",
-//         )),
-//         MoveStatusPanda::InputErrorAborted => Err(create_command_exception(
-//             "libfranka-rs: Move command aborted: invalid input provided!",
-//         )),
-//         MoveStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
-//             "libfranka-rs: Move command rejected: command not possible in the current mode!",
-//         )),
-//         MoveStatusPanda::StartAtSingularPoseRejected => Err(create_command_exception(
-//             "libfranka-rs: Move command rejected: cannot start at singular pose!",
-//         )),
-//         MoveStatusPanda::InvalidArgumentRejected => Err(create_command_exception(
-//             "libfranka-rs: Move command rejected: maximum path deviation out of range!",
-//         )),
-//         MoveStatusPanda::Preempted => Err(create_command_exception(
-//             "libfranka-rs: Move command preempted!",
-//         )),
-//         MoveStatusPanda::Aborted => Err(create_command_exception(
-//             "libfranka-rs: Move command aborted!",
-//         )),
-//     }
-// }
-
 impl<Data: RobotData> RobotImplGeneric<Data> {
     pub fn new(
         network: Network<Data::DeviceData>,
@@ -431,18 +397,6 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
         maximum_path_deviation: &MoveDeviation,
         maximum_goal_deviation: &MoveDeviation,
     ) -> FrankaResult<u32> {
-        // let connect_command = MoveRequestWithPandaHeader {
-        //     header: self.network.create_header_for_panda(
-        //         PandaCommandEnum::Move,
-        //         size_of::<MoveRequestWithPandaHeader>(),
-        //     ),
-        //     request: MoveRequest::new(
-        //         *controller_mode,
-        //         *motion_generator_mode,
-        //         *maximum_path_deviation,
-        //         *maximum_goal_deviation,
-        //     ),
-        // };
         let command = Data::create_move_request(
             &mut self.network.command_id,
             MoveRequest::new(
