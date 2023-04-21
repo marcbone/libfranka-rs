@@ -12,7 +12,7 @@ use crate::gripper::types::{
     GraspRequestWithHeader, GripperCommandEnum, GripperCommandHeader, GripperStateIntern,
     MoveRequest, MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
 };
-use crate::network::{GripperData, Network};
+use crate::network::{DeviceData, Network};
 
 pub mod gripper_state;
 pub(crate) mod types;
@@ -647,5 +647,26 @@ mod tests {
             let _state = gripper.read_once().expect("could not read gripper state");
         }
         thread.join().unwrap();
+    }
+}
+
+pub struct GripperData {}
+
+impl DeviceData for GripperData {
+    type CommandHeader = GripperCommandHeader;
+    type CommandEnum = GripperCommandEnum;
+
+    fn create_header(
+        command_id: &mut u32,
+        command: Self::CommandEnum,
+        size: usize,
+    ) -> Self::CommandHeader {
+        let header = GripperCommandHeader::new(command, *command_id, size as u32);
+        *command_id += 1;
+        header
+    }
+
+    fn get_library_version() -> u16 {
+        GRIPPER_VERSION
     }
 }
