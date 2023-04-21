@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::model::RobotModel;
-use franka::robot::{Robot, RobotWrapper, FR3};
+use franka::robot::{RobotWrapper, FR3};
 use franka::{
     CartesianPose, CartesianVelocities, ConvertMotion, Frame, JointPositions, JointVelocities,
     Panda, RobotData, RobotState,
@@ -26,14 +26,7 @@ struct CommandLineArguments {
     pub panda: bool,
 }
 
-fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()>
-where
-    CartesianPose: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    CartesianVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    JointPositions: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    JointVelocities: ConvertMotion<<<R as Robot>::Data as RobotData>::State>,
-    RobotState: From<<<R as Robot>::Data as RobotData>::State>,
-{
+fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");

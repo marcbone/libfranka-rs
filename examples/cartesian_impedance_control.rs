@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use franka::robot::robot_state::RobotState;
-use franka::robot::{Panda, Robot, RobotWrapper, FR3};
+use franka::robot::{Panda, RobotWrapper, FR3};
 use franka::FrankaResult;
 use franka::Torques;
 use franka::{array_to_isometry, Matrix6x7, Vector7};
@@ -27,7 +27,8 @@ struct CommandLineArguments {
     pub panda: bool,
 }
 
-fn generate_motion<R: RobotWrapper, M: RobotModel>(mut robot: R, model: M) -> FrankaResult<()> {
+fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
+    let model = robot.load_model(false)?;
     let translational_stiffness = 150.;
     let rotational_stiffness = 10.;
 
@@ -117,14 +118,12 @@ fn main() -> FrankaResult<()> {
     let address = CommandLineArguments::parse();
     match address.panda {
         true => {
-            let mut robot = Panda::new(address.franka_ip.as_str(), None, None)?;
-            let model = robot.load_model(false).unwrap();
-            generate_motion(robot, model)
+            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
         }
         false => {
-            let mut robot = FR3::new(address.franka_ip.as_str(), None, None)?;
-            let model = robot.load_model(false).unwrap();
-            generate_motion(robot, model)
+            let robot = FR3::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
         }
     }
 }
