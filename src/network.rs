@@ -103,7 +103,6 @@ pub trait RobotData: DeviceData {
     type GetterSetterStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
     type StopMoveStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
     type AutomaticErrorRecoveryStatus: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
-                                                                                  // type LoadModelResponse: DeserializeOwned + Copy + Clone + 'static; // todo is this static fine here?
 
     fn create_model_library_request(
         command_id: &mut u32,

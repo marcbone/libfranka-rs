@@ -639,6 +639,164 @@ where
         )
     }
 
+    fn joint_motion(&mut self, speed_factor: f64, q_goal: &[f64; 7]) -> FrankaResult<()> {
+        let mut motion_generator = MotionGenerator::new(speed_factor, q_goal);
+        self.control_joint_positions(
+            |state, time| motion_generator.generate_motion(state, time),
+            Some(ControllerMode::JointImpedance),
+            Some(true),
+            Some(MAX_CUTOFF_FREQUENCY),
+        )
+    }
+
+    fn read_once(&mut self) -> FrankaResult<RobotState> {
+        match <Self as PrivateRobot>::get_rob_mut(self).read_once() {
+            Ok(state) => Ok(state.into()),
+            Err(e) => Err(e),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn set_collision_behavior(
+        &mut self,
+        lower_torque_thresholds_acceleration: [f64; 7],
+        upper_torque_thresholds_acceleration: [f64; 7],
+        lower_torque_thresholds_nominal: [f64; 7],
+        upper_torque_thresholds_nominal: [f64; 7],
+        lower_force_thresholds_acceleration: [f64; 6],
+        upper_force_thresholds_acceleration: [f64; 6],
+        lower_force_thresholds_nominal: [f64; 6],
+        upper_force_thresholds_nominal: [f64; 6],
+    ) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_collision_behavior_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetCollisionBehaviorRequest::new(
+                lower_torque_thresholds_acceleration,
+                upper_torque_thresholds_acceleration,
+                lower_torque_thresholds_nominal,
+                upper_torque_thresholds_nominal,
+                lower_force_thresholds_acceleration,
+                upper_force_thresholds_acceleration,
+                lower_force_thresholds_nominal,
+                upper_force_thresholds_nominal,
+            ),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    fn set_default_behavior(&mut self) -> FrankaResult<()> {
+        self.set_collision_behavior(
+            [20.; 7], [20.; 7], [10.; 7], [10.; 7], [20.; 6], [20.; 6], [10.; 6], [10.; 6],
+        )?;
+        self.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
+        self.set_cartesian_impedance([3000., 3000., 3000., 300., 300., 300.])?;
+        Ok(())
+    }
+
+    #[allow(non_snake_case)]
+    fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_joint_impedance_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetJointImpedanceRequest::new(K_theta),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_cartesian_impedance_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetCartesianImpedanceRequest::new(K_x),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_load(
+        &mut self,
+        load_mass: f64,
+        F_x_Cload: [f64; 3],
+        load_inertia: [f64; 9],
+    ) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_load_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_guiding_mode_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetGuidingModeRequest::new(guiding_mode, elbow),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_ee_to_k_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetEeToKRequest::new(EE_T_K),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    #[allow(non_snake_case)]
+    fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_set_ne_to_ee_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+            SetNeToEeRequest::new(NE_T_EE),
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_getter_setter_status(status)
+    }
+
+    fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_automatic_error_recovery_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        <Self as Robot>::Data::handle_automatic_error_recovery_status(status)
+    }
+
+    fn stop(&mut self) -> FrankaResult<()> {
+        let command = <Self as Robot>::Data::create_stop_request(
+            &mut <Self as PrivateRobot>::get_net(self).command_id,
+        );
+        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
+        let status: StopMoveStatusPanda =
+            <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
+        match status {
+            StopMoveStatusPanda::Success => Ok(()),
+            StopMoveStatusPanda::CommandNotPossibleRejected | StopMoveStatusPanda::Aborted => {
+                Err(create_command_exception(
+                    "libfranka-rs: command rejected: command not possible in current mode",
+                ))
+            }
+            StopMoveStatusPanda::EmergencyAborted => Err(create_command_exception(
+                "libfranka-rs: command aborted: User Stop pressed!",
+            )),
+            StopMoveStatusPanda::ReflexAborted => Err(create_command_exception(
+                "libfranka-rs: command aborted: motion aborted by reflex!",
+            )),
+        }
+    }
+
     fn control_joint_velocities<
         F: FnMut(&RobotState, &Duration) -> JointVelocities,
         CM: Into<Option<ControllerMode>>,
@@ -847,164 +1005,6 @@ where
         )
     }
 
-    fn joint_motion(&mut self, speed_factor: f64, q_goal: &[f64; 7]) -> FrankaResult<()> {
-        let mut motion_generator = MotionGenerator::new(speed_factor, q_goal);
-        self.control_joint_positions(
-            |state, time| motion_generator.generate_motion(state, time),
-            Some(ControllerMode::JointImpedance),
-            Some(true),
-            Some(MAX_CUTOFF_FREQUENCY),
-        )
-    }
-
-    fn read_once(&mut self) -> FrankaResult<RobotState> {
-        match <Self as PrivateRobot>::get_rob_mut(self).read_once() {
-            Ok(state) => Ok(state.into()),
-            Err(e) => Err(e),
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn set_collision_behavior(
-        &mut self,
-        lower_torque_thresholds_acceleration: [f64; 7],
-        upper_torque_thresholds_acceleration: [f64; 7],
-        lower_torque_thresholds_nominal: [f64; 7],
-        upper_torque_thresholds_nominal: [f64; 7],
-        lower_force_thresholds_acceleration: [f64; 6],
-        upper_force_thresholds_acceleration: [f64; 6],
-        lower_force_thresholds_nominal: [f64; 6],
-        upper_force_thresholds_nominal: [f64; 6],
-    ) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_collision_behavior_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetCollisionBehaviorRequest::new(
-                lower_torque_thresholds_acceleration,
-                upper_torque_thresholds_acceleration,
-                lower_torque_thresholds_nominal,
-                upper_torque_thresholds_nominal,
-                lower_force_thresholds_acceleration,
-                upper_force_thresholds_acceleration,
-                lower_force_thresholds_nominal,
-                upper_force_thresholds_nominal,
-            ),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    fn set_default_behavior(&mut self) -> FrankaResult<()> {
-        self.set_collision_behavior(
-            [20.; 7], [20.; 7], [10.; 7], [10.; 7], [20.; 6], [20.; 6], [10.; 6], [10.; 6],
-        )?;
-        self.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
-        self.set_cartesian_impedance([3000., 3000., 3000., 300., 300., 300.])?;
-        Ok(())
-    }
-
-    #[allow(non_snake_case)]
-    fn set_joint_impedance(&mut self, K_theta: [f64; 7]) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_joint_impedance_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetJointImpedanceRequest::new(K_theta),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    #[allow(non_snake_case)]
-    fn set_cartesian_impedance(&mut self, K_x: [f64; 6]) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_cartesian_impedance_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetCartesianImpedanceRequest::new(K_x),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    #[allow(non_snake_case)]
-    fn set_load(
-        &mut self,
-        load_mass: f64,
-        F_x_Cload: [f64; 3],
-        load_inertia: [f64; 9],
-    ) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_load_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetLoadRequest::new(load_mass, F_x_Cload, load_inertia),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    fn set_guiding_mode(&mut self, guiding_mode: [bool; 6], elbow: bool) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_guiding_mode_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetGuidingModeRequest::new(guiding_mode, elbow),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    #[allow(non_snake_case)]
-    fn set_K(&mut self, EE_T_K: [f64; 16]) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_ee_to_k_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetEeToKRequest::new(EE_T_K),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    #[allow(non_snake_case)]
-    fn set_EE(&mut self, NE_T_EE: [f64; 16]) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_set_ne_to_ee_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-            SetNeToEeRequest::new(NE_T_EE),
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_getter_setter_status(status)
-    }
-
-    fn automatic_error_recovery(&mut self) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_automatic_error_recovery_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status = <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        <Self as Robot>::Data::handle_automatic_error_recovery_status(status)
-    }
-
-    fn stop(&mut self) -> FrankaResult<()> {
-        let command = <Self as Robot>::Data::create_stop_request(
-            &mut <Self as PrivateRobot>::get_net(self).command_id,
-        );
-        let command_id: u32 = <Self as PrivateRobot>::get_net(self).tcp_send_request(command);
-        let status: StopMoveStatusPanda =
-            <Self as PrivateRobot>::get_net(self).tcp_blocking_receive_status(command_id);
-        match status {
-            StopMoveStatusPanda::Success => Ok(()),
-            StopMoveStatusPanda::CommandNotPossibleRejected | StopMoveStatusPanda::Aborted => {
-                Err(create_command_exception(
-                    "libfranka-rs: command rejected: command not possible in current mode",
-                ))
-            }
-            StopMoveStatusPanda::EmergencyAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: User Stop pressed!",
-            )),
-            StopMoveStatusPanda::ReflexAborted => Err(create_command_exception(
-                "libfranka-rs: command aborted: motion aborted by reflex!",
-            )),
-        }
-    }
-
     fn load_model(&mut self, persistent: bool) -> FrankaResult<Self::Model> {
         <Self as PrivateRobot>::get_rob_mut(self).load_model(persistent)
     }
@@ -1156,15 +1156,15 @@ impl Robot for Panda {
 }
 
 impl PrivateRobot for Panda {
-    fn get_net(&mut self) -> &mut Network<Self::Data> {
-        &mut self.robimpl.network
-    }
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
-
     fn get_rob(&self) -> &Self::Rob {
         &self.robimpl
+    }
+
+    fn get_net(&mut self) -> &mut Network<Self::Data> {
+        &mut self.robimpl.network
     }
 }
 
@@ -1172,15 +1172,15 @@ pub struct FR3 {
     robimpl: RobotImplGeneric<FR3Data>,
 }
 impl PrivateRobot for FR3 {
-    fn get_net(&mut self) -> &mut Network<Self::Data> {
-        &mut self.robimpl.network
-    }
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
-
     fn get_rob(&self) -> &Self::Rob {
         &self.robimpl
+    }
+
+    fn get_net(&mut self) -> &mut Network<Self::Data> {
+        &mut self.robimpl.network
     }
 }
 impl Robot for FR3 {

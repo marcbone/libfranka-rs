@@ -366,12 +366,6 @@ impl MessageCommand for StopMoveRequestWithPandaHeader {
     }
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
-// pub struct StopMoveResponse {
-//     pub header: PandaCommandHeader,
-//     pub status: StopMoveStatus,
-// }
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct GetCartesianLimitRequest {
@@ -679,27 +673,6 @@ pub struct LoadModelLibraryRequest {
     pub system: LoadModelLibrarySystem,
 }
 
-// #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-// #[repr(packed)]
-// pub struct LoadModelLibraryRequestWithHeader {
-//     pub header: PandaCommandHeader,
-//     pub request: LoadModelLibraryRequest,
-// }
-
-// // this is a very hacky generic struct that is a generic version of LoadModelLibraryRequestWithHeader
-// // todo find a better solution to deal with the model downloader
-// #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-// pub struct ModelRequestWithHeader<Header: RobotHeader> {
-//     pub header: Header,
-//     pub request: LoadModelLibraryRequest,
-// }
-//
-// impl<Header: RobotHeader> MessageCommand for ModelRequestWithHeader<Header> {
-//     fn get_command_message_id(&self) -> u32 {
-//         self.header.get_command_message_id()
-//     }
-// }
-
 define_panda_request_with_header!(
     LoadModelLibraryRequestWithPandaHeader,
     LoadModelLibraryRequest,
@@ -710,40 +683,6 @@ define_fr3_request_with_header!(
     LoadModelLibraryRequest,
     FR3CommandEnum::LoadModelLibrary
 );
-//
-// impl MessageCommand for LoadModelLibraryRequestWithHeader {
-//     fn get_command_message_id(&self) -> u32 {
-//         self.header.get_command_message_id()
-//     }
-// }
-
-// impl From<(u32, LoadModelLibraryRequest)> for LoadModelLibraryRequestWithPandaHeader {
-//     fn from(tuple: (u32, LoadModelLibraryRequest)) -> Self {
-//         let command_id = tuple.0;
-//         LoadModelLibraryRequestWithPandaHeader {
-//             header: PandaCommandHeader::new(
-//                 PandaCommandEnum::LoadModelLibrary,
-//                 command_id,
-//                 std::mem::size_of::<Self>() as u32,
-//             ),
-//             request: tuple.1,
-//         }
-//     }
-// }
-
-// impl From<(u32, LoadModelLibraryRequest)> for LoadModelLibraryRequestWithFR3Header {
-//     fn from(tuple: (u32, LoadModelLibraryRequest)) -> Self {
-//         let command_id = tuple.0;
-//         LoadModelLibraryRequestWithFR3Header {
-//             header: FR3CommandHeader::new(
-//                 FR3CommandEnum::LoadModelLibrary,
-//                 command_id,
-//                 std::mem::size_of::<Self>() as u32,
-//             ),
-//             request: tuple.1,
-//         }
-//     }
-// }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
