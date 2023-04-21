@@ -136,7 +136,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
         Data::create_control_exception_if_reflex_aborted(
             String::from("Motion finished commanded, but the robot is still moving!"),
             status,
-            &robot_state.get_last_motion_errors(),
+            robot_state.get_last_motion_errors(),
             self.logger.flush(),
         )?;
 
@@ -146,7 +146,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
                 return Err(Data::create_control_exception(
                     message,
                     status,
-                    &robot_state.get_last_motion_errors(),
+                    robot_state.get_last_motion_errors(),
                     self.logger.flush(),
                 ));
             }
@@ -211,7 +211,7 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
                 Err(error) => Err(Data::create_control_exception(
                     error.to_string(),
                     status,
-                    &robot_state.get_last_motion_errors(),
+                    robot_state.get_last_motion_errors(),
                     self.logger.flush(),
                 )),
                 Ok(_) => panic!("Unexpected reply to a Move command"),

@@ -43,7 +43,7 @@ pub struct Record<State: Debug> {
 impl<State: Debug> Record<State> {
     /// creates a string representation based on the debug formatter
     pub fn log(&self) -> String {
-        format!("{:?}", self.clone())
+        format!("{:?}", self)
     }
 }
 

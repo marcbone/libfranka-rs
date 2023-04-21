@@ -2,7 +2,6 @@
 // Licensed under the EUPL-1.2-or-later
 use std::fmt::Debug;
 
-use crate::robot::types::RobotMode::Other;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -26,9 +25,10 @@ pub enum ControllerMode {
     Other,
 }
 /// Describes the robot's current mode.
-#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
+#[derive(Serialize_repr, Deserialize_repr, Debug, Default, Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum RobotMode {
+    #[default]
     Other,
     Idle,
     Move,
@@ -36,11 +36,6 @@ pub enum RobotMode {
     Reflex,
     UserStopped,
     AutomaticErrorRecovery,
-}
-impl Default for RobotMode {
-    fn default() -> Self {
-        Other
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]

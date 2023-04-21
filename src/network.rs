@@ -943,7 +943,7 @@ impl<Data: DeviceData> Network<Data> {
 
     fn wait_for_response_to_arrive(&mut self, command_id: &u32) -> Vec<u8> {
         let mut response_bytes: Option<Vec<u8>> = None;
-        while response_bytes == None {
+        while response_bytes.is_none() {
             {
                 self.tcp_read_from_buffer(Duration::from_millis(10));
                 response_bytes = self.received_responses.remove(command_id);
@@ -1045,7 +1045,7 @@ impl<Data: DeviceData> Network<Data> {
                                 let mut header_bytes: Vec<u8> = vec![0; header_mem_size];
                                 self.tcp_socket.read_exact(&mut header_bytes).unwrap();
                                 self.pending_response.append(&mut header_bytes.clone());
-                                self.pending_response_offset = header_mem_size as usize;
+                                self.pending_response_offset = header_mem_size;
                                 let header: Data::CommandHeader = deserialize(&header_bytes);
                                 self.pending_response_len = header.get_size() as usize;
                                 self.pending_command_id = header.get_command_id();
@@ -1054,13 +1054,13 @@ impl<Data: DeviceData> Network<Data> {
                         if !self.pending_response.is_empty() && available_bytes > 0 {
                             let number_of_bytes_to_read = usize::min(
                                 available_bytes,
-                                self.pending_response_len - self.pending_response_offset as usize,
+                                self.pending_response_len - self.pending_response_offset,
                             );
                             let mut response_buffer: Vec<u8> = vec![0; number_of_bytes_to_read];
                             self.tcp_socket.read_exact(&mut response_buffer).unwrap();
                             self.pending_response.append(&mut response_buffer);
                             self.pending_response_offset += number_of_bytes_to_read;
-                            if self.pending_response_offset == self.pending_response_len as usize {
+                            if self.pending_response_offset == self.pending_response_len {
                                 self.received_responses
                                     .insert(self.pending_command_id, self.pending_response.clone());
                                 self.pending_response.clear();
