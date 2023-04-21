@@ -3,9 +3,9 @@ use crate::exception::{create_command_exception, FrankaException};
 use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
-use crate::robot::robot::{PrivateRobot, Robot};
 use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplGeneric;
+use crate::robot::robot_trait::{PrivateRobot, Robot};
 use crate::robot::service_types;
 use crate::robot::service_types::{
     AutomaticErrorRecoveryStatusFr3, ConnectRequest, ConnectRequestWithFr3Header, Fr3CommandEnum,
