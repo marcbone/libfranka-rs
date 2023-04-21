@@ -1,5 +1,6 @@
+use crate::device_data::DeviceData;
 use crate::exception::{create_command_exception, FrankaException};
-use crate::network::{DeviceData, Network};
+use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot::{PrivateRobot, Robot};
@@ -18,7 +19,8 @@ use crate::robot::service_types::{
 };
 use crate::robot::types::PandaStateIntern;
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
-use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotData, RobotState};
+use crate::robot_data::RobotData;
+use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
 use std::mem::size_of;
 
 /// Maintains a network connection to the robot, provides the current robot state, gives access to

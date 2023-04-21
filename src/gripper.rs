@@ -3,6 +3,7 @@
 
 //!  Contains the franka::Gripper type.
 
+use crate::device_data::DeviceData;
 use std::mem::size_of;
 
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
@@ -12,7 +13,7 @@ use crate::gripper::types::{
     GraspRequestWithHeader, GripperCommandEnum, GripperCommandHeader, GripperStateIntern,
     MoveRequest, MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
 };
-use crate::network::{DeviceData, Network};
+use crate::network::Network;
 
 pub mod gripper_state;
 pub(crate) mod types;

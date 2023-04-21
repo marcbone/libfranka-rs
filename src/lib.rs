@@ -168,7 +168,9 @@ pub mod gripper;
 mod network;
 pub mod robot;
 
+mod device_data;
 pub mod model;
+mod robot_data;
 pub mod utils;
 
 pub use exception::FrankaResult;
@@ -178,7 +180,6 @@ pub use model::Fr3Model;
 pub use model::Frame;
 pub use model::PandaModel;
 pub use model::RobotModel;
-pub use network::RobotData;
 pub use robot::control_types::*;
 pub use robot::fr3::Fr3;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
@@ -186,4 +187,5 @@ pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
 pub use robot::panda::Panda;
 pub use robot::robot_state::RobotState;
 pub use robot::robot_wrapper::RobotWrapper;
+pub use robot_data::RobotData;
 pub use utils::*;

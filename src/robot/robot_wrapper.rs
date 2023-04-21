@@ -8,10 +8,10 @@ use crate::robot::service_types::{
     SetGuidingModeRequest, SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest,
     StopMoveStatusPanda,
 };
+use crate::robot_data::RobotData;
 use crate::{
     CartesianPose, CartesianVelocities, ControllerMode, FrankaResult, JointPositions,
-    JointVelocities, MotionGenerator, RobotData, RobotModel, RobotState, Torques,
-    MAX_CUTOFF_FREQUENCY,
+    JointVelocities, MotionGenerator, RobotModel, RobotState, Torques, MAX_CUTOFF_FREQUENCY,
 };
 use std::time::Duration;
 

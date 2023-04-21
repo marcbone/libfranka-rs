@@ -2,7 +2,7 @@
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::{FrankaException, FrankaResult};
 use crate::model::library_downloader::{LibraryDownloader, LibraryDownloaderGeneric};
-use crate::network::{Network, RobotData};
+use crate::network::Network;
 use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
 
@@ -16,6 +16,7 @@ use crate::robot::types::{
     AbstractRobotStateIntern, ControllerCommand, ControllerMode, MotionGeneratorCommand,
     MotionGeneratorMode, RobotCommand,
 };
+use crate::robot_data::RobotData;
 use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;

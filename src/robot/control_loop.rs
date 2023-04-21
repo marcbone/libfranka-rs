@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::exception::{FrankaException, FrankaResult};
-use crate::network::RobotData;
 use crate::robot::control_tools::{
     has_realtime_kernel, set_current_thread_to_highest_scheduler_priority,
 };
@@ -16,6 +15,7 @@ use crate::robot::robot_impl::RobotImplementation;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
+use crate::robot_data::RobotData;
 use crate::Finishable;
 
 type ControlCallback<'b, State> = &'b mut dyn FnMut(&State, &Duration) -> Torques;

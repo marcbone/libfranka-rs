@@ -1,5 +1,6 @@
+use crate::device_data::DeviceData;
 use crate::exception::{create_command_exception, FrankaException};
-use crate::network::{DeviceData, Network};
+use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot::{PrivateRobot, Robot};
@@ -14,7 +15,8 @@ use crate::robot::service_types::{
     SetLoadRequestWithFr3Header, SetNeToEeRequestWithFr3Header, StopMoveStatusFr3, FR3_VERSION,
 };
 use crate::robot::types::Fr3StateIntern;
-use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotData, RobotState};
+use crate::robot_data::RobotData;
+use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotState};
 use std::mem::size_of;
 
 pub struct Fr3 {
