@@ -317,10 +317,10 @@ pub fn limit_rate_cartesian_pose(
 
     let mut commanded_O_dP_EE_c = [0.; 6];
     for i in 0..3 {
-        commanded_O_dP_EE_c[i] = dx_head[(i)];
+        commanded_O_dP_EE_c[i] = dx_head[i];
     }
     for i in 0..3 {
-        commanded_O_dP_EE_c[i + 3] = dx_tail[(i)];
+        commanded_O_dP_EE_c[i + 3] = dx_tail[i];
     }
     commanded_O_dP_EE_c = limit_rate_cartesian_velocity(
         max_translational_velocity,
@@ -335,7 +335,7 @@ pub fn limit_rate_cartesian_pose(
     );
     let dx: Matrix6x1<f64> = Matrix6x1::<f64>::from_column_slice(&commanded_O_dP_EE_c);
     limited_commanded_pose.translation = Translation3::from(
-        last_commanded_pose.translation.vector + Vector3::new(dx[(0)], dx[(1)], dx[(2)]) * DELTA_T,
+        last_commanded_pose.translation.vector + Vector3::new(dx[0], dx[1], dx[2]) * DELTA_T,
     );
     limited_commanded_pose.rotation = last_commanded_pose.rotation;
     let dx_tail = dx.remove_row(0).remove_row(0).remove_row(0);
@@ -343,15 +343,7 @@ pub fn limit_rate_cartesian_pose(
         let w_norm = dx_tail.normalize();
         let theta = DELTA_T * dx_tail.norm();
         let omega_skew = Matrix3::new(
-            0.,
-            -w_norm[(2)],
-            w_norm[(1)],
-            w_norm[(2)],
-            0.,
-            -w_norm[(0)],
-            -w_norm[(1)],
-            w_norm[(0)],
-            0.,
+            0., -w_norm[2], w_norm[1], w_norm[2], 0., -w_norm[0], -w_norm[1], w_norm[0], 0.,
         );
         let R = Matrix3::identity()
             + f64::sin(theta) * omega_skew
@@ -418,10 +410,10 @@ pub fn limit_rate_cartesian_velocity(
 
     let mut limited_values = [0.; 6];
     for i in 0..3 {
-        limited_values[i] = dx_head[(i)];
+        limited_values[i] = dx_head[i];
     }
     for i in 0..3 {
-        limited_values[i + 3] = dx_tail[(i)];
+        limited_values[i + 3] = dx_tail[i];
     }
     limited_values
 }
