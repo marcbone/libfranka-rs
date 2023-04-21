@@ -67,15 +67,3 @@ pub(crate) fn create_command_exception(message: &'static str) -> FrankaException
 
 /// Result type which can have FrankaException as Error
 pub type FrankaResult<T> = Result<T, FrankaException>;
-// wait for https://github.com/rust-lang/rust/issues/43301 to be closed
-// impl Termination for FrankaResult<()> {
-//     fn report(self) -> i32 {
-//        return match self {
-//            Ok(_) => {ExitCode::SUCCESS.report();}
-//            Err(e) => {
-//                eprintln!("{}",e);
-//                ExitCode::FAILURE.report();
-//            }
-//        }
-//     }
-// }

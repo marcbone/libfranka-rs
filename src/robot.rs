@@ -1347,7 +1347,7 @@ mod tests {
         SetterResponseFR3, COMMAND_PORT, FR3_VERSION,
     };
     use crate::robot::types::PandaStateIntern;
-    use crate::robot::{Robot, RobotWrapper, FR3};
+    use crate::robot::{RobotWrapper, FR3};
     use crate::{Finishable, FrankaResult, JointPositions, Panda, RealtimeConfig, RobotState};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
