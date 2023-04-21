@@ -230,20 +230,45 @@ impl DeviceData for PandaData {
 }
 
 impl RobotData for PandaData {
-    type State = RobotState;
     type DeviceData = Self;
+    type Header = PandaCommandHeader;
+    type State = RobotState;
     type StateIntern = PandaStateIntern;
     type Model = PandaModel;
-    type Header = PandaCommandHeader;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithPandaHeader;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithPandaHeader;
     type SetLoadRequestWithHeader = SetLoadRequestWithPandaHeader;
     type SetJointImpedanceRequestWithHeader = SetJointImpedanceRequestWithPandaHeader;
     type SetCartesianImpedanceRequestWithHeader = SetCartesianImpedanceRequestWithPandaHeader;
     type SetGuidingModeRequestWithHeader = SetGuidingModeRequestWithPandaHeader;
+    type ConnectRequestWithHeader = ConnectRequestWithPandaHeader;
     type SetEeToKRequestWithHeader = SetEeToKRequestWithPandaHeader;
     type SetNeToEeRequestWithHeader = SetNeToEeRequestWithPandaHeader;
+
     type MoveRequestWithHeader = MoveRequestWithPandaHeader;
+
+    type MoveStatus = MoveStatusPanda;
+
+    type GetterSetterStatus = GetterSetterStatusPanda;
+
+    type StopMoveStatus = StopMoveStatusPanda;
+
+    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusPanda;
+
+    fn create_connect_request(
+        command_id: &mut u32,
+        udp_port: u16,
+    ) -> Self::ConnectRequestWithHeader {
+        let request = ConnectRequest::new(udp_port, PANDA_VERSION);
+        ConnectRequestWithPandaHeader {
+            header: Self::create_header(
+                command_id,
+                PandaCommandEnum::Connect,
+                size_of::<Self::ConnectRequestWithHeader>(),
+            ),
+            request,
+        }
+    }
 
     fn create_automatic_error_recovery_request(command_id: &mut u32) -> Self::CommandHeader {
         Self::create_header(
@@ -260,8 +285,6 @@ impl RobotData for PandaData {
             size_of::<PandaCommandHeader>(),
         )
     }
-
-    type MoveStatus = MoveStatusPanda;
 
     fn handle_command_move_status(status: Self::MoveStatus) -> Result<(), FrankaException> {
         match status {
@@ -331,7 +354,6 @@ impl RobotData for PandaData {
             log: Some(log),
         }
     }
-
     fn create_control_exception_if_reflex_aborted(
         message: String,
         move_status: Self::MoveStatus,
@@ -350,8 +372,6 @@ impl RobotData for PandaData {
         Ok(())
     }
 
-    type GetterSetterStatus = GetterSetterStatusPanda;
-
     fn handle_getter_setter_status(status: Self::GetterSetterStatus) -> FrankaResult<()> {
         match status {
             GetterSetterStatusPanda::Success => Ok(()),
@@ -363,46 +383,6 @@ impl RobotData for PandaData {
             )),
         }
     }
-
-    fn handle_command_stop_move_status(
-        status: Self::StopMoveStatus,
-    ) -> Result<(), FrankaException> {
-        match status {
-            StopMoveStatusPanda::Success => Ok(()),
-            StopMoveStatusPanda::EmergencyAborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted: User Stop pressed!",
-            )),
-            StopMoveStatusPanda::ReflexAborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted: motion aborted by reflex!",
-            )),
-            StopMoveStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
-                "libfranka-rs: Stop command rejected: command not possible in the current mode!",
-            )),
-            StopMoveStatusPanda::Aborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted!",
-            )),
-        }
-    }
-
-    type StopMoveStatus = StopMoveStatusPanda;
-    type ConnectRequestWithHeader = ConnectRequestWithPandaHeader;
-
-    fn create_connect_request(
-        command_id: &mut u32,
-        udp_port: u16,
-    ) -> Self::ConnectRequestWithHeader {
-        let request = ConnectRequest::new(udp_port, PANDA_VERSION);
-        ConnectRequestWithPandaHeader {
-            header: Self::create_header(
-                command_id,
-                PandaCommandEnum::Connect,
-                size_of::<Self::ConnectRequestWithHeader>(),
-            ),
-            request,
-        }
-    }
-
-    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusPanda;
 
     fn handle_automatic_error_recovery_status(
         status: Self::AutomaticErrorRecoveryStatus,
@@ -428,6 +408,26 @@ impl RobotData for PandaData {
             AutomaticErrorRecoveryStatusPanda::Aborted => {
                 Err(create_command_exception("libfranka-rs: command aborted!"))
             }
+        }
+    }
+
+    fn handle_command_stop_move_status(
+        status: Self::StopMoveStatus,
+    ) -> Result<(), FrankaException> {
+        match status {
+            StopMoveStatusPanda::Success => Ok(()),
+            StopMoveStatusPanda::EmergencyAborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted: User Stop pressed!",
+            )),
+            StopMoveStatusPanda::ReflexAborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted: motion aborted by reflex!",
+            )),
+            StopMoveStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
+                "libfranka-rs: Stop command rejected: command not possible in the current mode!",
+            )),
+            StopMoveStatusPanda::Aborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted!",
+            )),
         }
     }
 }
@@ -460,11 +460,34 @@ impl RobotData for FR3Data {
     type SetJointImpedanceRequestWithHeader = SetJointImpedanceRequestWithFR3Header;
     type SetCartesianImpedanceRequestWithHeader = SetCartesianImpedanceRequestWithFR3Header;
     type SetGuidingModeRequestWithHeader = SetGuidingModeRequestWithFR3Header;
+    type ConnectRequestWithHeader = ConnectRequestWithFR3Header;
     type SetEeToKRequestWithHeader = SetEeToKRequestWithFR3Header;
     type SetNeToEeRequestWithHeader = SetNeToEeRequestWithFR3Header;
     type MoveRequestWithHeader = MoveRequestWithFR3Header;
     type MoveStatus = MoveStatusFR3;
+
     type GetterSetterStatus = GetterSetterStatusFR3;
+
+    type StopMoveStatus = StopMoveStatusFR3;
+
+    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusFR3;
+    fn create_connect_request(
+        command_id: &mut u32,
+        udp_port: u16,
+    ) -> Self::ConnectRequestWithHeader {
+        let request = ConnectRequest {
+            version: FR3_VERSION,
+            udp_port,
+        };
+        ConnectRequestWithFR3Header {
+            header: Self::create_header(
+                command_id,
+                FR3CommandEnum::Connect,
+                size_of::<Self::ConnectRequestWithHeader>(),
+            ),
+            request,
+        }
+    }
 
     fn create_automatic_error_recovery_request(command_id: &mut u32) -> Self::CommandHeader {
         Self::create_header(
@@ -524,28 +547,6 @@ impl RobotData for FR3Data {
 
         }
     }
-    fn handle_command_stop_move_status(
-        status: Self::StopMoveStatus,
-    ) -> Result<(), FrankaException> {
-        match status {
-            StopMoveStatusFR3::Success => Ok(()),
-            StopMoveStatusFR3::EmergencyAborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted: User Stop pressed!",
-            )),
-            StopMoveStatusFR3::ReflexAborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted: motion aborted by reflex!",
-            )),
-            StopMoveStatusFR3::CommandNotPossibleRejected => Err(create_command_exception(
-                "libfranka-rs: Stop command rejected: command not possible in the current mode!",
-            )),
-            StopMoveStatusFR3::Aborted => Err(create_command_exception(
-                "libfranka-rs: Stop command aborted!",
-            )),
-            StopMoveStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
-                "libfranka-rs: Move command rejected due to activated safety function! Please disable all safety functions.",
-            ))
-        }
-    }
 
     fn create_control_exception(
         message: String,
@@ -581,7 +582,6 @@ impl RobotData for FR3Data {
             log: Some(log),
         }
     }
-
     fn create_control_exception_if_reflex_aborted(
         message: String,
         move_status: Self::MoveStatus,
@@ -614,29 +614,6 @@ impl RobotData for FR3Data {
             }
     }
 
-    type StopMoveStatus = StopMoveStatusFR3;
-    type ConnectRequestWithHeader = ConnectRequestWithFR3Header;
-
-    fn create_connect_request(
-        command_id: &mut u32,
-        udp_port: u16,
-    ) -> Self::ConnectRequestWithHeader {
-        let request = ConnectRequest {
-            version: FR3_VERSION,
-            udp_port,
-        };
-        ConnectRequestWithFR3Header {
-            header: Self::create_header(
-                command_id,
-                FR3CommandEnum::Connect,
-                size_of::<Self::ConnectRequestWithHeader>(),
-            ),
-            request,
-        }
-    }
-
-    type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusFR3;
-
     fn handle_automatic_error_recovery_status(
         status: Self::AutomaticErrorRecoveryStatus,
     ) -> FrankaResult<()> {
@@ -664,6 +641,29 @@ impl RobotData for FR3Data {
             AutomaticErrorRecoveryStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
                 "libfranka-rs: command rejected due to activated safety function! Please disable all safety functions.",
             )),
+        }
+    }
+
+    fn handle_command_stop_move_status(
+        status: Self::StopMoveStatus,
+    ) -> Result<(), FrankaException> {
+        match status {
+            StopMoveStatusFR3::Success => Ok(()),
+            StopMoveStatusFR3::EmergencyAborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted: User Stop pressed!",
+            )),
+            StopMoveStatusFR3::ReflexAborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted: motion aborted by reflex!",
+            )),
+            StopMoveStatusFR3::CommandNotPossibleRejected => Err(create_command_exception(
+                "libfranka-rs: Stop command rejected: command not possible in the current mode!",
+            )),
+            StopMoveStatusFR3::Aborted => Err(create_command_exception(
+                "libfranka-rs: Stop command aborted!",
+            )),
+            StopMoveStatusFR3::CommandRejectedDueToActivatedSafetyFunctions => Err(create_command_exception(
+                "libfranka-rs: Move command rejected due to activated safety function! Please disable all safety functions.",
+            ))
         }
     }
 }
