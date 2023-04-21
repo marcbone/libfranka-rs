@@ -7,6 +7,7 @@ use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
 
 use crate::robot::robot_control::RobotControl;
+use crate::robot::robot_data::RobotData;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
     ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
@@ -16,7 +17,6 @@ use crate::robot::types::{
     AbstractRobotStateIntern, ControllerCommand, ControllerMode, MotionGeneratorCommand,
     MotionGeneratorMode, RobotCommand,
 };
-use crate::robot_data::RobotData;
 use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;

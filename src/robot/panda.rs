@@ -4,6 +4,7 @@ use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot::{PrivateRobot, Robot};
+use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplGeneric;
 use crate::robot::service_types;
 use crate::robot::service_types::{
@@ -19,7 +20,6 @@ use crate::robot::service_types::{
 };
 use crate::robot::types::PandaStateIntern;
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
-use crate::robot_data::RobotData;
 use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
 use std::mem::size_of;
 

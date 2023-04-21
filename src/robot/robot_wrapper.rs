@@ -2,13 +2,13 @@ use crate::exception::create_command_exception;
 use crate::robot::robot::PrivateRobot;
 use crate::robot::robot::Robot;
 use crate::robot::robot_control::RobotControl;
+use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplementation;
 use crate::robot::service_types::{
     SetCartesianImpedanceRequest, SetCollisionBehaviorRequest, SetEeToKRequest,
     SetGuidingModeRequest, SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest,
     StopMoveStatusPanda,
 };
-use crate::robot_data::RobotData;
 use crate::{
     CartesianPose, CartesianVelocities, ControllerMode, FrankaResult, JointPositions,
     JointVelocities, MotionGenerator, RobotModel, RobotState, Torques, MAX_CUTOFF_FREQUENCY,

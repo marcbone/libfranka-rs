@@ -1,8 +1,8 @@
 use crate::network::Network;
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
+use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplementation;
-use crate::robot_data::RobotData;
 use crate::{
     CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, Finishable, FrankaResult,
     JointPositions, JointVelocities, RobotState, Torques, DEFAULT_CUTOFF_FREQUENCY,

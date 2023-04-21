@@ -4,6 +4,7 @@ use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot::{PrivateRobot, Robot};
+use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplGeneric;
 use crate::robot::service_types;
 use crate::robot::service_types::{
@@ -15,7 +16,6 @@ use crate::robot::service_types::{
     SetLoadRequestWithFr3Header, SetNeToEeRequestWithFr3Header, StopMoveStatusFr3, FR3_VERSION,
 };
 use crate::robot::types::Fr3StateIntern;
-use crate::robot_data::RobotData;
 use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotState};
 use std::mem::size_of;
 

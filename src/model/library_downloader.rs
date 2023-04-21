@@ -2,11 +2,11 @@
 // Licensed under the EUPL-1.2-or-later
 use crate::exception::FrankaException::ModelException;
 use crate::network::Network;
+use crate::robot::robot_data::RobotData;
 use crate::robot::service_types::{
     LoadModelLibraryArchitecture, LoadModelLibraryRequest, LoadModelLibraryStatus,
     LoadModelLibrarySystem,
 };
-use crate::robot_data::RobotData;
 use crate::FrankaResult;
 use std::fmt;
 use std::fmt::Display;

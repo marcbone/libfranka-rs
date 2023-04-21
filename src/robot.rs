@@ -16,6 +16,7 @@ pub mod panda;
 mod rate_limiting;
 pub mod robot;
 mod robot_control;
+pub mod robot_data;
 mod robot_impl;
 pub mod robot_state;
 pub mod robot_wrapper;
