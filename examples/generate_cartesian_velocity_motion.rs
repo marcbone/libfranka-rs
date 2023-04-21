@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{CartesianVelocities, Finishable, FrankaResult, Panda, RobotState, RobotWrapper, FR3};
+use franka::{
+    CartesianVelocities, FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, FR3,
+};
 
 /// An example showing how to generate a Cartesian velocity motion.
 ///

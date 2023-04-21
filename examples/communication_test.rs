@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{Finishable, FrankaResult, Panda, RobotState, RobotWrapper, Torques, FR3};
+use franka::{FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, Torques, FR3};
 
 /// An example indicating the network performance.
 ///

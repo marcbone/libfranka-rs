@@ -23,9 +23,9 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, RobotState, Panda, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, RobotWrapper, RobotState, FR3, FrankaResult};
 //! fn main() -> FrankaResult<()> {
-//! let mut robot = Panda::new("robotik-bs.de", None, None)?;
+//! let mut robot = FR3::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
 //!     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
 //!                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -60,9 +60,9 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Panda, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, FR3, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! let mut robot = FR3::new("robotik-bs.de", None, None)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -80,9 +80,9 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, FR3, RobotWrapper, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! # let mut robot = FR3::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 //! robot.joint_motion(0.5, &q_goal)?;
 //! # Ok(())
@@ -125,7 +125,7 @@
 //! while running.
 //!
 //!```no_run
-//! # use franka::{Finishable, JointPositions};
+//! # use franka::{MotionFinished, JointPositions};
 //! # fn joint_positions() -> JointPositions {
 //! # let time = 0.;
 //! # let mut out = JointPositions::new([0.;7]);
@@ -153,9 +153,9 @@
 //! ```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, FR3, RobotWrapper, RobotState, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! # let mut robot = FR3::new("robotik-bs.de", None, None)?;
 //! # let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {JointPositions::new([0.;7])};
 //! robot.control_joint_positions(callback, None, None, None)
 //! # }

@@ -54,9 +54,9 @@ pub trait RobotWrapper {
     ///
     /// This minimal example will print the robot state 100 times:
     /// ```no_run
-    /// use franka::{Panda, RobotState, FrankaResult};
+    /// use franka::{FR3, RobotState, RobotWrapper, FrankaResult};
     /// fn main() -> FrankaResult<()> {
-    ///     let mut robot = Panda::new("robotik-bs.de",None,None)?;
+    ///     let mut robot = FR3::new("robotik-bs.de",None,None)?;
     ///     let mut count = 0;
     ///     robot.read(| robot_state:&RobotState | -> bool {
     ///         println!("{:?}", robot_state);
@@ -1348,7 +1348,7 @@ mod tests {
     };
     use crate::robot::types::PandaStateIntern;
     use crate::robot::{RobotWrapper, FR3};
-    use crate::{Finishable, FrankaResult, JointPositions, Panda, RealtimeConfig, RobotState};
+    use crate::{FrankaResult, JointPositions, MotionFinished, Panda, RealtimeConfig, RobotState};
     use bincode::{deserialize, serialize, serialized_size};
     use std::iter::FromIterator;
     use std::mem::size_of;

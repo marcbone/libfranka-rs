@@ -216,8 +216,7 @@ impl<
         }
         command.tau_J_d = control_output.tau_J;
         command.tau_J_d.iter().for_each(|x| assert!(x.is_finite()));
-        // !control_output.is_finished()
-        true
+        !control_output.is_finished()
     }
     fn spin_motion(
         &mut self,

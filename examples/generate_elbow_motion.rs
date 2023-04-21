@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{CartesianPose, Finishable, FrankaResult, Panda, RobotState, RobotWrapper, FR3};
+use franka::{CartesianPose, FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, FR3};
 
 /// An example showing how to move the robot's elbow.
 ///
