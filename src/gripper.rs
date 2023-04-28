@@ -233,6 +233,7 @@ mod tests {
 
     struct GripperMockServer {
         server_version: u16,
+        srv_sock: TcpListener,
     }
 
     pub struct ServerReaction {}
@@ -249,19 +250,26 @@ mod tests {
     }
 
     impl GripperMockServer {
+        const HOSTNAME: &'static str = "127.0.0.1";
         pub fn new(server_version: u16) -> Self {
-            GripperMockServer { server_version }
+            let address = format!("{}:{}", Self::HOSTNAME, COMMAND_PORT);
+            let srv_sock = TcpListener::bind(address).unwrap();
+            GripperMockServer {
+                server_version,
+                srv_sock,
+            }
         }
 
         pub fn server_thread(&mut self, reaction: &mut MockServerReaction) {
-            let hostname: &str = "127.0.0.1";
-            let address = format!("{}:{}", hostname, COMMAND_PORT)
-                .to_socket_addrs()
-                .unwrap()
-                .next()
-                .unwrap();
-            let srv_sock = TcpListener::bind(address).unwrap();
-            let (tcp_socket, _remote_address) = srv_sock.accept().unwrap();
+            let udp_socket = UdpSocket::bind(
+                format!("{}:1833", Self::HOSTNAME)
+                    .to_socket_addrs()
+                    .unwrap()
+                    .next()
+                    .unwrap(),
+            )
+            .unwrap();
+            let (tcp_socket, _remote_address) = self.srv_sock.accept().unwrap();
             tcp_socket.set_nonblocking(false).unwrap();
             tcp_socket.set_nodelay(true).unwrap();
             let tcp_socket = Rc::new(Mutex::new(tcp_socket));
@@ -284,17 +292,9 @@ mod tests {
             let udp_port = request.request.udp_port;
             self.send_gripper_connect_response(request, &mut tcp_socket_wrapper);
 
-            let udp_socket = UdpSocket::bind(
-                format!("{}:1833", hostname)
-                    .to_socket_addrs()
-                    .unwrap()
-                    .next()
-                    .unwrap(),
-            )
-            .unwrap();
             udp_socket
                 .connect(
-                    format!("{}:{}", hostname, udp_port)
+                    format!("{}:{}", Self::HOSTNAME, udp_port)
                         .to_socket_addrs()
                         .unwrap()
                         .next()
@@ -317,7 +317,7 @@ mod tests {
             let udp_thread = std::thread::spawn(move || {
                 let mut counter = 1;
                 let start = Instant::now();
-                while (Instant::now() - start).as_secs_f64() < 0.01 {
+                while (Instant::now() - start).as_secs_f64() < 0.1 {
                     let bytes = serialize(&GripperStateIntern {
                         message_id: counter,
                         width: 0.0,
@@ -408,8 +408,8 @@ mod tests {
         ));
 
         let requests_server = requests;
-        let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -440,7 +440,6 @@ mod tests {
             mock_gripper.server_thread(&mut mock);
         });
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
             assert_eq!(gripper.server_version(), GRIPPER_VERSION);
             for (width, speed) in move_request_values.iter() {
@@ -453,8 +452,8 @@ mod tests {
 
     #[test]
     fn gripper_stop_test() -> FrankaResult<()> {
-        let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
@@ -481,7 +480,6 @@ mod tests {
             mock_gripper.server_thread(&mut mock);
         });
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
             gripper.stop().unwrap();
         }
@@ -491,8 +489,8 @@ mod tests {
 
     #[test]
     fn gripper_homing_test() -> FrankaResult<()> {
-        let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(move |bytes: &mut Vec<u8>| -> Vec<u8> {
@@ -519,7 +517,6 @@ mod tests {
             mock_gripper.server_thread(&mut mock);
         });
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
             gripper.homing().unwrap();
         }
@@ -553,8 +550,8 @@ mod tests {
             )));
 
         let requests_server = requests;
-        let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             let num_requests = requests_server.len();
             let mut counter = 0;
@@ -585,7 +582,6 @@ mod tests {
             mock_gripper.server_thread(&mut mock);
         });
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
             for (width, speed, force, epsilon_inner, epsilon_outer) in grasp_request_values.iter() {
                 gripper
@@ -605,8 +601,8 @@ mod tests {
 
     #[test]
     fn incompatible_library() {
-        let thread = std::thread::spawn(|| {
-            let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION + 1);
+        let mut mock_gripper = GripperMockServer::new(GRIPPER_VERSION + 1);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -615,7 +611,6 @@ mod tests {
         });
         let gripper_result;
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             gripper_result = Gripper::new("127.0.0.1")
         }
         thread.join().unwrap();
@@ -634,8 +629,8 @@ mod tests {
 
     #[test]
     fn gripper_read_once() {
-        let thread = std::thread::spawn(|| {
-            let mut server = GripperMockServer::new(GRIPPER_VERSION);
+        let mut server = GripperMockServer::new(GRIPPER_VERSION);
+        let thread = std::thread::spawn(move || {
             let mut mock = MockServerReaction::default();
             mock.expect_process_received_bytes()
                 .returning(|_bytes| Vec::<u8>::new());
@@ -643,7 +638,6 @@ mod tests {
             server.server_thread(&mut mock);
         });
         {
-            std::thread::sleep(Duration::from_secs_f64(0.01));
             let mut gripper = Gripper::new("127.0.0.1").expect("gripper failure");
             let _state = gripper.read_once().expect("could not read gripper state");
         }
