@@ -21,7 +21,7 @@ pub(crate) mod types;
 /// Maintains a network connection to the gripper, provides the current gripper state,
 /// and allows the execution of commands.
 pub struct Gripper {
-    network: Network<GripperData>,
+    network: Network<Self>,
     ri_version: Option<u16>,
 }
 
@@ -645,9 +645,7 @@ mod tests {
     }
 }
 
-pub struct GripperData {}
-
-impl DeviceData for GripperData {
+impl DeviceData for Gripper {
     type CommandHeader = GripperCommandHeader;
     type CommandEnum = GripperCommandEnum;
 
