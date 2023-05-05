@@ -21,7 +21,7 @@ use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;
 
-pub trait RobotImplementation<Data: RobotData>:
+pub(crate) trait RobotImplementation<Data: RobotData>:
     RobotControl<State = <Data as RobotData>::State>
 {
     fn read_once(&mut self) -> FrankaResult<<Data as RobotData>::State>;

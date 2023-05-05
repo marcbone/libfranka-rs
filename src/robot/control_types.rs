@@ -38,7 +38,7 @@ pub enum RealtimeConfig {
     Ignore,
 }
 
-pub trait ConvertMotion<State: AbstractRobotState> {
+pub(crate) trait ConvertMotion<State: AbstractRobotState> {
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
     fn convert_motion(
         &self,

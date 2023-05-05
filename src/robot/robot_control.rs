@@ -6,7 +6,7 @@ use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{MoveControllerMode, MoveDeviation, MoveMotionGeneratorMode};
 use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 
-pub trait RobotControl {
+pub(crate) trait RobotControl {
     type State: AbstractRobotState;
     fn start_motion(
         &mut self,

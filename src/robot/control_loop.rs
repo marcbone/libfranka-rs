@@ -19,7 +19,7 @@ use crate::robot::types::{ControllerCommand, MotionGeneratorCommand};
 use crate::Finishable;
 
 type ControlCallback<'b, State> = &'b mut dyn FnMut(&State, &Duration) -> Torques;
-pub struct ControlLoop<
+pub(crate) struct ControlLoop<
     'a,
     'b,
     Data: RobotData,
