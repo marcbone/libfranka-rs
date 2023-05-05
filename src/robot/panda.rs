@@ -212,8 +212,6 @@ impl PrivateRobot for Panda {
     }
 }
 
-pub struct PandaData {}
-
 impl DeviceData for Panda {
     type CommandHeader = PandaCommandHeader;
     type CommandEnum = PandaCommandEnum;

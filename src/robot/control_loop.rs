@@ -24,13 +24,13 @@ pub struct ControlLoop<
     'b,
     Data: RobotData,
     T: RobotImplementation<Data>,
-    U: ConvertMotion<<Data as RobotData>::State> + Debug + MotionGeneratorTrait + Finishable,
-    F: FnMut(&<Data as RobotData>::State, &Duration) -> U,
+    U: ConvertMotion<Data::State> + Debug + MotionGeneratorTrait + Finishable,
+    F: FnMut(&Data::State, &Duration) -> U,
 > {
     pub default_deviation: MoveDeviation,
     robot: &'a mut T,
     motion_callback: F,
-    control_callback: Option<ControlCallback<'b, <Data as RobotData>::State>>,
+    control_callback: Option<ControlCallback<'b, Data::State>>,
     limit_rate: bool,
     cutoff_frequency: f64,
     pub motion_id: u32,
@@ -41,13 +41,13 @@ impl<
         'b,
         Data: RobotData,
         T: RobotImplementation<Data>,
-        U: ConvertMotion<<Data as RobotData>::State> + Debug + MotionGeneratorTrait + Finishable,
-        F: FnMut(&<Data as RobotData>::State, &Duration) -> U,
+        U: ConvertMotion<Data::State> + Debug + MotionGeneratorTrait + Finishable,
+        F: FnMut(&Data::State, &Duration) -> U,
     > ControlLoop<'a, 'b, Data, T, U, F>
 {
     pub fn new(
         robot: &'a mut T,
-        control_callback: ControlCallback<'b, <Data as RobotData>::State>,
+        control_callback: ControlCallback<'b, Data::State>,
         motion_callback: F,
         limit_rate: bool,
         cutoff_frequency: f64,
@@ -91,7 +91,7 @@ impl<
     fn new_intern(
         robot: &'a mut T,
         motion_callback: F,
-        control_callback: Option<ControlCallback<'b, <Data as RobotData>::State>>,
+        control_callback: Option<ControlCallback<'b, Data::State>>,
         limit_rate: bool,
         cutoff_frequency: f64,
     ) -> FrankaResult<Self> {
@@ -181,7 +181,7 @@ impl<
 
     fn spin_control(
         &mut self,
-        robot_state: &<Data as RobotData>::State,
+        robot_state: &Data::State,
         time_step: &Duration,
         command: &mut ControllerCommand,
     ) -> bool {
