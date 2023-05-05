@@ -3,7 +3,7 @@ use crate::exception::{create_command_exception, FrankaException};
 use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
-use crate::robot::robot_data::RobotData;
+use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplGeneric;
 use crate::robot::robot_trait::{PrivateRobot, Robot};
 use crate::robot::service_types;
@@ -116,7 +116,7 @@ impl Panda {
             }
         })?;
         Ok(Panda {
-            robimpl: <Panda as Robot>::Rob::new(network, log_size, realtime_config)?,
+            robimpl: RobotImplGeneric::new(network, log_size, realtime_config)?,
         })
     }
 
@@ -202,10 +202,14 @@ impl Panda {
 
 impl Robot for Panda {
     type Data = PandaData;
-    type Rob = RobotImplGeneric<Self::Data>;
+    // type Rob = RobotImplGeneric<Self::Data>;
 }
 
 impl PrivateRobot for Panda {
+    // type Rob = ;
+    type Rob = RobotImplGeneric<Self::PrivateData>;
+    type PrivateData = PandaData;
+
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
@@ -239,11 +243,17 @@ impl DeviceData for PandaData {
 }
 
 impl RobotData for PandaData {
-    type DeviceData = Self;
-    type Header = PandaCommandHeader;
     type State = RobotState;
     type StateIntern = PandaStateIntern;
     type Model = PandaModel;
+}
+
+impl PrivateRobotData for PandaData {
+    // type DeviceData = Self;
+    type Header = PandaCommandHeader;
+    // type State = RobotState;
+    // type StateIntern = PandaStateIntern;
+    // type Model = PandaModel;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithPandaHeader;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithPandaHeader;
     type SetLoadRequestWithHeader = SetLoadRequestWithPandaHeader;

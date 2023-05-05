@@ -15,12 +15,18 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
 
-pub trait RobotData: DeviceData {
-    type DeviceData: DeviceData;
+pub trait RobotData {
+   type Model: RobotModel;
+   type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
+   type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
+}
+
+pub(crate) trait PrivateRobotData: DeviceData + RobotData {
+    // type DeviceData: DeviceData;
     type Header: RobotHeader;
-    type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
-    type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
-    type Model: RobotModel;
+    // type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
+    // type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
+    // type Model: RobotModel;
     type LoadModelRequestWithHeader: MessageCommand
         + Serialize
         + From<(u32, LoadModelLibraryRequest)>;

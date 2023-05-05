@@ -7,7 +7,7 @@ use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
 
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_data::RobotData;
+use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
     ConnectResponseWithoutHeader, ConnectStatus, MoveControllerMode, MoveDeviation,
@@ -20,24 +20,24 @@ use crate::robot::types::{
 use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;
+// use crate::robot::robot_trait::PrivateRobot;
 
-pub trait RobotImplementation:
-    RobotControl<State = <<Self as RobotImplementation>::Data as RobotData>::State>
+pub trait RobotImplementation<Data :RobotData>:
+    RobotControl<State = <Data as RobotData>::State>
 {
-    type Data: RobotData;
     fn read_once(
         &mut self,
-    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State>;
+    ) -> FrankaResult<<Data as RobotData>::State>;
     fn load_model(
         &mut self,
         persistent: bool,
-    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::Model>;
+    ) -> FrankaResult<<Data as RobotData>::Model>;
     fn server_version(&self) -> u16;
 }
 
-pub struct RobotImplGeneric<Data: RobotData> {
-    pub network: Network<Data::DeviceData>,
-    logger: Logger<Data::State>,
+pub(crate) struct RobotImplGeneric<Data: PrivateRobotData> {
+    pub network: Network<Data>,
+    logger: Logger<<Data as RobotData>::State>,
     realtime_config: RealtimeConfig,
     ri_version: Option<u16>,
     motion_generator_mode: Option<MotionGeneratorMode>,
@@ -47,7 +47,7 @@ pub struct RobotImplGeneric<Data: RobotData> {
     message_id: u64,
 }
 
-impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
+impl<Data: PrivateRobotData> RobotControl for RobotImplGeneric<Data> {
     type State = Data::State;
 
     fn start_motion(
@@ -222,14 +222,14 @@ impl<Data: RobotData> RobotControl for RobotImplGeneric<Data> {
     }
 }
 
-impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
+impl<Data: PrivateRobotData> RobotImplementation<Data>
     for RobotImplGeneric<Data>
 {
-    type Data = Data;
+    // type Data = Data;
 
     fn read_once(
         &mut self,
-    ) -> FrankaResult<<<Self as RobotImplementation>::Data as RobotData>::State> {
+    ) -> FrankaResult<Data::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
     }
@@ -251,9 +251,9 @@ impl<Data: RobotData + RobotData<DeviceData = Data>> RobotImplementation
     }
 }
 
-impl<Data: RobotData> RobotImplGeneric<Data> {
+impl<Data: PrivateRobotData> RobotImplGeneric<Data> {
     pub fn new(
-        network: Network<Data::DeviceData>,
+        network: Network<Data>,
         log_size: usize,
         realtime_config: RealtimeConfig,
     ) -> FrankaResult<Self> {
@@ -302,10 +302,10 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
         self.controller_mode = robot_state.get_controller_mode();
         self.message_id = robot_state.get_message_id();
     }
-    pub fn read_once(&mut self) -> FrankaResult<Data::State> {
-        while self.network.udp_receive::<Data::StateIntern>().is_some() {}
-        Ok(Data::State::from(self.receive_robot_state()?))
-    }
+    // pub fn read_once(&mut self) -> FrankaResult<Data::State> {
+    //     while self.network.udp_receive::<Data::StateIntern>().is_some() {}
+    //     Ok(Data::State::from(self.receive_robot_state()?))
+    // }
     fn receive_robot_state(&mut self) -> FrankaResult<Data::StateIntern> {
         let mut latest_accepted_state: Option<Data::StateIntern> = None;
         let mut received_state = self.network.udp_receive::<Data::StateIntern>();
@@ -388,9 +388,7 @@ impl<Data: RobotData> RobotImplGeneric<Data> {
     fn controller_running(&self) -> bool {
         self.controller_mode == ControllerMode::ExternalController
     }
-    pub fn server_version(&self) -> u16 {
-        self.ri_version.unwrap()
-    }
+
     fn execute_move_command(
         &mut self,
         controller_mode: &MoveControllerMode,

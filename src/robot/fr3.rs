@@ -3,7 +3,7 @@ use crate::exception::{create_command_exception, FrankaException};
 use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
-use crate::robot::robot_data::RobotData;
+use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplGeneric;
 use crate::robot::robot_trait::{PrivateRobot, Robot};
 use crate::robot::service_types;
@@ -23,7 +23,11 @@ pub struct Fr3 {
     robimpl: RobotImplGeneric<Fr3Data>,
 }
 
+
 impl PrivateRobot for Fr3 {
+    type Rob = RobotImplGeneric<Fr3Data>;
+    type PrivateData = Fr3Data;
+
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.robimpl
     }
@@ -38,7 +42,7 @@ impl PrivateRobot for Fr3 {
 
 impl Robot for Fr3 {
     type Data = Fr3Data;
-    type Rob = RobotImplGeneric<Self::Data>;
+    // type Rob = RobotImplGeneric<Self::Data>;
 }
 
 impl Fr3 {
@@ -55,7 +59,7 @@ impl Fr3 {
             }
         })?;
         Ok(Fr3 {
-            robimpl: <Fr3 as Robot>::Rob::new(network, log_size, realtime_config)?,
+            robimpl: RobotImplGeneric::new(network, log_size, realtime_config)?,
         })
     }
 }
@@ -81,11 +85,17 @@ impl DeviceData for Fr3Data {
 }
 
 impl RobotData for Fr3Data {
-    type DeviceData = Self;
-    type Header = Fr3CommandHeader;
     type State = RobotState;
     type StateIntern = Fr3StateIntern;
     type Model = Fr3Model;
+}
+
+impl PrivateRobotData for Fr3Data {
+    // type DeviceData = Self;
+    type Header = Fr3CommandHeader;
+    // type State = RobotState;
+    // type StateIntern = Fr3StateIntern;
+    // type Model = Fr3Model;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFr3Header;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithFr3Header;
     type SetLoadRequestWithHeader = SetLoadRequestWithFr3Header;

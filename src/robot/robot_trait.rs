@@ -1,7 +1,7 @@
 use crate::network::Network;
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
-use crate::robot::robot_data::RobotData;
+use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplementation;
 use crate::{
     CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, Finishable, FrankaResult,
@@ -17,10 +17,13 @@ where
     JointPositions: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
     CartesianVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
     RobotState: From<<<Self as Robot>::Data as RobotData>::State>,
+
 {
+    type Rob: RobotImplementation<Self::Data>;
+    type PrivateData: PrivateRobotData;
     fn get_rob_mut(&mut self) -> &mut Self::Rob;
-    fn get_rob(&self) -> &Self::Rob;
-    fn get_net(&mut self) -> &mut Network<Self::Data>;
+    fn get_rob(&self) -> & Self::Rob;
+    fn get_net(&mut self) -> &mut Network<Self::PrivateData>;
 
     fn control_motion_intern<
         F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> U,
@@ -86,5 +89,5 @@ where
     RobotState: From<<<Self as Robot>::Data as RobotData>::State>,
 {
     type Data: RobotData;
-    type Rob: RobotImplementation<Data = Self::Data>;
+
 }

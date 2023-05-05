@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::exception::FrankaException::ModelException;
 use crate::network::Network;
-use crate::robot::robot_data::RobotData;
+use crate::robot::robot_data::PrivateRobotData;
 use crate::robot::service_types::{
     LoadModelLibraryArchitecture, LoadModelLibraryRequest, LoadModelLibraryStatus,
     LoadModelLibrarySystem,
@@ -15,15 +15,15 @@ use crate::robot::service_types::{
 use crate::FrankaResult;
 
 pub(crate) trait LibraryDownloader {
-    type Data: RobotData;
+    type Data: PrivateRobotData;
     fn download(network: &mut Network<Self::Data>, download_path: &Path) -> FrankaResult<()>;
 }
 
-pub(crate) struct LibraryDownloaderGeneric<Data: RobotData> {
+pub(crate) struct LibraryDownloaderGeneric<Data: PrivateRobotData> {
     data: std::marker::PhantomData<Data>,
 }
 
-impl<Data: RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
+impl<Data: PrivateRobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
     type Data = Data;
 
     fn download(network: &mut Network<Data>, download_path: &Path) -> FrankaResult<()> {
