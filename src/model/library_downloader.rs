@@ -1,5 +1,10 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+
 use crate::exception::FrankaException::ModelException;
 use crate::network::Network;
 use crate::robot::robot_data::RobotData;
@@ -8,20 +13,16 @@ use crate::robot::service_types::{
     LoadModelLibrarySystem,
 };
 use crate::FrankaResult;
-use std::fmt;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
 
-pub trait LibraryDownloader {
+pub(crate) trait LibraryDownloader {
     type Data: RobotData;
     fn download(network: &mut Network<Self::Data>, download_path: &Path) -> FrankaResult<()>;
 }
-pub struct LibraryDownloaderGeneric<Data: RobotData> {
+
+pub(crate) struct LibraryDownloaderGeneric<Data: RobotData> {
     data: std::marker::PhantomData<Data>,
 }
+
 impl<Data: RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
     type Data = Data;
 
@@ -51,20 +52,5 @@ impl<Data: RobotData> LibraryDownloader for LibraryDownloaderGeneric<Data> {
                         .to_string(),
             })
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct UnsupportedPlatform {}
-
-impl std::error::Error for UnsupportedPlatform {}
-
-impl Display for UnsupportedPlatform {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "Your platform is not yet supported for Downloading models. Please use Linux on\
-        x86_64 for now"
-        )
     }
 }

@@ -10,7 +10,7 @@ use libloading::os::unix::Symbol;
 use std::path::Path;
 
 #[allow(non_snake_case, dead_code)]
-pub struct ModelLibrary {
+pub(crate) struct ModelLibrary {
     libm: Library,
     lib_model: Library,
     M_NE: Symbol<
