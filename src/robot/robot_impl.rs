@@ -20,18 +20,12 @@ use crate::robot::types::{
 use crate::RobotModel;
 use std::fs::remove_file;
 use std::path::Path;
-// use crate::robot::robot_trait::PrivateRobot;
 
-pub trait RobotImplementation<Data :RobotData>:
+pub trait RobotImplementation<Data: RobotData>:
     RobotControl<State = <Data as RobotData>::State>
 {
-    fn read_once(
-        &mut self,
-    ) -> FrankaResult<<Data as RobotData>::State>;
-    fn load_model(
-        &mut self,
-        persistent: bool,
-    ) -> FrankaResult<<Data as RobotData>::Model>;
+    fn read_once(&mut self) -> FrankaResult<<Data as RobotData>::State>;
+    fn load_model(&mut self, persistent: bool) -> FrankaResult<<Data as RobotData>::Model>;
     fn server_version(&self) -> u16;
 }
 
@@ -48,7 +42,7 @@ pub(crate) struct RobotImplGeneric<Data: PrivateRobotData> {
 }
 
 impl<Data: PrivateRobotData> RobotControl for RobotImplGeneric<Data> {
-    type State = Data::State;
+    type State = <Data as RobotData>::State;
 
     fn start_motion(
         &mut self,
@@ -222,14 +216,10 @@ impl<Data: PrivateRobotData> RobotControl for RobotImplGeneric<Data> {
     }
 }
 
-impl<Data: PrivateRobotData> RobotImplementation<Data>
-    for RobotImplGeneric<Data>
-{
+impl<Data: PrivateRobotData> RobotImplementation<Data> for RobotImplGeneric<Data> {
     // type Data = Data;
 
-    fn read_once(
-        &mut self,
-    ) -> FrankaResult<Data::State> {
+    fn read_once(&mut self) -> FrankaResult<Data::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
     }

@@ -45,7 +45,7 @@ pub trait MessageCommand {
     fn get_command_message_id(&self) -> u32;
 }
 
-pub struct Network<Data: DeviceData> {
+pub(crate) struct Network<Data: DeviceData> {
     tcp_socket: TcpStream,
     udp_socket: UdpSocket,
     udp_server_address: SocketAddr,

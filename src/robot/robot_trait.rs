@@ -4,33 +4,20 @@ use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplementation;
 use crate::{
-    CartesianPose, CartesianVelocities, ControllerMode, ConvertMotion, Finishable, FrankaResult,
-    JointPositions, JointVelocities, RobotState, Torques, DEFAULT_CUTOFF_FREQUENCY,
+    ControllerMode, ConvertMotion, Finishable, FrankaResult, Torques, DEFAULT_CUTOFF_FREQUENCY,
 };
 use std::fmt::Debug;
 use std::time::Duration;
 
-pub(crate) trait PrivateRobot: Robot
-where
-    CartesianPose: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    JointVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    JointPositions: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    CartesianVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    RobotState: From<<<Self as Robot>::Data as RobotData>::State>,
-
-{
-    type Rob: RobotImplementation<Self::Data>;
-    type PrivateData: PrivateRobotData;
+pub(crate) trait PrivateRobot: PrivateRobotData + Sized {
+    type Rob: RobotImplementation<Self>;
     fn get_rob_mut(&mut self) -> &mut Self::Rob;
-    fn get_rob(&self) -> & Self::Rob;
-    fn get_net(&mut self) -> &mut Network<Self::PrivateData>;
+    fn get_rob(&self) -> &Self::Rob;
+    fn get_net(&mut self) -> &mut Network<Self>;
 
     fn control_motion_intern<
-        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> U,
-        U: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>
-            + Debug
-            + MotionGeneratorTrait
-            + Finishable,
+        F: FnMut(&<Self as RobotData>::State, &Duration) -> U,
+        U: ConvertMotion<<Self as RobotData>::State> + Debug + MotionGeneratorTrait + Finishable,
     >(
         &mut self,
         motion_generator_callback: F,
@@ -52,18 +39,12 @@ where
     }
 
     fn control_torques_intern<
-        F: FnMut(&<<Self as Robot>::Data as RobotData>::State, &Duration) -> U,
-        U: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>
-            + Debug
-            + MotionGeneratorTrait
-            + Finishable,
+        F: FnMut(&<Self as RobotData>::State, &Duration) -> U,
+        U: ConvertMotion<<Self as RobotData>::State> + Debug + MotionGeneratorTrait + Finishable,
     >(
         &mut self,
         motion_generator_callback: F,
-        control_callback: &mut dyn FnMut(
-            &<<Self as Robot>::Data as RobotData>::State,
-            &Duration,
-        ) -> Torques,
+        control_callback: &mut dyn FnMut(&<Self as RobotData>::State, &Duration) -> Torques,
         limit_rate: Option<bool>,
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
@@ -78,16 +59,4 @@ where
         )?;
         control_loop.run()
     }
-}
-
-pub trait Robot
-where
-    CartesianPose: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    JointVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    JointPositions: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    CartesianVelocities: ConvertMotion<<<Self as Robot>::Data as RobotData>::State>,
-    RobotState: From<<<Self as Robot>::Data as RobotData>::State>,
-{
-    type Data: RobotData;
-
 }

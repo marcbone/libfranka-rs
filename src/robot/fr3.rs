@@ -5,7 +5,7 @@ use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplGeneric;
-use crate::robot::robot_trait::{PrivateRobot, Robot};
+use crate::robot::robot_trait::PrivateRobot;
 use crate::robot::service_types;
 use crate::robot::service_types::{
     AutomaticErrorRecoveryStatusFr3, ConnectRequest, ConnectRequestWithFr3Header, Fr3CommandEnum,
@@ -19,30 +19,27 @@ use crate::robot::types::Fr3StateIntern;
 use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotState};
 use std::mem::size_of;
 
-pub struct Fr3 {
-    robimpl: RobotImplGeneric<Fr3Data>,
-}
+pub struct Fr3(RobotImplGeneric<Self>);
 
+impl RobotData for Fr3 {
+    type Model = Fr3Model;
+    type StateIntern = Fr3StateIntern;
+    type State = RobotState;
+}
 
 impl PrivateRobot for Fr3 {
-    type Rob = RobotImplGeneric<Fr3Data>;
-    type PrivateData = Fr3Data;
+    type Rob = RobotImplGeneric<Fr3>;
 
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
-        &mut self.robimpl
+        &mut self.0
     }
     fn get_rob(&self) -> &Self::Rob {
-        &self.robimpl
+        &self.0
     }
 
-    fn get_net(&mut self) -> &mut Network<Self::Data> {
-        &mut self.robimpl.network
+    fn get_net(&mut self) -> &mut Network<Self> {
+        &mut self.0.network
     }
-}
-
-impl Robot for Fr3 {
-    type Data = Fr3Data;
-    // type Rob = RobotImplGeneric<Self::Data>;
 }
 
 impl Fr3 {
@@ -58,15 +55,15 @@ impl Fr3 {
                 message: "Connection could not be established".to_string(),
             }
         })?;
-        Ok(Fr3 {
-            robimpl: RobotImplGeneric::new(network, log_size, realtime_config)?,
-        })
+        Ok(Fr3(RobotImplGeneric::new(
+            network,
+            log_size,
+            realtime_config,
+        )?))
     }
 }
 
-pub struct Fr3Data {}
-
-impl DeviceData for Fr3Data {
+impl DeviceData for Fr3 {
     type CommandHeader = Fr3CommandHeader;
     type CommandEnum = Fr3CommandEnum;
     fn create_header(
@@ -84,18 +81,8 @@ impl DeviceData for Fr3Data {
     }
 }
 
-impl RobotData for Fr3Data {
-    type State = RobotState;
-    type StateIntern = Fr3StateIntern;
-    type Model = Fr3Model;
-}
-
-impl PrivateRobotData for Fr3Data {
-    // type DeviceData = Self;
+impl PrivateRobotData for Fr3 {
     type Header = Fr3CommandHeader;
-    // type State = RobotState;
-    // type StateIntern = Fr3StateIntern;
-    // type Model = Fr3Model;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFr3Header;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithFr3Header;
     type SetLoadRequestWithHeader = SetLoadRequestWithFr3Header;
@@ -107,12 +94,10 @@ impl PrivateRobotData for Fr3Data {
     type SetNeToEeRequestWithHeader = SetNeToEeRequestWithFr3Header;
     type MoveRequestWithHeader = MoveRequestWithFr3Header;
     type MoveStatus = MoveStatusFr3;
-
     type GetterSetterStatus = GetterSetterStatusFr3;
-
     type StopMoveStatus = StopMoveStatusFr3;
-
     type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusFr3;
+
     fn create_connect_request(
         command_id: &mut u32,
         udp_port: u16,

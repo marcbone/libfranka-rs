@@ -5,7 +5,7 @@ use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplGeneric;
-use crate::robot::robot_trait::{PrivateRobot, Robot};
+use crate::robot::robot_trait::PrivateRobot;
 use crate::robot::service_types;
 use crate::robot::service_types::{
     AutomaticErrorRecoveryStatusPanda, ConnectRequest, ConnectRequestWithPandaHeader,
@@ -76,9 +76,7 @@ use std::mem::size_of;
 ///
 /// Commands are executed by communicating with the robot over the network.
 /// These functions should therefore not be called from within control or motion generator loops.
-pub struct Panda {
-    robimpl: RobotImplGeneric<PandaData>,
-}
+pub struct Panda(RobotImplGeneric<Self>);
 
 impl Panda {
     /// Establishes a connection with the robot.
@@ -115,9 +113,11 @@ impl Panda {
                 message: "Connection could not be established".to_string(),
             }
         })?;
-        Ok(Panda {
-            robimpl: RobotImplGeneric::new(network, log_size, realtime_config)?,
-        })
+        Ok(Panda(RobotImplGeneric::new(
+            network,
+            log_size,
+            realtime_config,
+        )?))
     }
 
     /// Sets the cut off frequency for the given motion generator or controller.
@@ -147,7 +147,7 @@ impl Panda {
         controller_filter_frequency: f64,
     ) -> FrankaResult<()> {
         let command = SetFiltersRequestWithPandaHeader {
-            header: self.robimpl.network.create_header_for_panda(
+            header: self.0.network.create_header_for_panda(
                 PandaCommandEnum::SetFilters,
                 size_of::<SetFiltersRequestWithPandaHeader>(),
             ),
@@ -159,12 +159,9 @@ impl Panda {
                 controller_filter_frequency,
             ),
         };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: SetFiltersResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
-        PandaData::handle_getter_setter_status(response.status)
+        let command_id: u32 = self.0.network.tcp_send_request(command);
+        let response: SetFiltersResponse = self.0.network.tcp_blocking_receive_response(command_id);
+        Panda::handle_getter_setter_status(response.status)
     }
 
     /// Returns the parameters of a virtual wall.
@@ -177,17 +174,15 @@ impl Panda {
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
     pub fn get_virtual_wall(&mut self, id: i32) -> FrankaResult<VirtualWallCuboid> {
         let command = GetCartesianLimitRequestWithPandaHeader {
-            header: self.robimpl.network.create_header_for_panda(
+            header: self.0.network.create_header_for_panda(
                 PandaCommandEnum::GetCartesianLimit,
                 size_of::<GetCartesianLimitRequestWithPandaHeader>(),
             ),
             request: GetCartesianLimitRequest::new(id),
         };
-        let command_id: u32 = self.robimpl.network.tcp_send_request(command);
-        let response: GetCartesianLimitResponse = self
-            .robimpl
-            .network
-            .tcp_blocking_receive_response(command_id);
+        let command_id: u32 = self.0.network.tcp_send_request(command);
+        let response: GetCartesianLimitResponse =
+            self.0.network.tcp_blocking_receive_response(command_id);
         match &response.status {
             GetterSetterStatusPanda::Success => Ok(VirtualWallCuboid::new(id, response)),
             GetterSetterStatusPanda::CommandNotPossibleRejected => Err(create_command_exception(
@@ -200,31 +195,26 @@ impl Panda {
     }
 }
 
-impl Robot for Panda {
-    type Data = PandaData;
-    // type Rob = RobotImplGeneric<Self::Data>;
-}
-
 impl PrivateRobot for Panda {
     // type Rob = ;
-    type Rob = RobotImplGeneric<Self::PrivateData>;
-    type PrivateData = PandaData;
+    type Rob = RobotImplGeneric<Self>;
+    // type PrivateData = Panda;
 
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
-        &mut self.robimpl
+        &mut self.0
     }
     fn get_rob(&self) -> &Self::Rob {
-        &self.robimpl
+        &self.0
     }
 
-    fn get_net(&mut self) -> &mut Network<Self::Data> {
-        &mut self.robimpl.network
+    fn get_net(&mut self) -> &mut Network<Self> {
+        &mut self.0.network
     }
 }
 
 pub struct PandaData {}
 
-impl DeviceData for PandaData {
+impl DeviceData for Panda {
     type CommandHeader = PandaCommandHeader;
     type CommandEnum = PandaCommandEnum;
     fn create_header(
@@ -242,18 +232,14 @@ impl DeviceData for PandaData {
     }
 }
 
-impl RobotData for PandaData {
-    type State = RobotState;
-    type StateIntern = PandaStateIntern;
+impl RobotData for Panda {
     type Model = PandaModel;
+    type StateIntern = PandaStateIntern;
+    type State = RobotState;
 }
 
-impl PrivateRobotData for PandaData {
-    // type DeviceData = Self;
+impl PrivateRobotData for Panda {
     type Header = PandaCommandHeader;
-    // type State = RobotState;
-    // type StateIntern = PandaStateIntern;
-    // type Model = PandaModel;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithPandaHeader;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithPandaHeader;
     type SetLoadRequestWithHeader = SetLoadRequestWithPandaHeader;
@@ -263,15 +249,10 @@ impl PrivateRobotData for PandaData {
     type ConnectRequestWithHeader = ConnectRequestWithPandaHeader;
     type SetEeToKRequestWithHeader = SetEeToKRequestWithPandaHeader;
     type SetNeToEeRequestWithHeader = SetNeToEeRequestWithPandaHeader;
-
     type MoveRequestWithHeader = MoveRequestWithPandaHeader;
-
     type MoveStatus = MoveStatusPanda;
-
     type GetterSetterStatus = GetterSetterStatusPanda;
-
     type StopMoveStatus = StopMoveStatusPanda;
-
     type AutomaticErrorRecoveryStatus = AutomaticErrorRecoveryStatusPanda;
 
     fn create_connect_request(

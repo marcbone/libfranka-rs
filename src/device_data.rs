@@ -1,6 +1,6 @@
 use crate::gripper::types::CommandHeader;
 
-pub trait DeviceData {
+pub(crate) trait DeviceData {
     type CommandHeader: CommandHeader;
     type CommandEnum;
     fn create_header(
