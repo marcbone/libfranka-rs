@@ -4,10 +4,10 @@
 //! Contains the franka::Robot type.
 
 use crate::exception::create_command_exception;
+use crate::robot::private_robot::PrivateRobot;
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplementation;
-use crate::robot::robot_trait::PrivateRobot;
 use crate::robot::service_types::{
     SetCartesianImpedanceRequest, SetCollisionBehaviorRequest, SetEeToKRequest,
     SetGuidingModeRequest, SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest,
@@ -29,12 +29,12 @@ pub mod logger;
 pub mod low_pass_filter;
 mod motion_generator_traits;
 pub mod panda;
+mod private_robot;
 mod rate_limiting;
 mod robot_control;
 pub mod robot_data;
 mod robot_impl;
 pub mod robot_state;
-mod robot_trait;
 pub(crate) mod service_types;
 pub(crate) mod types;
 pub mod virtual_wall_cuboid;

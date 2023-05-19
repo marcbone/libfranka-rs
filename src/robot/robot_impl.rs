@@ -217,8 +217,6 @@ impl<Data: PrivateRobotData> RobotControl for RobotImplGeneric<Data> {
 }
 
 impl<Data: PrivateRobotData> RobotImplementation<Data> for RobotImplGeneric<Data> {
-    // type Data = Data;
-
     fn read_once(&mut self) -> FrankaResult<Data::State> {
         while self.network.udp_receive::<Data::StateIntern>().is_some() {}
         Ok(Data::State::from(self.receive_robot_state()?))
@@ -292,10 +290,7 @@ impl<Data: PrivateRobotData> RobotImplGeneric<Data> {
         self.controller_mode = robot_state.get_controller_mode();
         self.message_id = robot_state.get_message_id();
     }
-    // pub fn read_once(&mut self) -> FrankaResult<Data::State> {
-    //     while self.network.udp_receive::<Data::StateIntern>().is_some() {}
-    //     Ok(Data::State::from(self.receive_robot_state()?))
-    // }
+
     fn receive_robot_state(&mut self) -> FrankaResult<Data::StateIntern> {
         let mut latest_accepted_state: Option<Data::StateIntern> = None;
         let mut received_state = self.network.udp_receive::<Data::StateIntern>();
