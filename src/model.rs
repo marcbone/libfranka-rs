@@ -76,7 +76,7 @@ pub trait RobotModel {
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
-    /// [`RobotWrapper::load_model`](crate::RobotWrapper::load_model).
+    /// [`Robot::load_model`](crate::Robot::load_model).
     ///
     /// If you do not have the model you can use the download_model example to download the model
     /// # Arguments

@@ -9,8 +9,8 @@ use clap::Parser;
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 
 use franka::{
-    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Matrix7, Panda, RobotModel, RobotState,
-    RobotWrapper, Torques, Vector7,
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Matrix7, Panda, Robot, RobotModel,
+    RobotState, Torques, Vector7,
 };
 
 /// An example where one robot is guided by the user and the other robot acts as a mirror. In this
@@ -52,7 +52,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn initialize_and_start_robots<User: RobotWrapper + Send + 'static>(
+fn initialize_and_start_robots<User: Robot + Send + 'static>(
     args: &CommandLineArguments,
     robot_user: User,
 ) -> FrankaResult<()> {
@@ -68,7 +68,7 @@ fn initialize_and_start_robots<User: RobotWrapper + Send + 'static>(
     }
 }
 
-fn control_robots<User: RobotWrapper + Send + 'static, Mirror: RobotWrapper>(
+fn control_robots<User: Robot + Send + 'static, Mirror: Robot>(
     mut robot_user: User,
     mut robot_mirror: Mirror,
 ) -> FrankaResult<()> {

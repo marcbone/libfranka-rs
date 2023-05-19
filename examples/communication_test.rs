@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{Fr3, FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper, Torques};
+use franka::{Fr3, FrankaResult, MotionFinished, Panda, Robot, RobotState, Torques};
 
 /// An example indicating the network performance.
 ///
@@ -34,7 +34,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");

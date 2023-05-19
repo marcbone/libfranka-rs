@@ -3,7 +3,7 @@
 
 use clap::Parser;
 
-use franka::{Fr3, FrankaResult, Panda, RobotState, RobotWrapper};
+use franka::{Fr3, FrankaResult, Panda, Robot, RobotState};
 
 /// An example showing how to continuously read the robot state.
 #[derive(Parser, Debug)]
@@ -30,7 +30,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn echo_robot_state<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
+fn echo_robot_state<R: Robot>(mut robot: R) -> FrankaResult<()> {
     robot.set_collision_behavior(
         [0.; 7], [0.; 7], [0.; 7], [0.; 7], [0.; 6], [0.; 6], [0.; 6], [0.; 6],
     )?;

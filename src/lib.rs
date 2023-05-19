@@ -23,7 +23,7 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, RobotWrapper, RobotState, Fr3, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, Robot, RobotState, Fr3, FrankaResult};
 //! fn main() -> FrankaResult<()> {
 //! let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
@@ -80,7 +80,7 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, RobotWrapper, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, Robot, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
@@ -153,7 +153,7 @@
 //!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, Fr3, RobotWrapper, RobotState, FrankaResult};
+//! # use franka::{JointPositions, Fr3, Robot, RobotState, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
 //! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! # let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {JointPositions::new([0.;7])};
@@ -185,5 +185,5 @@ pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
 pub use robot::panda::Panda;
 pub use robot::robot_state::RobotState;
-pub use robot::robot_wrapper::RobotWrapper;
+pub use robot::Robot;
 pub use utils::*;

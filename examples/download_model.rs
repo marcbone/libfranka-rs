@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use franka::exception::FrankaException::ModelException;
-use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, RobotWrapper};
+use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, Robot};
 
 /// Downloads the model for offline usage
 #[derive(Parser, Debug)]
@@ -40,7 +40,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn download_model<R: RobotWrapper>(mut robot: R, path: PathBuf) -> FrankaResult<()> {
+fn download_model<R: Robot>(mut robot: R, path: PathBuf) -> FrankaResult<()> {
     robot.load_model(true)?;
     fs::copy("/tmp/model.so", &path).map_err(|_| ModelException {
         message: "Could copy model to download location".to_string(),

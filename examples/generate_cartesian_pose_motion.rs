@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use franka::{CartesianPose, Fr3, FrankaResult, MotionFinished, Panda, RobotState, RobotWrapper};
+use franka::{CartesianPose, Fr3, FrankaResult, MotionFinished, Panda, Robot, RobotState};
 
 /// An example showing how to generate a Cartesian motion.
 ///
@@ -36,7 +36,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");

@@ -7,8 +7,8 @@ use clap::Parser;
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 
 use franka::{
-    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Panda, RobotModel, RobotState,
-    RobotWrapper, Torques, Vector7,
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Panda, Robot, RobotModel, RobotState,
+    Torques, Vector7,
 };
 
 /// An example showing a simple cartesian impedance controller without inertia shaping
@@ -41,7 +41,7 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn generate_motion<R: RobotWrapper>(mut robot: R) -> FrankaResult<()> {
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     let model = robot.load_model(false)?;
     let translational_stiffness = 150.;
     let rotational_stiffness = 10.;
