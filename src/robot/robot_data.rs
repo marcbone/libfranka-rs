@@ -23,6 +23,7 @@ pub trait RobotData {
 }
 
 pub(crate) trait PrivateRobotData: DeviceData + RobotData {
+    const MODEL_NAME: &'static str;
     type Header: RobotHeader;
     type LoadModelRequestWithHeader: MessageCommand
         + Serialize

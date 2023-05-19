@@ -236,6 +236,7 @@ impl RobotData for Panda {
 }
 
 impl PrivateRobotData for Panda {
+    const MODEL_NAME: &'static str = "panda";
     type Header = PandaCommandHeader;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithPandaHeader;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithPandaHeader;

@@ -82,6 +82,7 @@ impl DeviceData for Fr3 {
 }
 
 impl PrivateRobotData for Fr3 {
+    const MODEL_NAME: &'static str = "fr3";
     type Header = Fr3CommandHeader;
     type LoadModelRequestWithHeader = LoadModelLibraryRequestWithFr3Header;
     type SetCollisionBehaviorRequestWithHeader = SetCollisionBehaviorRequestWithFr3Header;

@@ -24,9 +24,6 @@ THE ROBOT!**
  * Direct Conversions from [nalgebra](https://nalgebra.org/) (Eigen3 equivalent) types into libfranka control types (JointPositions, CartesianPose, ...)
  * Proper error handling with Result types
  
-TODO:
- * Usage of the Model for anything else but Linux x86_64
- 
 Not supported:
  * Windows (macOS could maybe work, but I have not tested it)
  * Vacuum Grippers (we do not have those, so I cannot test them)

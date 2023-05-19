@@ -1,10 +1,12 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 use crate::exception::{FrankaException, FrankaResult};
 use crate::model::library_downloader::{LibraryDownloader, LibraryDownloaderGeneric};
 use crate::network::Network;
 use crate::robot::control_types::RealtimeConfig;
 use crate::robot::logger::Logger;
+use std::env::consts::{ARCH, DLL_EXTENSION, OS};
 
 use crate::robot::robot_control::RobotControl;
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
@@ -222,7 +224,14 @@ impl<Data: PrivateRobotData> RobotImplementation<Data> for RobotImplGeneric<Data
         Ok(Data::State::from(self.receive_robot_state()?))
     }
     fn load_model(&mut self, persistent: bool) -> FrankaResult<Data::Model> {
-        let model_file = Path::new("/tmp/model.so"); // TODO when we load from file we need to distinguish between FR3 and panda
+        let download_path = format!(
+            "/tmp/{}_model_{}_{}.{}",
+            Data::MODEL_NAME,
+            OS,
+            ARCH,
+            DLL_EXTENSION
+        );
+        let model_file = Path::new(download_path.as_str());
         let model_already_downloaded = model_file.exists();
         if !model_already_downloaded {
             LibraryDownloaderGeneric::<Data>::download(&mut self.network, model_file)?;
