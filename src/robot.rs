@@ -76,8 +76,10 @@ pub trait Robot {
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -285,8 +287,10 @@ pub trait Robot {
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -319,8 +323,10 @@ pub trait Robot {
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -354,8 +360,10 @@ pub trait Robot {
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -425,8 +433,10 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -460,8 +470,10 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -495,8 +507,10 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.
@@ -530,8 +544,10 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `motion_generator_callback` Callback function for motion generation.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` Set to true to activate the rate limiter.
+    /// The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`RobotData::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
     /// Set to [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`) to disable.

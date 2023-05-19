@@ -16,6 +16,7 @@ use serde::Serialize;
 use std::fmt::Debug;
 
 pub trait RobotData {
+    const RATE_LIMITING_ON_PER_DEFAULT: bool = false;
     type Model: RobotModel;
     type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;

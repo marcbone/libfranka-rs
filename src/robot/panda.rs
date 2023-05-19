@@ -196,9 +196,7 @@ impl Panda {
 }
 
 impl PrivateRobot for Panda {
-    // type Rob = ;
     type Rob = RobotImplGeneric<Self>;
-    // type PrivateData = Panda;
 
     fn get_rob_mut(&mut self) -> &mut Self::Rob {
         &mut self.0
@@ -231,6 +229,7 @@ impl DeviceData for Panda {
 }
 
 impl RobotData for Panda {
+    const RATE_LIMITING_ON_PER_DEFAULT: bool = true;
     type Model = PandaModel;
     type StateIntern = PandaStateIntern;
     type State = RobotState;
