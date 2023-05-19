@@ -89,8 +89,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint position commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_joint_positions<
         F: FnMut(&RobotState, &Duration) -> JointPositions,
         CM: Into<Option<ControllerMode>>,
@@ -299,8 +297,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint velocity commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_joint_velocities<
         F: FnMut(&RobotState, &Duration) -> JointVelocities,
         CM: Into<Option<ControllerMode>>,
@@ -336,8 +332,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if Cartesian pose command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_cartesian_pose<
         F: FnMut(&RobotState, &Duration) -> CartesianPose,
         CM: Into<Option<ControllerMode>>,
@@ -373,8 +367,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if Cartesian velocity command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_cartesian_velocities<
         F: FnMut(&RobotState, &Duration) -> CartesianVelocities,
         CM: Into<Option<ControllerMode>>,
@@ -412,8 +404,6 @@ pub trait Robot {
     /// if real-time priority cannot be set for the current thread.
     /// # Panics
     /// * if joint-level torque commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if real-time priority cannot be set.
     fn control_torques<
         T: FnMut(&RobotState, &Duration) -> Torques,
         L: Into<Option<bool>>,
@@ -447,8 +437,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint-level torque or joint velocity commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_torques_and_joint_velocities<
         F: FnMut(&RobotState, &Duration) -> JointVelocities,
         T: FnMut(&RobotState, &Duration) -> Torques,
@@ -484,8 +472,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint-level torque or joint position commands are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_torques_and_joint_positions<
         F: FnMut(&RobotState, &Duration) -> JointPositions,
         T: FnMut(&RobotState, &Duration) -> Torques,
@@ -521,8 +507,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint-level torque or Cartesian pose command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_torques_and_cartesian_pose<
         F: FnMut(&RobotState, &Duration) -> CartesianPose,
         T: FnMut(&RobotState, &Duration) -> Torques,
@@ -558,8 +542,6 @@ pub trait Robot {
     /// * [`RealTimeException`](`crate::exception::FrankaException::RealTimeException`) if realtime priority cannot be set for the current thread.
     /// # Panics
     /// * if joint-level torque or Cartesian velocity command elements are NaN or infinity.
-    ///
-    /// See [`new`](`Self::new`) to change behavior if realtime priority cannot be set.
     fn control_torques_and_cartesian_velocities<
         F: FnMut(&RobotState, &Duration) -> CartesianVelocities,
         T: FnMut(&RobotState, &Duration) -> Torques,

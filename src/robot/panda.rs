@@ -30,11 +30,11 @@ use std::mem::size_of;
 /// # End effector frame EE
 /// By default, the end effector frame EE is the same as the nominal end effector frame NE
 /// (i.e. the transformation between NE and EE is the identity transformation).
-/// With [`set_EE`](Self::set_EE), a custom transformation matrix can be set.
+/// With [`set_EE`](`crate::Robot::set_EE`), a custom transformation matrix can be set.
 /// # Stiffness frame K
 /// The stiffness frame is used for Cartesian impedance control, and for measuring and applying
 /// forces.
-/// It can be set with [`set_K`](`Self::set_K`).
+/// It can be set with [`set_K`](``crate::Robot::set_K`).
 ///
 ///
 /// # Motion generation and joint-level torque commands
