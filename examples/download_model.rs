@@ -19,7 +19,7 @@ struct CommandLineArguments {
     /// Directory where the model should be downloaded
     #[clap(parse(from_os_str))]
     download_path: PathBuf,
-    // Use this option to run the example on a Panda
+    /// Use this option to run the example on a Panda
     #[clap(short, long, action)]
     pub panda: bool,
 }

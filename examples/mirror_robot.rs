@@ -28,12 +28,12 @@ struct CommandLineArguments {
     #[clap(long)]
     pub franka_ip_mirror: String,
 
-    /// Use this option to run the example on a Panda
-    #[clap(short, long, action)]
+    /// Use this option if the hand-guided robot is a Panda
+    #[clap(long, action)]
     pub panda_user: bool,
 
-    /// Use this option to run the example on a Panda
-    #[clap(short, long, action)]
+    /// Use this option if the mirrored robot is a Panda
+    #[clap(long, action)]
     pub panda_mirror: bool,
 }
 

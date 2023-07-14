@@ -15,7 +15,7 @@ use franka::{Fr3, FrankaResult, MotionFinished, Panda, Robot, RobotState, Torque
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
-    // Use this option to run the example on a Panda
+    /// Use this option to run the example on a Panda
     #[clap(short, long, action)]
     pub panda: bool,
 }
