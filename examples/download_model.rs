@@ -17,7 +17,6 @@ struct CommandLineArguments {
     pub franka_ip: String,
 
     /// Directory where the model should be downloaded
-    #[clap(parse(from_os_str))]
     download_path: PathBuf,
     /// Use this option to run the example on a Panda
     #[clap(short, long, action)]
