@@ -8,6 +8,7 @@ use crate::{
 };
 use std::fmt::Debug;
 use std::time::Duration;
+use crate::robot::rate_limiting::RateLimiterParameters;
 
 pub(crate) trait PrivateRobot: PrivateRobotData + Sized {
     type Rob: RobotImplementation<Self>;
@@ -26,7 +27,7 @@ pub(crate) trait PrivateRobot: PrivateRobotData + Sized {
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
         let controller_mode = controller_mode.unwrap_or(ControllerMode::JointImpedance);
-        let limit_rate = limit_rate.unwrap_or(<Self as RobotData>::RATE_LIMITING_ON_PER_DEFAULT);
+        let limit_rate = limit_rate.unwrap_or(<Self as RobotData>::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT);
         let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::from_control_mode(
             self.get_rob_mut(),
@@ -48,7 +49,7 @@ pub(crate) trait PrivateRobot: PrivateRobotData + Sized {
         limit_rate: Option<bool>,
         cutoff_frequency: Option<f64>,
     ) -> FrankaResult<()> {
-        let limit_rate = limit_rate.unwrap_or(<Self as RobotData>::RATE_LIMITING_ON_PER_DEFAULT);
+        let limit_rate = limit_rate.unwrap_or(<Self as RobotData>::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT);
         let cutoff_frequency = cutoff_frequency.unwrap_or(DEFAULT_CUTOFF_FREQUENCY);
         let mut control_loop = ControlLoop::new(
             self.get_rob_mut(),

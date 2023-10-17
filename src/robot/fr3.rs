@@ -18,11 +18,13 @@ use crate::robot::service_types::{
 use crate::robot::types::Fr3StateIntern;
 use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotState};
 use std::mem::size_of;
+use crate::robot::rate_limiting::Fr3RateLimiter;
 
 pub struct Fr3(RobotImplGeneric<Self>);
 
 impl RobotData for Fr3 {
     type Model = Fr3Model;
+    type RateLimiterParameters = Fr3RateLimiter;
     type StateIntern = Fr3StateIntern;
     type State = RobotState;
 }

@@ -22,6 +22,7 @@ use crate::robot::types::PandaStateIntern;
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
 use std::mem::size_of;
+use crate::robot::rate_limiting::PandaRateLimiter;
 
 /// Maintains a network connection to the robot, provides the current robot state, gives access to
 /// the model library and allows to control the robot.
@@ -229,8 +230,8 @@ impl DeviceData for Panda {
 }
 
 impl RobotData for Panda {
-    const RATE_LIMITING_ON_PER_DEFAULT: bool = true;
     type Model = PandaModel;
+    type RateLimiterParameters = PandaRateLimiter;
     type StateIntern = PandaStateIntern;
     type State = RobotState;
 }

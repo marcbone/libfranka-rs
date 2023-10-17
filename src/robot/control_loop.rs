@@ -10,7 +10,7 @@ use crate::robot::control_tools::{
 use crate::robot::control_types::{ControllerMode, ConvertMotion, RealtimeConfig, Torques};
 use crate::robot::low_pass_filter::{low_pass_filter, MAX_CUTOFF_FREQUENCY};
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
-use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, MAX_TORQUE_RATE};
+use crate::robot::rate_limiting::{limit_rate_torques, DELTA_T, RateLimiterParameters};
 use crate::robot::robot_data::RobotData;
 use crate::robot::robot_impl::RobotImplementation;
 use crate::robot::robot_state::AbstractRobotState;
@@ -199,7 +199,7 @@ impl<
         }
         if self.limit_rate {
             control_output.tau_J = limit_rate_torques(
-                &MAX_TORQUE_RATE,
+                &Data::RateLimiterParameters::MAX_TORQUE_RATE,
                 &control_output.tau_J,
                 &robot_state.get_tau_J_d(),
             );
@@ -215,7 +215,7 @@ impl<
         command: &mut MotionGeneratorCommand,
     ) -> bool {
         let motion_output = (self.motion_callback)(robot_state, time_step);
-        motion_output.convert_motion(robot_state, command, self.cutoff_frequency, self.limit_rate);
+        motion_output.convert_motion::<Data::RateLimiterParameters>(robot_state, command, self.cutoff_frequency, self.limit_rate);
         !motion_output.is_finished()
     }
 }

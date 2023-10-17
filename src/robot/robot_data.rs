@@ -14,10 +14,11 @@ use crate::{FrankaResult, RobotModel, RobotState};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
+use crate::robot::rate_limiting::RateLimiterParameters;
 
 pub trait RobotData {
-    const RATE_LIMITING_ON_PER_DEFAULT: bool = false;
     type Model: RobotModel;
+    type RateLimiterParameters : RateLimiterParameters;
     type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
 }
