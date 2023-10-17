@@ -21,7 +21,12 @@ pub const NORM_EPS: f64 = f64::EPSILON;
 /// Factor for the definition of rotational limits using the Cartesian Pose interface
 const FACTOR_CARTESIAN_ROTATION_POSE_INTERFACE: f64 = 0.99;
 
-pub trait RateLimiterParameters {
+/// The rate limiter can limit the rate of torques, Cartesian pose, Cartesian velocity,
+/// joint position and joint velocity. The rate limiter trait is implemented for [Fr3](crate::Fr3#impl-RateLimiter-for-Fr3) and [Panda](crate::Panda#impl-RateLimiter-for-Panda)
+/// in different ways.
+pub trait RateLimiter {
+    /// Defines if the rate limiter is used when `None` is passed to the `limit_rate` argument in
+    /// control methods like [`control_joint_positions`](crate::robot::Robot::control_joint_positions)
     const RATE_LIMITING_ON_PER_DEFAULT: bool;
     /// Number of packets lost considered for the definition of velocity limits.
     /// When a packet is lost, FCI assumes a constant acceleration model
@@ -64,262 +69,6 @@ pub trait RateLimiterParameters {
     fn compute_lower_limits_joint_velocity(q: &[f64; 7]) -> [f64; 7];
 }
 
-/// A constant velocity rate limiter for the Panda robot.
-/// This implementation is based on the rate limiter in the original libfranka library (version 0.9.2).
-/// In this rate limiter the position is completely ignored for calculating the maximum and minimum
-/// joint velocities.
-pub struct PandaRateLimiter {}
-
-impl PandaRateLimiter {
-    /// Maximum joint velocity
-    pub const MAX_JOINT_VELOCITY: [f64; 7] = [
-        2.1750
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[0],
-        2.1750
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[1],
-        2.1750
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[2],
-        2.1750
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[3],
-        2.6100
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[4],
-        2.6100
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[5],
-        2.6100
-            - LIMIT_EPS
-            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[6],
-    ];
-
-    /// Minimum joint velocity
-    pub const MIN_JOINT_VELOCITY: [f64; 7] = [
-        -Self::MAX_JOINT_VELOCITY[0],
-        -Self::MAX_JOINT_VELOCITY[1],
-        -Self::MAX_JOINT_VELOCITY[2],
-        -Self::MAX_JOINT_VELOCITY[3],
-        -Self::MAX_JOINT_VELOCITY[4],
-        -Self::MAX_JOINT_VELOCITY[5],
-        -Self::MAX_JOINT_VELOCITY[6],
-    ];
-}
-
-impl RateLimiterParameters for PandaRateLimiter {
-    const RATE_LIMITING_ON_PER_DEFAULT: bool = true;
-    const TOL_NUMBER_PACKETS_LOST: f64 = 3.;
-    const MAX_JOINT_JERK: [f64; 7] = [
-        7500.0 - LIMIT_EPS,
-        3750.0 - LIMIT_EPS,
-        5000.0 - LIMIT_EPS,
-        6250.0 - LIMIT_EPS,
-        7500.0 - LIMIT_EPS,
-        10000.0 - LIMIT_EPS,
-        10000.0 - LIMIT_EPS,
-    ];
-    const MAX_JOINT_ACCELERATION: [f64; 7] = [
-        15.0000 - LIMIT_EPS,
-        7.500 - LIMIT_EPS,
-        10.0000 - LIMIT_EPS,
-        12.5000 - LIMIT_EPS,
-        15.0000 - LIMIT_EPS,
-        20.0000 - LIMIT_EPS,
-        20.0000 - LIMIT_EPS,
-    ];
-    const MAX_TRANSLATIONAL_JERK: f64 = 6500.0 - LIMIT_EPS;
-    const MAX_TRANSLATIONAL_ACCELERATION: f64 = 13.0000 - LIMIT_EPS;
-    const MAX_TRANSLATIONAL_VELOCITY: f64 = 2.0000
-        - LIMIT_EPS
-        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_TRANSLATIONAL_ACCELERATION;
-    const MAX_ROTATIONAL_JERK: f64 = 12500.0 - LIMIT_EPS;
-    const MAX_ROTATIONAL_ACCELERATION: f64 = 25.0000 - LIMIT_EPS;
-    const MAX_ROTATIONAL_VELOCITY: f64 = 2.5000
-        - LIMIT_EPS
-        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ROTATIONAL_ACCELERATION;
-    const MAX_ELBOW_JERK: f64 = 5000. - LIMIT_EPS;
-    const MAX_ELBOW_ACCELERATION: f64 = 10.0000 - LIMIT_EPS;
-    const MAX_ELBOW_VELOCITY: f64 =
-        2.1750 - LIMIT_EPS - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ELBOW_ACCELERATION;
-
-    fn compute_upper_limits_joint_velocity(_q: &[f64; 7]) -> [f64; 7] {
-        Self::MAX_JOINT_VELOCITY
-    }
-
-    fn compute_lower_limits_joint_velocity(_q: &[f64; 7]) -> [f64; 7] {
-        Self::MIN_JOINT_VELOCITY
-    }
-}
-
-/// This is the position based velocity rate limiter for Fr3. The implementation is based on
-/// [https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3](https://frankaemika.github.io/docs/control_parameters.html#limits-for-franka-research-3).
-pub struct Fr3RateLimiter {}
-impl Fr3RateLimiter {
-    /// Tolerance value for joint velocity limits to deal with numerical errors and data losses.
-    pub const JOINT_VELOCITY_LIMITS_TOLERANCE: [f64; 7] = [
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[0],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[1],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[2],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[3],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[4],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[5],
-        LIMIT_EPS + Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[6],
-    ];
-
-    fn upper_limits(a: f64, b: f64, c: f64, d: f64, e: f64, tolerance: f64) -> f64 {
-        f64::min(a, f64::max(0., b + f64::sqrt(f64::max(0., c * (d - e))))) - tolerance
-    }
-
-    fn lower_limits(a: f64, b: f64, c: f64, d: f64, e: f64, tolerance: f64) -> f64 {
-        f64::max(a, f64::min(0., b - f64::sqrt(f64::max(0., c * (d + e))))) + tolerance
-    }
-}
-
-impl RateLimiterParameters for Fr3RateLimiter {
-    const RATE_LIMITING_ON_PER_DEFAULT: bool = false;
-    const TOL_NUMBER_PACKETS_LOST: f64 = 0.;
-    const MAX_JOINT_JERK: [f64; 7] = [5000.0 - LIMIT_EPS; 7];
-    const MAX_JOINT_ACCELERATION: [f64; 7] = [10.0000 - LIMIT_EPS; 7];
-    const MAX_TRANSLATIONAL_JERK: f64 = 4500.0 - LIMIT_EPS;
-    const MAX_TRANSLATIONAL_ACCELERATION: f64 = 9.0000 - LIMIT_EPS;
-    const MAX_TRANSLATIONAL_VELOCITY: f64 = 3.0000
-        - LIMIT_EPS
-        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_TRANSLATIONAL_ACCELERATION;
-    const MAX_ROTATIONAL_JERK: f64 = 8500.0 - LIMIT_EPS;
-    const MAX_ROTATIONAL_ACCELERATION: f64 = 17.0000 - LIMIT_EPS;
-    const MAX_ROTATIONAL_VELOCITY: f64 = 2.5000
-        - LIMIT_EPS
-        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ROTATIONAL_ACCELERATION;
-    const MAX_ELBOW_JERK: f64 = 5000. - LIMIT_EPS;
-    const MAX_ELBOW_ACCELERATION: f64 = 10.0000 - LIMIT_EPS;
-    const MAX_ELBOW_VELOCITY: f64 =
-        1.5 - LIMIT_EPS - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ELBOW_ACCELERATION;
-
-    fn compute_upper_limits_joint_velocity(q: &[f64; 7]) -> [f64; 7] {
-        [
-            Self::upper_limits(
-                2.62,
-                -0.3,
-                12.,
-                2.75010,
-                q[0],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[0],
-            ),
-            Self::upper_limits(
-                2.62,
-                -0.2,
-                5.17,
-                1.79180,
-                q[1],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[1],
-            ),
-            Self::upper_limits(
-                2.62,
-                -0.2,
-                7.,
-                2.90650,
-                q[2],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[2],
-            ),
-            Self::upper_limits(
-                2.62,
-                -0.3,
-                8.,
-                -0.1458,
-                q[3],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[3],
-            ),
-            Self::upper_limits(
-                5.26,
-                -0.35,
-                34.,
-                2.81010,
-                q[4],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[4],
-            ),
-            Self::upper_limits(
-                4.18,
-                -0.35,
-                11.,
-                4.52050,
-                q[5],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[5],
-            ),
-            Self::upper_limits(
-                5.26,
-                -0.35,
-                34.,
-                3.01960,
-                q[6],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[6],
-            ),
-        ]
-    }
-
-    fn compute_lower_limits_joint_velocity(q: &[f64; 7]) -> [f64; 7] {
-        [
-            Self::lower_limits(
-                -2.62,
-                -0.3,
-                12.,
-                2.75010,
-                q[0],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[0],
-            ),
-            Self::lower_limits(
-                -2.62,
-                -0.2,
-                5.17,
-                1.791800,
-                q[1],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[1],
-            ),
-            Self::lower_limits(
-                -2.62,
-                -0.2,
-                7.,
-                2.906500,
-                q[2],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[2],
-            ),
-            Self::lower_limits(
-                -2.62,
-                -0.3,
-                8.,
-                3.048100,
-                q[3],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[3],
-            ),
-            Self::lower_limits(
-                -5.26,
-                -0.35,
-                34.,
-                2.810100,
-                q[4],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[4],
-            ),
-            Self::lower_limits(
-                -4.18,
-                -0.35,
-                11.,
-                -0.54092,
-                q[5],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[5],
-            ),
-            Self::lower_limits(
-                -5.26,
-                -0.35,
-                34.,
-                3.019600,
-                q[6],
-                Self::JOINT_VELOCITY_LIMITS_TOLERANCE[6],
-            ),
-        ]
-    }
-}
-
 /// Limits the rate of a desired joint position considering the limits provided.
 /// # Note
 /// FCI filters must be deactivated to work properly.
@@ -336,6 +85,7 @@ impl RateLimiterParameters for Fr3RateLimiter {
 /// * if commanded_positions are infinite or NaN.
 /// # Return
 /// Rate-limited vector of desired joint positions.
+#[allow(clippy::too_many_arguments)]
 pub fn limit_rate_joint_positions(
     max_velocity: &[f64; 7],
     min_velocity: &[f64; 7],
@@ -380,6 +130,7 @@ pub fn limit_rate_joint_positions(
 /// * if commanded_values are infinite or NaN.
 /// # Return
 /// Rate-limited desired joint position.
+#[allow(clippy::too_many_arguments)]
 pub fn limit_rate_position(
     max_velocity: f64,
     min_velocity: f64,
@@ -711,13 +462,11 @@ fn limit_rate_single_cartesian_velocity(
 
 #[cfg(test)]
 mod tests {
+    use crate::{Fr3, Panda};
     use nalgebra::{Translation3, Unit, UnitQuaternion, Vector3, Vector6, U3};
     use num_traits::Float;
 
-    use crate::robot::rate_limiting::{
-        limit_rate_cartesian_pose, Fr3RateLimiter, PandaRateLimiter, RateLimiterParameters,
-        DELTA_T, LIMIT_EPS,
-    };
+    use crate::robot::rate_limiting::{limit_rate_cartesian_pose, RateLimiter, DELTA_T, LIMIT_EPS};
     use crate::utils::array_to_isometry;
 
     fn integrate_one_sample(last_pose: &[f64; 16], dx: &[f64; 6], delta_t: f64) -> [f64; 16] {
@@ -890,12 +639,12 @@ mod tests {
         ];
 
         let out = limit_rate_cartesian_pose(
-            PandaRateLimiter::MAX_TRANSLATIONAL_VELOCITY,
-            PandaRateLimiter::MAX_TRANSLATIONAL_ACCELERATION,
-            PandaRateLimiter::MAX_TRANSLATIONAL_JERK,
-            PandaRateLimiter::MAX_ROTATIONAL_VELOCITY,
-            PandaRateLimiter::MAX_ROTATIONAL_ACCELERATION,
-            PandaRateLimiter::MAX_ROTATIONAL_JERK,
+            Panda::MAX_TRANSLATIONAL_VELOCITY,
+            Panda::MAX_TRANSLATIONAL_ACCELERATION,
+            Panda::MAX_TRANSLATIONAL_JERK,
+            Panda::MAX_ROTATIONAL_VELOCITY,
+            Panda::MAX_ROTATIONAL_ACCELERATION,
+            Panda::MAX_ROTATIONAL_JERK,
             &O_T_EE_c,
             &last_O_T_EE_c,
             &O_dP_EE_c,
@@ -927,12 +676,12 @@ mod tests {
             1.0,
         ];
         let out = limit_rate_cartesian_pose(
-            PandaRateLimiter::MAX_TRANSLATIONAL_VELOCITY,
-            PandaRateLimiter::MAX_TRANSLATIONAL_ACCELERATION,
-            PandaRateLimiter::MAX_TRANSLATIONAL_JERK,
-            PandaRateLimiter::MAX_ROTATIONAL_VELOCITY,
-            PandaRateLimiter::MAX_ROTATIONAL_ACCELERATION,
-            PandaRateLimiter::MAX_ROTATIONAL_JERK,
+            Panda::MAX_TRANSLATIONAL_VELOCITY,
+            Panda::MAX_TRANSLATIONAL_ACCELERATION,
+            Panda::MAX_TRANSLATIONAL_JERK,
+            Panda::MAX_ROTATIONAL_VELOCITY,
+            Panda::MAX_ROTATIONAL_ACCELERATION,
+            Panda::MAX_ROTATIONAL_JERK,
             &O_T_EE_c,
             &O_T_EE_c,
             &[0.; 6],
@@ -1167,13 +916,13 @@ mod tests {
         let dq_upper_limits = [2.62, 2.62, 2.62, 2.62, 5.26, 4.18, 5.26];
         let dq_lower_limits = [0.; 7];
 
-        let dq_max = Fr3RateLimiter::compute_upper_limits_joint_velocity(&q_lower_limits);
+        let dq_max = Fr3::compute_upper_limits_joint_velocity(&q_lower_limits);
         assert!(dq_max
             .iter()
             .zip(dq_upper_limits.iter())
             .all(|(dq, dq_limit)| dq < dq_limit));
 
-        let dq_min = Fr3RateLimiter::compute_lower_limits_joint_velocity(&q_lower_limits);
+        let dq_min = Fr3::compute_lower_limits_joint_velocity(&q_lower_limits);
         assert!(dq_max
             .iter()
             .zip(dq_lower_limits.iter())
@@ -1188,13 +937,13 @@ mod tests {
         let dq_upper_limits = [0.; 7];
         let dq_lower_limits = [-2.62, -2.62, -2.62, -2.62, -5.26, -4.18, -5.26];
 
-        let dq_max = Fr3RateLimiter::compute_upper_limits_joint_velocity(&q_upper_limits);
+        let dq_max = Fr3::compute_upper_limits_joint_velocity(&q_upper_limits);
         assert!(dq_max
             .iter()
             .zip(dq_upper_limits.iter())
             .all(|(dq, dq_limit)| dq < dq_limit));
 
-        let dq_min = Fr3RateLimiter::compute_lower_limits_joint_velocity(&q_upper_limits);
+        let dq_min = Fr3::compute_lower_limits_joint_velocity(&q_upper_limits);
         assert!(dq_max
             .iter()
             .zip(dq_lower_limits.iter())

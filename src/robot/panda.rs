@@ -4,6 +4,7 @@ use crate::network::Network;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
 use crate::robot::private_robot::PrivateRobot;
+use crate::robot::rate_limiting::{RateLimiter, DELTA_T, LIMIT_EPS};
 use crate::robot::robot_data::{PrivateRobotData, RobotData};
 use crate::robot::robot_impl::RobotImplGeneric;
 use crate::robot::service_types;
@@ -22,61 +23,18 @@ use crate::robot::types::PandaStateIntern;
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
 use std::mem::size_of;
-use crate::robot::rate_limiting::PandaRateLimiter;
 
 /// Maintains a network connection to the robot, provides the current robot state, gives access to
-/// the model library and allows to control the robot.
-/// # Nominal end effector frame NE
-/// The nominal end effector frame is configured outside of libfranka-rs and cannot be changed here.
-/// # End effector frame EE
-/// By default, the end effector frame EE is the same as the nominal end effector frame NE
-/// (i.e. the transformation between NE and EE is the identity transformation).
-/// With [`set_EE`](`crate::Robot::set_EE`), a custom transformation matrix can be set.
-/// # Stiffness frame K
-/// The stiffness frame is used for Cartesian impedance control, and for measuring and applying
-/// forces.
-/// It can be set with [`set_K`](``crate::Robot::set_K`).
+/// the model library and allows to control the robot. See the [`Robot`](crate::Robot) trait for
+/// methods to control the robot.
 ///
-///
-/// # Motion generation and joint-level torque commands
-///
-/// The following methods allow to perform motion generation and/or send joint-level torque
-/// commands without gravity and friction by providing callback functions.
-///
-/// Only one of these methods can be active at the same time; a
-/// [`ControlException`](`crate::exception::FrankaException::ControlException`) is thrown otherwise.
-///
-/// When a robot state is received, the callback function is used to calculate the response: the
-/// desired values for that time step. After sending back the response, the callback function will
-/// be called again with the most recently received robot state. Since the robot is controlled with
-/// a 1 kHz frequency, the callback functions have to compute their result in a short time frame
-/// in order to be accepted. Callback functions take two parameters:
-///
-/// * A &franka::RobotState showing the current robot state.
-/// * A &std::time::Duration to indicate the time since the last callback invocation. Thus, the
-///   duration is zero on the first invocation of the callback function!
-///
-/// The following incomplete example shows the general structure of a callback function:
-///
-/// ```no_run
-/// use franka::robot::robot_state::RobotState;
-/// use franka::robot::control_types::{JointPositions, MotionFinished};
-/// use std::time::Duration;
-/// # fn your_function_which_generates_joint_positions(time:f64) -> JointPositions {JointPositions::new([0.;7])}
-/// let mut time = 0.;
-/// let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
-///     time += time_step.as_secs_f64();
-///     let out: JointPositions = your_function_which_generates_joint_positions(time);
-///     if time >= 5.0 {
-///         return out.motion_finished();
-///     }
-///     return out;
-///     };
-/// ```
-/// # Commands
-///
-/// Commands are executed by communicating with the robot over the network.
-/// These functions should therefore not be called from within control or motion generator loops.
+/// # Rate Limiting
+/// For Panda the rate limiter is enabled by default. You can disable it by setting the `limit_rate`
+/// argument in the control methods to `false`.
+/// The implementation is based on the rate limiter in the original libfranka library
+/// that was used for Panda robots (version 0.9.2 and lower).
+/// Here, the joint position is completely ignored for calculating the maximum and minimum
+/// joint velocities.
 pub struct Panda(RobotImplGeneric<Self>);
 
 impl Panda {
@@ -231,9 +189,91 @@ impl DeviceData for Panda {
 
 impl RobotData for Panda {
     type Model = PandaModel;
-    type RateLimiterParameters = PandaRateLimiter;
     type StateIntern = PandaStateIntern;
     type State = RobotState;
+}
+
+impl Panda {
+    /// Maximum joint velocity
+    pub const MAX_JOINT_VELOCITY: [f64; 7] = [
+        2.1750
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[0],
+        2.1750
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[1],
+        2.1750
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[2],
+        2.1750
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[3],
+        2.6100
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[4],
+        2.6100
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[5],
+        2.6100
+            - LIMIT_EPS
+            - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_JOINT_ACCELERATION[6],
+    ];
+
+    /// Minimum joint velocity
+    pub const MIN_JOINT_VELOCITY: [f64; 7] = [
+        -Self::MAX_JOINT_VELOCITY[0],
+        -Self::MAX_JOINT_VELOCITY[1],
+        -Self::MAX_JOINT_VELOCITY[2],
+        -Self::MAX_JOINT_VELOCITY[3],
+        -Self::MAX_JOINT_VELOCITY[4],
+        -Self::MAX_JOINT_VELOCITY[5],
+        -Self::MAX_JOINT_VELOCITY[6],
+    ];
+}
+
+impl RateLimiter for Panda {
+    const RATE_LIMITING_ON_PER_DEFAULT: bool = true;
+    const TOL_NUMBER_PACKETS_LOST: f64 = 3.;
+    const MAX_JOINT_JERK: [f64; 7] = [
+        7500.0 - LIMIT_EPS,
+        3750.0 - LIMIT_EPS,
+        5000.0 - LIMIT_EPS,
+        6250.0 - LIMIT_EPS,
+        7500.0 - LIMIT_EPS,
+        10000.0 - LIMIT_EPS,
+        10000.0 - LIMIT_EPS,
+    ];
+    const MAX_JOINT_ACCELERATION: [f64; 7] = [
+        15.0000 - LIMIT_EPS,
+        7.500 - LIMIT_EPS,
+        10.0000 - LIMIT_EPS,
+        12.5000 - LIMIT_EPS,
+        15.0000 - LIMIT_EPS,
+        20.0000 - LIMIT_EPS,
+        20.0000 - LIMIT_EPS,
+    ];
+    const MAX_TRANSLATIONAL_JERK: f64 = 6500.0 - LIMIT_EPS;
+    const MAX_TRANSLATIONAL_ACCELERATION: f64 = 13.0000 - LIMIT_EPS;
+    const MAX_TRANSLATIONAL_VELOCITY: f64 = 2.0000
+        - LIMIT_EPS
+        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_TRANSLATIONAL_ACCELERATION;
+    const MAX_ROTATIONAL_JERK: f64 = 12500.0 - LIMIT_EPS;
+    const MAX_ROTATIONAL_ACCELERATION: f64 = 25.0000 - LIMIT_EPS;
+    const MAX_ROTATIONAL_VELOCITY: f64 = 2.5000
+        - LIMIT_EPS
+        - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ROTATIONAL_ACCELERATION;
+    const MAX_ELBOW_JERK: f64 = 5000. - LIMIT_EPS;
+    const MAX_ELBOW_ACCELERATION: f64 = 10.0000 - LIMIT_EPS;
+    const MAX_ELBOW_VELOCITY: f64 =
+        2.1750 - LIMIT_EPS - Self::TOL_NUMBER_PACKETS_LOST * DELTA_T * Self::MAX_ELBOW_ACCELERATION;
+
+    fn compute_upper_limits_joint_velocity(_q: &[f64; 7]) -> [f64; 7] {
+        Self::MAX_JOINT_VELOCITY
+    }
+
+    fn compute_lower_limits_joint_velocity(_q: &[f64; 7]) -> [f64; 7] {
+        Self::MIN_JOINT_VELOCITY
+    }
 }
 
 impl PrivateRobotData for Panda {

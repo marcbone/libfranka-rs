@@ -40,6 +40,58 @@ pub(crate) mod types;
 pub mod virtual_wall_cuboid;
 
 /// Contains all methods that are available for all robots.
+/// # Nominal end effector frame NE
+/// The nominal end effector frame is configured outside of libfranka-rs and cannot be changed here.
+/// # End effector frame EE
+/// By default, the end effector frame EE is the same as the nominal end effector frame NE
+/// (i.e. the transformation between NE and EE is the identity transformation).
+/// With [`set_EE`](`Robot::set_EE), a custom transformation matrix can be set.
+/// # Stiffness frame K
+/// The stiffness frame is used for Cartesian impedance control, and for measuring and applying
+/// forces.
+/// It can be set with [`set_K`](Robot::set_K).
+///
+///
+/// # Motion generation and joint-level torque commands
+///
+/// The following methods allow to perform motion generation and/or send joint-level torque
+/// commands without gravity and friction by providing callback functions.
+///
+/// Only one of these methods can be active at the same time; a
+/// [`ControlException`](crate::exception::FrankaException::ControlException) is thrown otherwise.
+///
+/// When a robot state is received, the callback function is used to calculate the response: the
+/// desired values for that time step. After sending back the response, the callback function will
+/// be called again with the most recently received robot state. Since the robot is controlled with
+/// a 1 kHz frequency, the callback functions have to compute their result in a short time frame
+/// in order to be accepted. Callback functions take two parameters:
+///
+/// * A &franka::RobotState showing the current robot state.
+/// * A &std::time::Duration to indicate the time since the last callback invocation. Thus, the
+///   duration is zero on the first invocation of the callback function!
+///
+/// The following incomplete example shows the general structure of a callback function:
+///
+/// ```no_run
+/// use franka::robot::robot_state::RobotState;
+/// use franka::robot::control_types::{JointPositions, MotionFinished};
+/// use std::time::Duration;
+/// # fn your_function_which_generates_joint_positions(time:f64) -> JointPositions {JointPositions::new([0.;7])}
+/// let mut time = 0.;
+/// let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
+///     time += time_step.as_secs_f64();
+///     let out: JointPositions = your_function_which_generates_joint_positions(time);
+///     if time >= 5.0 {
+///         return out.motion_finished();
+///     }
+///     return out;
+///     };
+/// ```
+/// # Commands
+///
+/// Commands are executed by communicating with the robot over the network.
+/// These functions should therefore not be called from within control or motion generator loops.
+///
 pub trait Robot {
     type Model: RobotModel;
 
@@ -78,7 +130,7 @@ pub trait Robot {
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -289,7 +341,7 @@ pub trait Robot {
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -325,7 +377,7 @@ pub trait Robot {
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -362,7 +414,7 @@ pub trait Robot {
     /// * `controller_mode` Controller to use to execute the motion. Default is joint impedance
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -396,8 +448,9 @@ pub trait Robot {
     /// # Arguments
     /// * `control_callback` - Callback function providing joint-level torque commands.
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
-    /// * `limit_rate` - True if rate limiting should be activated. True by default.
-    /// This could distort your motion!
+    /// * `limit_rate` - True if rate limiting should be activated. The default value is defined for each robot type over
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`)
+    /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` - Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal. Set to
     /// [`MAX_CUTOFF_FREQUENCY`](`crate::robot::low_pass_filter::MAX_CUTOFF_FREQUENCY`)
@@ -435,7 +488,7 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -472,7 +525,7 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -509,7 +562,7 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.
@@ -546,7 +599,7 @@ pub trait Robot {
     /// See [here](#motion-generation-and-joint-level-torque-commands) for more details.
     /// * `limit_rate` Set to true to activate the rate limiter.
     /// The default value is defined for each robot type over
-    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiterParameters::RATE_LIMITING_ON_PER_DEFAULT`).
+    /// [`RATE_LIMITING_ON_PER_DEFAULT`](`crate::robot::rate_limiting::RateLimiter::RATE_LIMITING_ON_PER_DEFAULT`).
     /// Enabling the rate limiter can distort your motion!
     /// * `cutoff_frequency` Cutoff frequency for a first order low-pass filter applied on
     /// the user commanded signal.

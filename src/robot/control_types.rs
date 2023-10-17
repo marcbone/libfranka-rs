@@ -13,7 +13,7 @@ use crate::robot::low_pass_filter::{
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{
     limit_rate_cartesian_pose, limit_rate_cartesian_velocity, limit_rate_joint_positions,
-    limit_rate_joint_velocities, limit_rate_position, RateLimiterParameters, DELTA_T,
+    limit_rate_joint_velocities, limit_rate_position, RateLimiter, DELTA_T,
 };
 use crate::robot::robot_state::{AbstractRobotState, RobotState};
 use crate::robot::service_types::MoveMotionGeneratorMode;
@@ -37,7 +37,7 @@ pub enum RealtimeConfig {
 
 pub(crate) trait ConvertMotion<State: AbstractRobotState> {
     /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
-    fn convert_motion<Params: RateLimiterParameters>(
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &State,
         command: &mut MotionGeneratorCommand,
@@ -140,7 +140,7 @@ impl Finishable for JointPositions {
     }
 }
 impl ConvertMotion<RobotState> for JointPositions {
-    fn convert_motion<Params: RateLimiterParameters>(
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -215,7 +215,7 @@ impl Finishable for JointVelocities {
     }
 }
 impl ConvertMotion<RobotState> for JointVelocities {
-    fn convert_motion<Params: RateLimiterParameters>(
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -331,7 +331,7 @@ impl Finishable for CartesianPose {
 }
 
 impl ConvertMotion<RobotState> for CartesianPose {
-    fn convert_motion<Params: RateLimiterParameters>(
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -453,7 +453,7 @@ impl Finishable for CartesianVelocities {
     }
 }
 impl ConvertMotion<RobotState> for CartesianVelocities {
-    fn convert_motion<Params: RateLimiterParameters>(
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,

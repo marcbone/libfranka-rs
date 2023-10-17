@@ -3,6 +3,7 @@ use crate::exception::FrankaException;
 use crate::network::MessageCommand;
 use crate::robot::errors::FrankaErrors;
 use crate::robot::logger::Record;
+use crate::robot::rate_limiting::RateLimiter;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::service_types::{
     ConnectRequest, LoadModelLibraryRequest, MoveRequest, RobotHeader,
@@ -14,11 +15,9 @@ use crate::{FrankaResult, RobotModel, RobotState};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
-use crate::robot::rate_limiting::RateLimiterParameters;
 
-pub trait RobotData {
+pub trait RobotData: RateLimiter {
     type Model: RobotModel;
-    type RateLimiterParameters : RateLimiterParameters;
     type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     type State: AbstractRobotState + From<Self::StateIntern> + From<RobotState>;
 }
