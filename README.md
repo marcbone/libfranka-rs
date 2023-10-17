@@ -5,7 +5,7 @@
 [![docs.rs](https://img.shields.io/docsrs/libfranka-rs?style=flat-square)](https://docs.rs/libfranka-rs)
 # libfranka-rs
 libfranka-rs is an **unofficial** port of [libfranka](https://github.com/frankaemika/libfranka) written in Rust.
-This library can interact with research versions of Franka Emika Robots.
+This library can interact with research versions of Franka Emika Robots (Panda and FR3).
 The library aims to provide researchers the possibility to experiment with Rust within a real-time robotics
 application.
  
@@ -15,6 +15,7 @@ THE ROBOT!**
 ## Features
  * Real-time control of the robot
  * A libfranka-like API
+ * Generic over Panda and FR3
  * Usage with Preempt_RT or stock Linux kernel
  * Usage of the gripper
  * Usage of the robot model
@@ -30,19 +31,48 @@ Not supported:
 
 ## Example
 A small example for controlling joint positions. You can find more in the examples folder.
-  ```rust
-use franka::{FrankaResult, JointPositions, MotionFinished, Robot, RobotState};
+```rust
+ use std::time::Duration;
+ use std::f64::consts::PI;
+ use franka::{JointPositions, MotionFinished, Robot, RobotState, Fr3, FrankaResult};
+ fn main() -> FrankaResult<()> {
+     let mut robot = Fr3::new("robotik-bs.de", None, None)?;
+     robot.set_default_behavior()?;
+     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
+                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
+                                  [20.0, 20.0, 20.0, 25.0, 25.0, 25.0], [20.0, 20.0, 20.0, 25.0, 25.0, 25.0],
+                                  [20.0, 20.0, 20.0, 25.0, 25.0, 25.0], [20.0, 20.0, 20.0, 25.0, 25.0, 25.0])?;
+     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
+     robot.joint_motion(0.5, &q_goal)?;
+     let mut initial_position = JointPositions::new([0.0; 7]);
+     let mut time = 0.;
+     let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
+         time += time_step.as_secs_f64();
+         if time == 0. {
+             initial_position.q = state.q_d;
+         }
+         let mut out = JointPositions::new(initial_position.q);
+         let delta_angle = PI / 8. * (1. - f64::cos(PI / 2.5 * time));
+         out.q[3] += delta_angle;
+         out.q[4] += delta_angle;
+         out.q[6] += delta_angle;
+         if time >= 5.0 {
+             return out.motion_finished();
+         }
+         out
+     };
+     robot.control_joint_positions(callback, None, None, None) 
+ }
+```
+
+It is also possible to write the example above in a generic way, so it can be used for FR3 or Panda:
+```rust
+use franka::{Fr3, FrankaResult, JointPositions, MotionFinished, Panda, Robot, RobotState};
 use std::f64::consts::PI;
 use std::time::Duration;
-fn main() -> FrankaResult<()> {
-    let mut robot = Robot::new("robotik-bs.de", None, None)?;
-    robot.set_default_behavior()?;
-    println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
-    println!("Press Enter to continue...");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
 
-    // Set additional parameters always before the control loop, NEVER in the control loop!
-    // Set collision behavior.
+fn generate_motion<R: Robot>(robot: &mut R) -> FrankaResult<()> {
+    robot.set_default_behavior()?;
     robot.set_collision_behavior(
         [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
         [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -53,11 +83,9 @@ fn main() -> FrankaResult<()> {
         [20.0, 20.0, 20.0, 25.0, 25.0, 25.0],
         [20.0, 20.0, 20.0, 25.0, 25.0, 25.0],
     )?;
-
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
     robot.joint_motion(0.5, &q_goal)?;
-    println!("Finished moving to initial joint configuration.");
-    let mut initial_position = JointPositions::new([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let mut initial_position = JointPositions::new([0.0; 7]);
     let mut time = 0.;
     let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {
         time += time_step.as_secs_f64();
@@ -70,14 +98,21 @@ fn main() -> FrankaResult<()> {
         out.q[4] += delta_angle;
         out.q[6] += delta_angle;
         if time >= 5.0 {
-            println!("Finished motion, shutting down example");
             return out.motion_finished();
         }
         out
     };
     robot.control_joint_positions(callback, None, None, None)
 }
-  ```
+fn main() -> FrankaResult<()> {
+    let mut fr3 = Fr3::new("robotik-bs.de", None, None)?;
+    let mut panda = Panda::new("robotik-bs.de", None, None)?;
+    generate_motion(&mut fr3)?;
+    generate_motion(&mut panda)
+}
+```
+
+
 
 ## How to get started
 As it is a straight port, you may find the
@@ -88,7 +123,7 @@ If this is your first time using Rust, I recommend reading the [Rust Book](https
 
 If you have Rust installed and just want to play with the examples, you can also run:
 ```bash
-cargo install libfranka-rs --examples --version 0.9.0
+cargo install libfranka-rs --examples --version 0.10.0
 generate_joint_position_motion <ip_of_your_robot>
 ```
 
@@ -107,12 +142,9 @@ communication_test example to verify that your setup is correct.
 ### How to use libfranka-rs
 If you want to use libfranka-rs in your project, you have to add
 ```text
-libfranka-rs = "0.9.0"
+libfranka-rs = "0.10.0"
 ```
 to your Cargo.toml file.
-libfranka-rs version numbers are structured as MAJOR.MINOR.PATCH. The Major and Minor versions match the original libfranka
-version numbers. That means for 0.8, your robot has to be at least on Firmware 4.0.0. Older firmware versions are not supported by
-libfranka-rs. You can find more information about system updates [here](https://frankaemika.github.io).
 
 ## Licence
 This library is copyrighted © 2021 Marco Boneberger
