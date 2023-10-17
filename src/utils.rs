@@ -5,7 +5,7 @@
 use crate::robot::control_types::JointPositions;
 use crate::robot::robot_state::AbstractRobotState;
 use crate::Finishable;
-use nalgebra::{Isometry3, Matrix4, MatrixMN, MatrixN, Rotation3, Vector3, VectorN, U6, U7};
+use nalgebra::{Isometry3, Matrix4, Rotation3, SMatrix, SVector, Vector3};
 use std::time::Duration;
 
 /// converts a 4x4 column-major homogenous matrix to an Isometry
@@ -21,11 +21,11 @@ pub fn array_to_isometry(array: &[f64; 16]) -> Isometry3<f64> {
     )
 }
 /// A Vector with 7 entries
-pub type Vector7 = VectorN<f64, U7>;
+pub type Vector7 = SVector<f64, 7>;
 /// A Matrix with 6 rows and 7 columns
-pub type Matrix6x7 = MatrixMN<f64, U6, U7>;
+pub type Matrix6x7 = SMatrix<f64, 6, 7>;
 /// A Matrix with 7 rows and 7 columns
-pub type Matrix7 = MatrixN<f64, U7>;
+pub type Matrix7 = SMatrix<f64, 7, 7>;
 /// An example showing how to generate a joint pose motion to a goal position. Adapted from:
 /// Wisama Khalil and Etienne Dombre. 2002. Modeling, Identification and Control of Robots
 /// (Kogan Page Science Paper edition).

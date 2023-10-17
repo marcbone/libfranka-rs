@@ -5,8 +5,7 @@
 //! joint position and joint velocity.
 
 use nalgebra::{
-    Isometry3, Matrix3, Matrix3x1, Matrix6x1, Rotation3, Translation3, UnitQuaternion, Vector3, U1,
-    U3,
+    Isometry3, Matrix3, Matrix3x1, Matrix6x1, Rotation3, Translation3, UnitQuaternion, Vector3,
 };
 
 use crate::robot::control_tools::is_homogeneous_transformation;
@@ -400,17 +399,17 @@ pub fn limit_rate_cartesian_velocity(
         max_translational_velocity,
         max_translational_acceleration,
         max_translational_jerk,
-        &Vector3::from(dx.fixed_slice::<U3, U1>(0, 0)),
-        &Vector3::from(last_dx.fixed_slice::<U3, U1>(0, 0)),
-        &Vector3::from(last_ddx.fixed_slice::<U3, U1>(0, 0)),
+        &Vector3::from(dx.fixed_view::<3, 1>(0, 0)),
+        &Vector3::from(last_dx.fixed_view::<3, 1>(0, 0)),
+        &Vector3::from(last_ddx.fixed_view::<3, 1>(0, 0)),
     );
     let dx_tail = limit_rate_single_cartesian_velocity(
         max_rotational_velocity,
         max_rotational_acceleration,
         max_rotational_jerk,
-        &Vector3::from(dx.fixed_slice::<U3, U1>(3, 0)),
-        &Vector3::from(last_dx.fixed_slice::<U3, U1>(3, 0)),
-        &Vector3::from(last_ddx.fixed_slice::<U3, U1>(3, 0)),
+        &Vector3::from(dx.fixed_view::<3, 1>(3, 0)),
+        &Vector3::from(last_dx.fixed_view::<3, 1>(3, 0)),
+        &Vector3::from(last_ddx.fixed_view::<3, 1>(3, 0)),
     );
 
     let mut limited_values = [0.; 6];
@@ -463,7 +462,7 @@ fn limit_rate_single_cartesian_velocity(
 #[cfg(test)]
 mod tests {
     use crate::{Fr3, Panda};
-    use nalgebra::{Translation3, Unit, UnitQuaternion, Vector3, Vector6, U3};
+    use nalgebra::{Translation3, Unit, UnitQuaternion, Vector3, Vector6};
     use num_traits::Float;
 
     use crate::robot::rate_limiting::{limit_rate_cartesian_pose, RateLimiter, DELTA_T, LIMIT_EPS};
@@ -575,12 +574,12 @@ mod tests {
         let dddx = (ddx - last_ddx) / delta_t;
         let violates_limits = |desired_value: f64, max_value: f64| desired_value.abs() > max_value;
 
-        violates_limits(dx.fixed_rows::<U3>(0).norm(), max_translational_dx)
-            || violates_limits(ddx.fixed_rows::<U3>(0).norm(), max_translational_ddx)
-            || violates_limits(dddx.fixed_rows::<U3>(0).norm(), max_translational_dddx)
-            || violates_limits(dx.fixed_rows::<U3>(3).norm(), max_rotational_dx)
-            || violates_limits(ddx.fixed_rows::<U3>(3).norm(), max_rotational_ddx)
-            || violates_limits(dddx.fixed_rows::<U3>(3).norm(), max_rotational_dddx)
+        violates_limits(dx.fixed_rows::<3>(0).norm(), max_translational_dx)
+            || violates_limits(ddx.fixed_rows::<3>(0).norm(), max_translational_ddx)
+            || violates_limits(dddx.fixed_rows::<3>(0).norm(), max_translational_dddx)
+            || violates_limits(dx.fixed_rows::<3>(3).norm(), max_rotational_dx)
+            || violates_limits(ddx.fixed_rows::<3>(3).norm(), max_rotational_ddx)
+            || violates_limits(dddx.fixed_rows::<3>(3).norm(), max_rotational_dddx)
     }
     #[test]
     #[allow(non_snake_case)]

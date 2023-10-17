@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use clap::Parser;
-use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
+use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3};
 
 use franka::{
     array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Panda, Robot, RobotModel, RobotState,
@@ -49,15 +49,15 @@ fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     let mut stiffness: Matrix6<f64> = Matrix6::zeros();
     let mut damping: Matrix6<f64> = Matrix6::zeros();
     {
-        let mut top_left_corner = stiffness.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = stiffness.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(Matrix3::identity() * translational_stiffness));
-        let mut top_left_corner = damping.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = damping.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(2. * f64::sqrt(translational_stiffness) * Matrix3::identity()));
     }
     {
-        let mut bottom_right_corner = stiffness.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = stiffness.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner.copy_from(&(Matrix3::identity() * rotational_stiffness));
-        let mut bottom_right_corner = damping.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = damping.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
@@ -93,7 +93,7 @@ fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
 
             let mut error: Matrix6x1<f64> = Matrix6x1::<f64>::zeros();
             {
-                let mut error_head = error.fixed_slice_mut::<U3, U1>(0, 0);
+                let mut error_head = error.fixed_view_mut::<3, 1>(0, 0);
                 error_head.set_column(0, &(position - position_d));
             }
 
@@ -103,7 +103,7 @@ fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
             let orientation = UnitQuaternion::new_normalize(orientation);
             let error_quaternion: UnitQuaternion<f64> = orientation.inverse() * orientation_d;
             {
-                let mut error_tail = error.fixed_slice_mut::<U3, U1>(3, 0);
+                let mut error_tail = error.fixed_view_mut::<3, 1>(3, 0);
                 error_tail.copy_from(
                     &-(transform.rotation.to_rotation_matrix()
                         * Vector3::new(error_quaternion.i, error_quaternion.j, error_quaternion.k)),

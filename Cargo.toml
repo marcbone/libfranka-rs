@@ -79,7 +79,7 @@ nix = "0.20.0"
 mio = { version = "0.7", features = ["os-poll", "tcp", "udp"] }
 num-derive = "0.3"
 num-traits = "0.2"
-nalgebra = "0.23"
+nalgebra = "0.32"
 thiserror = "1.0"
 libloading = "0.7.0"
 
