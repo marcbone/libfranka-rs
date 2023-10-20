@@ -30,7 +30,10 @@ fn main() -> FrankaResult<()> {
         eprintln!("Object is too large for the current fingers on the gripper.");
         std::process::exit(-1);
     }
-    gripper.grasp(args.object_width, 0.1, 60., None, None)?;
+    if !gripper.grasp(args.object_width, 0.1, 60., None, None)? {
+        eprintln!("Failed to grasp object.");
+        std::process::exit(-1);
+    }
     std::thread::sleep(Duration::from_secs(3));
     let state = gripper.read_once()?;
     if !state.is_grasped {
