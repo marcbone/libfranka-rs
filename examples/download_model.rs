@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use franka::exception::FrankaException::ModelException;
-use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, Robot};
+use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, Robot, RobotModel};
 
 /// Downloads the model for offline usage
 #[derive(Parser, Debug)]
@@ -25,8 +25,7 @@ struct CommandLineArguments {
 
 fn main() -> FrankaResult<()> {
     let args: CommandLineArguments = CommandLineArguments::parse();
-    let mut path = args.download_path;
-    path.push("model.so");
+    let path = args.download_path;
     match args.panda {
         true => {
             let robot = Panda::new(args.franka_ip.as_str(), RealtimeConfig::Ignore, None)?;
@@ -39,10 +38,14 @@ fn main() -> FrankaResult<()> {
     }
 }
 
-fn download_model<R: Robot>(mut robot: R, path: PathBuf) -> FrankaResult<()> {
-    robot.load_model(true)?;
-    fs::copy("/tmp/model.so", &path).map_err(|_| ModelException {
-        message: "Could copy model to download location".to_string(),
+fn download_model<R: Robot>(mut robot: R, mut path: PathBuf) -> FrankaResult<()> {
+    let model = robot.load_model(true)?;
+    let model_path = model.get_model_path().expect("Model file has been deleted");
+    if path.is_dir() {
+        path.push(model_path.file_name().unwrap());
+    }
+    fs::copy(model_path, &path).map_err(|_| ModelException {
+        message: "Could not copy model to download location".to_string(),
     })?;
     println!("Model successfully downloaded to {:?}", &path);
     Ok(())

@@ -14,7 +14,7 @@ use crate::model::model_library::ModelLibrary;
 use crate::robot::robot_state::RobotState;
 use crate::FrankaResult;
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) mod library_downloader;
 mod model_library;
@@ -114,6 +114,10 @@ pub trait RobotModel {
     /// * `EE_T_K` - Stiffness frame K in the end effector frame.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
+
+    /// Returns the path where model is stored if it exists.
+    fn get_model_path(&self) -> Option<PathBuf>;
+
     #[allow(non_snake_case)]
     fn pose(
         &self,
@@ -281,6 +285,7 @@ pub trait RobotModel {
 /// Calculates poses of joints and dynamic properties of a [Fr3](crate::Fr3).
 pub struct Fr3Model {
     library: ModelLibrary,
+    model_file: PathBuf,
 }
 
 #[allow(non_snake_case)]
@@ -288,7 +293,16 @@ impl RobotModel for Fr3Model {
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> {
         Ok(Fr3Model {
             library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
+            model_file: model_filename.as_ref().to_path_buf(),
         })
+    }
+
+    fn get_model_path(&self) -> Option<PathBuf> {
+        if self.model_file.exists() {
+            Some(self.model_file.to_owned())
+        } else {
+            None
+        }
     }
 
     fn pose(
