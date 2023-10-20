@@ -31,10 +31,6 @@ fn main() -> FrankaResult<()> {
 }
 
 fn echo_robot_state<R: Robot>(mut robot: R) -> FrankaResult<()> {
-    robot.set_collision_behavior(
-        [0.; 7], [0.; 7], [0.; 7], [0.; 7], [0.; 6], [0.; 6], [0.; 6], [0.; 6],
-    )?;
-    robot.set_joint_impedance([3000., 3000., 3000., 2500., 2500., 2000., 2000.])?;
     let mut count = 0;
     robot.read(|robot_state: &RobotState| {
         // Printing to standard output adds a delay. This is acceptable for a read loop such as this, but
