@@ -104,6 +104,10 @@ pub trait RobotModel {
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
     where
         Self: Sized;
+
+    /// Returns the path where model is stored if it exists.
+    fn get_model_path(&self) -> Option<PathBuf>;
+
     /// Gets the 4x4 pose matrix for the given frame in base frame.
     ///
     /// The pose is represented as a 4x4 matrix in column-major format.
@@ -114,10 +118,6 @@ pub trait RobotModel {
     /// * `EE_T_K` - Stiffness frame K in the end effector frame.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
-
-    /// Returns the path where model is stored if it exists.
-    fn get_model_path(&self) -> Option<PathBuf>;
-
     #[allow(non_snake_case)]
     fn pose(
         &self,

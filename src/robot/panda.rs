@@ -38,7 +38,7 @@ use std::mem::size_of;
 pub struct Panda(RobotImplGeneric<Self>);
 
 impl Panda {
-    /// Establishes a connection with the robot.
+    /// Establishes a connection with a Panda robot.
     ///
     /// # Arguments
     /// * `franka_address` - IP/hostname of the robot.
@@ -58,8 +58,9 @@ impl Panda {
     /// }
     /// ```
     /// # Errors
-    /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is unsuccessful.
-    /// * IncompatibleVersionException if this version of `libfranka-rs` is not supported.
+    /// * [`NetworkException`](FrankaException::NetworkException) if the connection is unsuccessful.
+    /// * [`IncompatibleLibraryVersionError`](FrankaException::IncompatibleLibraryVersionError) if this version of `libfranka-rs` is not supported or
+    /// if the robot is not a Panda.
     pub fn new<RtConfig: Into<Option<RealtimeConfig>>, LogSize: Into<Option<usize>>>(
         franka_address: &str,
         realtime_config: RtConfig,

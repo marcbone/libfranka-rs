@@ -25,7 +25,7 @@
 //! use std::f64::consts::PI;
 //! use franka::{JointPositions, MotionFinished, Robot, RobotState, Fr3, FrankaResult};
 //! fn main() -> FrankaResult<()> {
-//! let mut robot = Fr3::new("robotik-bs.de", None, None)?;
+//!     let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
 //!     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
 //!                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -129,7 +129,7 @@
 //! # fn joint_positions() -> JointPositions {
 //! # let time = 0.;
 //! # let mut out = JointPositions::new([0.;7]);
-//!
+//! #
 //! if time >= 5.0 {
 //!     return out.motion_finished();
 //! }

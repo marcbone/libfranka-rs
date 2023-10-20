@@ -117,7 +117,8 @@ fn main() -> FrankaResult<()> {
 
 
 ## How to get started
-As it is a straight port, you may find the
+
+Since libfranka-rs is a port of libfranka, you may find the
 [Franka Control Interface Documentation](https://frankaemika.github.io/docs/index.html) helpful.
 
 ### With zero Rust knowledge
@@ -138,8 +139,8 @@ hoping that it makes your introduction into the Rust world as smooth as possible
 ### With zero libfranka knowledge
 The [Franka Control Interface Documentation](https://frankaemika.github.io/docs/index.html) also includes a setup guide.
 You can skip the installation of libfranka as you will be using libfranka-rs.
-Take a look at the [Documentation](https://docs.rs/libfranka-rs) and the examples folder. You should run the
-communication_test example to verify that your setup is correct.
+Take a look at the [Documentation](https://docs.rs/libfranka-rs) and the [examples](examples) folder. You should run the
+[communication_test](examples/communication_test.rs) example to verify that your setup is correct.
 
 ### How to use libfranka-rs
 If you want to use libfranka-rs in your project, you have to add

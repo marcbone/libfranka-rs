@@ -53,6 +53,29 @@ impl PrivateRobot for Fr3 {
 }
 
 impl Fr3 {
+    /// Establishes a connection with a FR3 robot.
+    ///
+    /// # Arguments
+    /// * `franka_address` - IP/hostname of the robot.
+    /// * `realtime_config` - if set to Enforce, an exception will be thrown if realtime priority
+    /// cannot be set when required. Setting realtime_config to Ignore disables this behavior. Default is Enforce
+    /// * `log_size` - sets how many last states should be kept for logging purposes.
+    /// The log is provided when a [`ControlException`](`crate::exception::FrankaException::ControlException`) is thrown.
+    /// # Example
+    /// ```no_run
+    /// use franka::{FrankaResult, RealtimeConfig, Fr3};
+    /// fn main() -> FrankaResult<()> {
+    ///     // connects to the robot using real-time scheduling and a default log size of 50.
+    ///     let mut robot = Fr3::new("robotik-bs.de", None, None)?;
+    ///     // connects to the robot without using real-time scheduling and a log size of 1.
+    ///     let mut robot = Fr3::new("robotik-bs.de", RealtimeConfig::Ignore, 1)?;
+    ///     Ok(())
+    /// }
+    /// ```
+    /// # Errors
+    /// * [`NetworkException`](FrankaException::NetworkException) if the connection is unsuccessful.
+    /// * [`IncompatibleLibraryVersionError`](FrankaException::IncompatibleLibraryVersionError) if this version of `libfranka-rs` is not supported or
+    /// if the robot is not a FR3.
     pub fn new<RtConfig: Into<Option<RealtimeConfig>>, LogSize: Into<Option<usize>>>(
         franka_address: &str,
         realtime_config: RtConfig,
