@@ -2,13 +2,23 @@
 // Licensed under the EUPL-1.2-or-later
 
 //! Contains the franka::RobotState types.
+use std::fmt::Debug;
 use std::time::Duration;
 
 use crate::robot::errors::{FrankaErrorKind, FrankaErrors};
-use crate::robot::types::{RobotMode, RobotStateIntern};
+use crate::robot::types::{PandaStateIntern, RobotMode};
 use nalgebra::{Matrix3, Vector3};
 
-/// Describes the robot state.
+pub trait AbstractRobotState: Clone + Debug {
+    fn get_time(&self) -> Duration;
+    #[allow(non_snake_case)]
+    fn get_tau_J_d(&self) -> [f64; 7];
+    fn get_last_motion_errors(&self) -> &FrankaErrors;
+    fn is_moving(&self) -> bool;
+    fn get_q_d(&self) -> [f64; 7];
+}
+
+/// Describes the state of the robot at a given time.
 #[derive(Debug, Clone, Default)]
 #[allow(non_snake_case)]
 pub struct RobotState {
@@ -254,9 +264,10 @@ pub struct RobotState {
     /// instead
     pub time: Duration,
 }
-impl From<RobotStateIntern> for RobotState {
+
+impl From<PandaStateIntern> for RobotState {
     #[allow(non_snake_case)]
-    fn from(robot_state: RobotStateIntern) -> Self {
+    fn from(robot_state: PandaStateIntern) -> Self {
         let O_T_EE = robot_state.O_T_EE;
         let O_T_EE_d = robot_state.O_T_EE_d;
         let F_T_NE = robot_state.F_T_NE;
@@ -436,6 +447,28 @@ fn skew_symmetric_matrix_from_vector(vector: &Vector3<f64>) -> Matrix3<f64> {
     Matrix3::new(
         0., -vector.z, vector.y, vector.z, 0., -vector.x, -vector.y, vector.x, 0.,
     )
+}
+
+impl AbstractRobotState for RobotState {
+    fn get_time(&self) -> Duration {
+        self.time
+    }
+
+    fn get_tau_J_d(&self) -> [f64; 7] {
+        self.tau_J_d
+    }
+
+    fn get_last_motion_errors(&self) -> &FrankaErrors {
+        &self.last_motion_errors
+    }
+
+    fn is_moving(&self) -> bool {
+        self.robot_mode == RobotMode::Move
+    }
+
+    fn get_q_d(&self) -> [f64; 7] {
+        self.q_d
+    }
 }
 
 #[cfg(test)]

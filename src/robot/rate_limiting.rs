@@ -5,83 +5,75 @@
 //! joint position and joint velocity.
 
 use nalgebra::{
-    Isometry3, Matrix3, Matrix3x1, Matrix6x1, Rotation3, Translation3, UnitQuaternion, Vector3, U1,
-    U3,
+    Isometry3, Matrix3, Matrix3x1, Matrix6x1, Rotation3, Translation3, UnitQuaternion, Vector3,
 };
 
 use crate::robot::control_tools::is_homogeneous_transformation;
 use crate::utils::array_to_isometry;
 
-///Sample time constant
-pub static DELTA_T: f64 = 1e-3;
+/// Sample time constant
+pub const DELTA_T: f64 = 1e-3;
 ///Epsilon value for checking limits
-pub static LIMIT_EPS: f64 = 1e-3;
+pub const LIMIT_EPS: f64 = 1e-3;
 /// Epsilon value for limiting Cartesian accelerations/jerks or not
-pub static NORM_EPS: f64 = f64::EPSILON;
-/// Number of packets lost considered for the definition of velocity limits.
-/// When a packet is lost, FCI assumes a constant acceleration model
-pub static TOL_NUMBER_PACKETS_LOST: f64 = 1e-3;
+pub const NORM_EPS: f64 = f64::EPSILON;
 /// Factor for the definition of rotational limits using the Cartesian Pose interface
-pub static FACTOR_CARTESIAN_ROTATION_POSE_INTERFACE: f64 = 0.99;
-/// Maximum torque rate
-pub static MAX_TORQUE_RATE: [f64; 7] = [1000. - LIMIT_EPS; 7];
-/// Maximum joint jerk
-pub static MAX_JOINT_JERK: [f64; 7] = [
-    7500.0 - LIMIT_EPS,
-    3750.0 - LIMIT_EPS,
-    5000.0 - LIMIT_EPS,
-    6250.0 - LIMIT_EPS,
-    7500.0 - LIMIT_EPS,
-    10000.0 - LIMIT_EPS,
-    10000.0 - LIMIT_EPS,
-];
-/// Maximum joint acceleration
-pub static MAX_JOINT_ACCELERATION: [f64; 7] = [
-    15.0000 - LIMIT_EPS,
-    7.500 - LIMIT_EPS,
-    10.0000 - LIMIT_EPS,
-    12.5000 - LIMIT_EPS,
-    15.0000 - LIMIT_EPS,
-    20.0000 - LIMIT_EPS,
-    20.0000 - LIMIT_EPS,
-];
-/// Maximum joint velocity
-pub static MAX_JOINT_VELOCITY: [f64; 7] = [
-    2.1750 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[0],
-    2.1750 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[1],
-    2.1750 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[2],
-    2.1750 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[3],
-    2.6100 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[4],
-    2.6100 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[5],
-    2.6100 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_JOINT_ACCELERATION[6],
-];
-///  Maximum translational jerk
-pub static MAX_TRANSLATIONAL_JERK: f64 = 6500.0 - LIMIT_EPS;
-/// Maximum translational acceleration
-pub static MAX_TRANSLATIONAL_ACCELERATION: f64 = 13.0000 - LIMIT_EPS;
-/// Maximum translational velocity
-pub static MAX_TRANSLATIONAL_VELOCITY: f64 =
-    2.0000 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_TRANSLATIONAL_ACCELERATION;
-/// Maximum rotational jerk
-pub static MAX_ROTATIONAL_JERK: f64 = 12500.0 - LIMIT_EPS;
-/// Maximum rotational acceleration
-pub static MAX_ROTATIONAL_ACCELERATION: f64 = 25.0000 - LIMIT_EPS;
-/// Maximum rotational velocity
-pub static MAX_ROTATIONAL_VELOCITY: f64 =
-    2.5000 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_ROTATIONAL_ACCELERATION;
-/// Maximum elbow jerk
-pub static MAX_ELBOW_JERK: f64 = 5000. - LIMIT_EPS;
-/// Maximum elbow acceleration
-pub static MAX_ELBOW_ACCELERATION: f64 = 10.0000 - LIMIT_EPS;
-/// Maximum elbow velocity
-pub static MAX_ELBOW_VELOCITY: f64 =
-    2.1750 - LIMIT_EPS - TOL_NUMBER_PACKETS_LOST * DELTA_T * MAX_ELBOW_ACCELERATION;
+const FACTOR_CARTESIAN_ROTATION_POSE_INTERFACE: f64 = 0.99;
+
+/// The rate limiter can limit the rate of torques, Cartesian pose, Cartesian velocity,
+/// joint position and joint velocity. The rate limiter trait is implemented for [Fr3](crate::Fr3#impl-RateLimiter-for-Fr3) and [Panda](crate::Panda#impl-RateLimiter-for-Panda)
+/// in different ways.
+pub trait RateLimiter {
+    /// Defines if the rate limiter is used when `None` is passed to the `limit_rate` argument in
+    /// control methods like [`control_joint_positions`](crate::robot::Robot::control_joint_positions)
+    const RATE_LIMITING_ON_PER_DEFAULT: bool;
+    /// Number of packets lost considered for the definition of velocity limits.
+    /// When a packet is lost, FCI assumes a constant acceleration model
+    const TOL_NUMBER_PACKETS_LOST: f64;
+    /// Maximum torque rate
+    const MAX_TORQUE_RATE: [f64; 7] = [1000. - LIMIT_EPS; 7];
+    /// Maximum joint jerk
+    const MAX_JOINT_JERK: [f64; 7];
+    /// Maximum joint acceleration
+    const MAX_JOINT_ACCELERATION: [f64; 7];
+    /// Maximum translational jerk
+    const MAX_TRANSLATIONAL_JERK: f64;
+    /// Maximum translational acceleration
+    const MAX_TRANSLATIONAL_ACCELERATION: f64;
+    /// Maximum translational velocity
+    const MAX_TRANSLATIONAL_VELOCITY: f64;
+    /// Maximum rotational jerk
+    const MAX_ROTATIONAL_JERK: f64;
+    /// Maximum rotational acceleration
+    const MAX_ROTATIONAL_ACCELERATION: f64;
+    /// Maximum rotational velocity
+    const MAX_ROTATIONAL_VELOCITY: f64;
+    /// Maximum elbow jerk
+    const MAX_ELBOW_JERK: f64;
+    /// Maximum elbow acceleration
+    const MAX_ELBOW_ACCELERATION: f64;
+    /// Maximum elbow velocity
+    const MAX_ELBOW_VELOCITY: f64;
+    /// Computes the maximum joint velocity based on joint position
+    /// # Arguments
+    /// * `q` - joint position
+    /// # Return
+    /// Upper limits of joint velocity at the given joint position.
+    fn compute_upper_limits_joint_velocity(q: &[f64; 7]) -> [f64; 7];
+    /// Computes the minimum joint velocity based on joint position
+    /// # Arguments
+    /// * `q` - joint position
+    /// # Return
+    /// Lower limits of joint velocity at the given joint position.
+    fn compute_lower_limits_joint_velocity(q: &[f64; 7]) -> [f64; 7];
+}
 
 /// Limits the rate of a desired joint position considering the limits provided.
 /// # Note
 /// FCI filters must be deactivated to work properly.
 /// # Arguments
 /// * `max_velocity` - Per-joint maximum allowed velocity.
+/// * `min_velocity` - Per-joint minimum allowed velocity.
 /// * `max_acceleration` - Per-joint maximum allowed acceleration.
 /// * `max_jerk` - Per-joint maximum allowed jerk.
 /// * `commanded_positions` - Commanded joint positions of the current time step.
@@ -92,8 +84,10 @@ pub static MAX_ELBOW_VELOCITY: f64 =
 /// * if commanded_positions are infinite or NaN.
 /// # Return
 /// Rate-limited vector of desired joint positions.
+#[allow(clippy::too_many_arguments)]
 pub fn limit_rate_joint_positions(
     max_velocity: &[f64; 7],
+    min_velocity: &[f64; 7],
     max_acceleration: &[f64; 7],
     max_jerk: &[f64; 7],
     commanded_positions: &[f64; 7],
@@ -108,6 +102,7 @@ pub fn limit_rate_joint_positions(
     for i in 0..7 {
         limited_commanded_positions[i] = limit_rate_position(
             max_velocity[i],
+            min_velocity[i],
             max_acceleration[i],
             max_jerk[i],
             commanded_positions[i],
@@ -124,6 +119,7 @@ pub fn limit_rate_joint_positions(
 /// FCI filters must be deactivated to work properly.
 /// # Arguments
 /// * `max_velocity` - Maximum allowed velocity.
+/// * `min_velocity` - Minimum allowed velocity.
 /// * `max_acceleration` - Maximum allowed acceleration.
 /// * `max_jerk` - Maximum allowed jerk.
 /// * `commanded_position` - Commanded joint position of the current time step.
@@ -133,8 +129,10 @@ pub fn limit_rate_joint_positions(
 /// * if commanded_values are infinite or NaN.
 /// # Return
 /// Rate-limited desired joint position.
+#[allow(clippy::too_many_arguments)]
 pub fn limit_rate_position(
     max_velocity: f64,
+    min_velocity: f64,
     max_acceleration: f64,
     max_jerk: f64,
     commanded_position: f64,
@@ -146,6 +144,7 @@ pub fn limit_rate_position(
     last_commanded_position
         + limit_rate_velocity(
             max_velocity,
+            min_velocity,
             max_acceleration,
             max_jerk,
             (commanded_position - last_commanded_position) / DELTA_T,
@@ -159,6 +158,7 @@ pub fn limit_rate_position(
 /// FCI filters must be deactivated to work properly.
 /// # Arguments
 /// * `max_velocity` - Maximum allowed velocity.
+/// * `min_velocity` - Minimum allowed velocity.
 /// * `max_acceleration` - Maximum allowed acceleration.
 /// * `max_jerk` - Maximum allowed jerk.
 /// * `commanded_velocity` - Commanded joint velocity of the current time step.
@@ -170,6 +170,7 @@ pub fn limit_rate_position(
 /// Rate-limited desired joint velocity.
 fn limit_rate_velocity(
     max_velocity: f64,
+    min_velocity: f64,
     max_acceleration: f64,
     max_jerk: f64,
     commanded_velocity: f64,
@@ -187,7 +188,7 @@ fn limit_rate_velocity(
         max_acceleration,
     );
     let safe_min_acceleration = f64::max(
-        (max_jerk / max_acceleration) * (-max_velocity - last_commanded_velocity),
+        (max_jerk / max_acceleration) * (min_velocity - last_commanded_velocity),
         -max_acceleration,
     );
     last_commanded_velocity
@@ -232,6 +233,7 @@ pub fn limit_rate_torques(
 /// FCI filters must be deactivated to work properly.
 /// # Arguments
 /// * `max_velocity` - Per-joint maximum allowed velocity.
+/// * `min_velocity` - Per-joint minimum allowed velocity.
 /// * `max_acceleration` - Per-joint maximum allowed acceleration.
 /// * `max_jerk` - Per-joint maximum allowed jerk.
 /// * `commanded_velocities` - Commanded joint velocity of the current time step.
@@ -243,6 +245,7 @@ pub fn limit_rate_torques(
 /// Rate-limited vector of desired joint velocities.
 pub fn limit_rate_joint_velocities(
     max_velocity: &[f64; 7],
+    min_velocity: &[f64; 7],
     max_acceleration: &[f64; 7],
     max_jerk: &[f64; 7],
     commanded_velocities: &[f64; 7],
@@ -256,6 +259,7 @@ pub fn limit_rate_joint_velocities(
     for i in 0..7 {
         limited_commanded_velocities[i] = limit_rate_velocity(
             max_velocity[i],
+            min_velocity[i],
             max_acceleration[i],
             max_jerk[i],
             commanded_velocities[i],
@@ -317,10 +321,10 @@ pub fn limit_rate_cartesian_pose(
 
     let mut commanded_O_dP_EE_c = [0.; 6];
     for i in 0..3 {
-        commanded_O_dP_EE_c[i] = dx_head[(i)];
+        commanded_O_dP_EE_c[i] = dx_head[i];
     }
     for i in 0..3 {
-        commanded_O_dP_EE_c[i + 3] = dx_tail[(i)];
+        commanded_O_dP_EE_c[i + 3] = dx_tail[i];
     }
     commanded_O_dP_EE_c = limit_rate_cartesian_velocity(
         max_translational_velocity,
@@ -335,7 +339,7 @@ pub fn limit_rate_cartesian_pose(
     );
     let dx: Matrix6x1<f64> = Matrix6x1::<f64>::from_column_slice(&commanded_O_dP_EE_c);
     limited_commanded_pose.translation = Translation3::from(
-        last_commanded_pose.translation.vector + Vector3::new(dx[(0)], dx[(1)], dx[(2)]) * DELTA_T,
+        last_commanded_pose.translation.vector + Vector3::new(dx[0], dx[1], dx[2]) * DELTA_T,
     );
     limited_commanded_pose.rotation = last_commanded_pose.rotation;
     let dx_tail = dx.remove_row(0).remove_row(0).remove_row(0);
@@ -343,15 +347,7 @@ pub fn limit_rate_cartesian_pose(
         let w_norm = dx_tail.normalize();
         let theta = DELTA_T * dx_tail.norm();
         let omega_skew = Matrix3::new(
-            0.,
-            -w_norm[(2)],
-            w_norm[(1)],
-            w_norm[(2)],
-            0.,
-            -w_norm[(0)],
-            -w_norm[(1)],
-            w_norm[(0)],
-            0.,
+            0., -w_norm[2], w_norm[1], w_norm[2], 0., -w_norm[0], -w_norm[1], w_norm[0], 0.,
         );
         let R = Matrix3::identity()
             + f64::sin(theta) * omega_skew
@@ -403,25 +399,25 @@ pub fn limit_rate_cartesian_velocity(
         max_translational_velocity,
         max_translational_acceleration,
         max_translational_jerk,
-        &Vector3::from(dx.fixed_slice::<U3, U1>(0, 0)),
-        &Vector3::from(last_dx.fixed_slice::<U3, U1>(0, 0)),
-        &Vector3::from(last_ddx.fixed_slice::<U3, U1>(0, 0)),
+        &Vector3::from(dx.fixed_view::<3, 1>(0, 0)),
+        &Vector3::from(last_dx.fixed_view::<3, 1>(0, 0)),
+        &Vector3::from(last_ddx.fixed_view::<3, 1>(0, 0)),
     );
     let dx_tail = limit_rate_single_cartesian_velocity(
         max_rotational_velocity,
         max_rotational_acceleration,
         max_rotational_jerk,
-        &Vector3::from(dx.fixed_slice::<U3, U1>(3, 0)),
-        &Vector3::from(last_dx.fixed_slice::<U3, U1>(3, 0)),
-        &Vector3::from(last_ddx.fixed_slice::<U3, U1>(3, 0)),
+        &Vector3::from(dx.fixed_view::<3, 1>(3, 0)),
+        &Vector3::from(last_dx.fixed_view::<3, 1>(3, 0)),
+        &Vector3::from(last_ddx.fixed_view::<3, 1>(3, 0)),
     );
 
     let mut limited_values = [0.; 6];
     for i in 0..3 {
-        limited_values[i] = dx_head[(i)];
+        limited_values[i] = dx_head[i];
     }
     for i in 0..3 {
-        limited_values[i + 3] = dx_tail[(i)];
+        limited_values[i + 3] = dx_tail[i];
     }
     limited_values
 }
@@ -465,14 +461,11 @@ fn limit_rate_single_cartesian_velocity(
 
 #[cfg(test)]
 mod tests {
-    use nalgebra::{Translation3, Unit, UnitQuaternion, Vector3, Vector6, U3};
+    use crate::{Fr3, Panda};
+    use nalgebra::{Translation3, Unit, UnitQuaternion, Vector3, Vector6};
     use num_traits::Float;
 
-    use crate::robot::rate_limiting::{
-        limit_rate_cartesian_pose, DELTA_T, LIMIT_EPS, MAX_ROTATIONAL_ACCELERATION,
-        MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY, MAX_TRANSLATIONAL_ACCELERATION,
-        MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
-    };
+    use crate::robot::rate_limiting::{limit_rate_cartesian_pose, RateLimiter, DELTA_T, LIMIT_EPS};
     use crate::utils::array_to_isometry;
 
     fn integrate_one_sample(last_pose: &[f64; 16], dx: &[f64; 6], delta_t: f64) -> [f64; 16] {
@@ -512,7 +505,7 @@ mod tests {
         eps: f64,
         delta_t: f64,
     ) -> [f64; 6] {
-        let mut result = last_cmd_values.clone();
+        let mut result = *last_cmd_values;
         result[0] += (max_translational_derivative
             - f64::min(
                 f64::max(f64::abs(eps), 0.),
@@ -535,7 +528,7 @@ mod tests {
         eps: f64,
         delta_t: f64,
     ) -> [f64; 6] {
-        let mut result = last_cmd_values.clone();
+        let mut result = *last_cmd_values;
         result[0] += (max_translational_derivative + f64::max(f64::abs(eps), LIMIT_EPS)) * delta_t;
         result[3] += (max_rotational_derivative + f64::max(f64::abs(eps), LIMIT_EPS)) * delta_t;
         result
@@ -581,12 +574,12 @@ mod tests {
         let dddx = (ddx - last_ddx) / delta_t;
         let violates_limits = |desired_value: f64, max_value: f64| desired_value.abs() > max_value;
 
-        violates_limits(dx.fixed_rows::<U3>(0).norm(), max_translational_dx)
-            || violates_limits(ddx.fixed_rows::<U3>(0).norm(), max_translational_ddx)
-            || violates_limits(dddx.fixed_rows::<U3>(0).norm(), max_translational_dddx)
-            || violates_limits(dx.fixed_rows::<U3>(3).norm(), max_rotational_dx)
-            || violates_limits(ddx.fixed_rows::<U3>(3).norm(), max_rotational_ddx)
-            || violates_limits(dddx.fixed_rows::<U3>(3).norm(), max_rotational_dddx)
+        violates_limits(dx.fixed_rows::<3>(0).norm(), max_translational_dx)
+            || violates_limits(ddx.fixed_rows::<3>(0).norm(), max_translational_ddx)
+            || violates_limits(dddx.fixed_rows::<3>(0).norm(), max_translational_dddx)
+            || violates_limits(dx.fixed_rows::<3>(3).norm(), max_rotational_dx)
+            || violates_limits(ddx.fixed_rows::<3>(3).norm(), max_rotational_ddx)
+            || violates_limits(dddx.fixed_rows::<3>(3).norm(), max_rotational_dddx)
     }
     #[test]
     #[allow(non_snake_case)]
@@ -645,12 +638,12 @@ mod tests {
         ];
 
         let out = limit_rate_cartesian_pose(
-            MAX_TRANSLATIONAL_VELOCITY,
-            MAX_TRANSLATIONAL_ACCELERATION,
-            MAX_TRANSLATIONAL_JERK,
-            MAX_ROTATIONAL_VELOCITY,
-            MAX_ROTATIONAL_ACCELERATION,
-            MAX_ROTATIONAL_JERK,
+            Panda::MAX_TRANSLATIONAL_VELOCITY,
+            Panda::MAX_TRANSLATIONAL_ACCELERATION,
+            Panda::MAX_TRANSLATIONAL_JERK,
+            Panda::MAX_ROTATIONAL_VELOCITY,
+            Panda::MAX_ROTATIONAL_ACCELERATION,
+            Panda::MAX_ROTATIONAL_JERK,
             &O_T_EE_c,
             &last_O_T_EE_c,
             &O_dP_EE_c,
@@ -682,12 +675,12 @@ mod tests {
             1.0,
         ];
         let out = limit_rate_cartesian_pose(
-            MAX_TRANSLATIONAL_VELOCITY,
-            MAX_TRANSLATIONAL_ACCELERATION,
-            MAX_TRANSLATIONAL_JERK,
-            MAX_ROTATIONAL_VELOCITY,
-            MAX_ROTATIONAL_ACCELERATION,
-            MAX_ROTATIONAL_JERK,
+            Panda::MAX_TRANSLATIONAL_VELOCITY,
+            Panda::MAX_TRANSLATIONAL_ACCELERATION,
+            Panda::MAX_TRANSLATIONAL_JERK,
+            Panda::MAX_ROTATIONAL_VELOCITY,
+            Panda::MAX_ROTATIONAL_ACCELERATION,
+            Panda::MAX_ROTATIONAL_JERK,
             &O_T_EE_c,
             &O_T_EE_c,
             &[0.; 6],
@@ -914,5 +907,47 @@ mod tests {
             .iter()
             .zip(last_cmd_velocity.iter())
             .for_each(|(&x, &y)| assert!(f64::abs(x - y) < 1e-6));
+    }
+
+    #[test]
+    fn position_based_velocity_limit_boundary_check_negative_velocity() {
+        let q_lower_limits = [-2.9007, -1.8361, -2.9107, -3.0770, -2.8763, 0.4398, -3.0508];
+        let dq_upper_limits = [2.62, 2.62, 2.62, 2.62, 5.26, 4.18, 5.26];
+        let dq_lower_limits = [0.; 7];
+
+        let dq_max = Fr3::compute_upper_limits_joint_velocity(&q_lower_limits);
+        assert!(dq_max
+            .iter()
+            .zip(dq_upper_limits.iter())
+            .all(|(dq, dq_limit)| dq < dq_limit));
+
+        let dq_min = Fr3::compute_lower_limits_joint_velocity(&q_lower_limits);
+        assert!(dq_max
+            .iter()
+            .zip(dq_lower_limits.iter())
+            .all(|(dq, dq_limit)| dq > dq_limit));
+
+        assert!(dq_max.iter().zip(dq_min.iter()).all(|(max, min)| max > min));
+    }
+
+    #[test]
+    fn position_based_velocity_limit_boundary_check_positive_velocity() {
+        let q_upper_limits = [2.9007, 1.8361, 2.9107, -0.1169, 2.8763, 4.6216, 3.0508];
+        let dq_upper_limits = [0.; 7];
+        let dq_lower_limits = [-2.62, -2.62, -2.62, -2.62, -5.26, -4.18, -5.26];
+
+        let dq_max = Fr3::compute_upper_limits_joint_velocity(&q_upper_limits);
+        assert!(dq_max
+            .iter()
+            .zip(dq_upper_limits.iter())
+            .all(|(dq, dq_limit)| dq < dq_limit));
+
+        let dq_min = Fr3::compute_lower_limits_joint_velocity(&q_upper_limits);
+        assert!(dq_max
+            .iter()
+            .zip(dq_lower_limits.iter())
+            .all(|(dq, dq_limit)| dq > dq_limit));
+
+        assert!(dq_max.iter().zip(dq_min.iter()).all(|(max, min)| max > min));
     }
 }

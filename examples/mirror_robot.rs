@@ -1,17 +1,17 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-use clap::Parser;
+
 use core::f64::consts::PI;
-use franka::exception::FrankaResult;
-use franka::model::Frame;
-use franka::robot::control_types::Torques;
-use franka::robot::Robot;
-use franka::utils::{array_to_isometry, Matrix6x7, Vector7};
-use franka::Matrix7;
-use franka::RobotState;
-use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3, U1, U3};
 use std::sync::mpsc::channel;
 use std::time::Duration;
+
+use clap::Parser;
+use nalgebra::{Matrix3, Matrix6, Matrix6x1, Quaternion, UnitQuaternion, Vector3};
+
+use franka::{
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Matrix7, Model, Panda, Robot,
+    RobotState, Torques, Vector7,
+};
 
 /// An example where one robot is guided by the user and the other robot acts as a mirror. In this
 /// case mirror does not mean equal joint positions. Instead, it acts like a real physical mirror that
@@ -27,31 +27,69 @@ struct CommandLineArguments {
     /// IP-Address or hostname of the robot which mirrors the movement
     #[clap(long)]
     pub franka_ip_mirror: String,
+
+    /// Use this option if the hand-guided robot is a Panda
+    #[clap(long, action)]
+    pub panda_user: bool,
+
+    /// Use this option if the mirrored robot is a Panda
+    #[clap(long, action)]
+    pub panda_mirror: bool,
 }
 
 const NULLSPACE_TORQUE_SCALING: f64 = 5.;
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
+    match args.panda_user {
+        true => {
+            let robot_user = Panda::new(args.franka_ip_user.as_str(), None, None)?;
+            initialize_and_start_robots(&args, robot_user)
+        }
+        false => {
+            let robot_user = Fr3::new(args.franka_ip_user.as_str(), None, None)?;
+            initialize_and_start_robots(&args, robot_user)
+        }
+    }
+}
+
+fn initialize_and_start_robots<User: Robot + Send + 'static>(
+    args: &CommandLineArguments,
+    robot_user: User,
+) -> FrankaResult<()> {
+    match args.panda_mirror {
+        true => {
+            let robot_mirror = Panda::new(args.franka_ip_mirror.as_str(), None, None)?;
+            control_robots(robot_user, robot_mirror)
+        }
+        false => {
+            let robot_mirror = Fr3::new(args.franka_ip_mirror.as_str(), None, None)?;
+            control_robots(robot_user, robot_mirror)
+        }
+    }
+}
+
+fn control_robots<User: Robot + Send + 'static, Mirror: Robot>(
+    mut robot_user: User,
+    mut robot_mirror: Mirror,
+) -> FrankaResult<()> {
     let translational_stiffness = 400.;
     let rotational_stiffness = 50.;
 
     let mut stiffness: Matrix6<f64> = Matrix6::zeros();
     let mut damping: Matrix6<f64> = Matrix6::zeros();
     {
-        let mut top_left_corner = stiffness.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = stiffness.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(Matrix3::identity() * translational_stiffness));
-        let mut top_left_corner = damping.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = damping.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(2. * f64::sqrt(translational_stiffness) * Matrix3::identity()));
     }
     {
-        let mut bottom_right_corner = stiffness.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = stiffness.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner.copy_from(&(Matrix3::identity() * rotational_stiffness));
-        let mut bottom_right_corner = damping.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = damping.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot_user = Robot::new(args.franka_ip_user.as_str(), None, None)?;
-    let mut robot_mirror = Robot::new(args.franka_ip_mirror.as_str(), None, None)?;
     let model = robot_mirror.load_model(true)?;
     robot_mirror.set_collision_behavior(
         [100.; 7], [100.; 7], [100.; 7], [100.; 7], [100.; 6], [100.; 6], [100.; 6], [100.; 6],
@@ -101,8 +139,8 @@ fn main() -> FrankaResult<()> {
     robot_mirror.control_torques(
         |state: &RobotState, _step: &Duration| -> Torques {
             let home: Vector7 = q_goal.into();
-            let coriolis: Vector7 = model.coriolis_from_state(&state).into();
-            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
+            let coriolis: Vector7 = model.coriolis_from_state(state).into();
+            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);
             let q = Vector7::from_column_slice(&state.q);
             let dq = Vector7::from_column_slice(&state.dq);
@@ -126,7 +164,7 @@ fn main() -> FrankaResult<()> {
             orientation_d = UnitQuaternion::from_quaternion(quaternion);
             let mut error: Matrix6x1<f64> = Matrix6x1::<f64>::zeros();
             {
-                let mut error_head = error.fixed_slice_mut::<U3, U1>(0, 0);
+                let mut error_head = error.fixed_view_mut::<3, 1>(0, 0);
                 error_head.set_column(0, &(position - position_d));
             }
 
@@ -136,7 +174,7 @@ fn main() -> FrankaResult<()> {
             let orientation = UnitQuaternion::new_normalize(orientation);
             let error_quaternion: UnitQuaternion<f64> = orientation.inverse() * orientation_d;
             {
-                let mut error_tail = error.fixed_slice_mut::<U3, U1>(3, 0);
+                let mut error_tail = error.fixed_view_mut::<3, 1>(3, 0);
                 error_tail.copy_from(
                     &-(transform.rotation.to_rotation_matrix()
                         * Vector3::new(error_quaternion.i, error_quaternion.j, error_quaternion.k)),

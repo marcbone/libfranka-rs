@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 #![allow(dead_code)]
 
 extern crate libc;
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::Debug;
 use std::io::{Read, Write};
+use std::marker::PhantomData;
 use std::mem::size_of;
 use std::net::TcpStream as StdTcpStream;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -26,16 +28,17 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::exception::{FrankaException, FrankaResult};
-use crate::gripper;
 use crate::gripper::types::CommandHeader;
-use crate::robot::service_types::{
-    LoadModelLibraryResponse, LoadModelLibraryStatus, RobotCommandEnum, RobotCommandHeader,
-};
+
+use crate::robot::service_types::{LoadModelLibraryStatus, PandaCommandEnum, PandaCommandHeader};
+
+use crate::device_data::DeviceData;
 
 const CLIENT: Token = Token(1);
 
 pub enum NetworkType {
-    Robot,
+    Panda,
+    Fr3,
     Gripper,
 }
 
@@ -43,8 +46,7 @@ pub trait MessageCommand {
     fn get_command_message_id(&self) -> u32;
 }
 
-pub struct Network {
-    network_type: NetworkType,
+pub(crate) struct Network<Data: DeviceData> {
     tcp_socket: TcpStream,
     udp_socket: UdpSocket,
     udp_server_address: SocketAddr,
@@ -60,14 +62,11 @@ pub struct Network {
     events: Events,
     poll_read_udp: Poll,
     events_udp: Events,
+    data: PhantomData<Data>,
 }
 
-impl Network {
-    pub fn new(
-        network_type: NetworkType,
-        franka_address: &str,
-        franka_port: u16,
-    ) -> Result<Network, Box<dyn Error>> {
+impl<Data: DeviceData> Network<Data> {
+    pub fn new(franka_address: &str, franka_port: u16) -> Result<Network<Data>, Box<dyn Error>> {
         let address_str: String = format!("{}:{}", franka_address, franka_port);
         let sock_address = address_str.to_socket_addrs().unwrap().next().unwrap();
         let mut tcp_socket = TcpStream::from_std(StdTcpStream::connect(sock_address)?);
@@ -101,7 +100,6 @@ impl Network {
         let events = Events::with_capacity(128);
         let events_udp = Events::with_capacity(1);
         Ok(Network {
-            network_type,
             tcp_socket,
             udp_socket,
             udp_server_address,
@@ -117,31 +115,29 @@ impl Network {
             events,
             poll_read_udp,
             events_udp,
+            data: PhantomData,
         })
     }
-    pub fn create_header_for_gripper(
+
+    pub fn create_header_for_panda(
         &mut self,
-        command: gripper::types::Command,
+        command: PandaCommandEnum,
         size: usize,
-    ) -> CommandHeader {
-        let header = gripper::types::CommandHeader::new(command, self.command_id, size as u32);
-        self.command_id += 1;
-        header
-    }
-    pub fn create_header_for_robot(
-        &mut self,
-        command: RobotCommandEnum,
-        size: usize,
-    ) -> RobotCommandHeader {
-        let header = RobotCommandHeader::new(command, self.command_id, size as u32);
+    ) -> PandaCommandHeader {
+        let header = PandaCommandHeader::new(command, self.command_id, size as u32);
         self.command_id += 1;
         header
     }
 
-    pub fn tcp_send_request<T: Serialize + DeserializeOwned + MessageCommand + Debug>(
+    pub fn create_header(
         &mut self,
-        request: T,
-    ) -> u32 {
+        command: Data::CommandEnum,
+        size: usize,
+    ) -> Data::CommandHeader {
+        Data::create_header(&mut self.command_id, command, size)
+    }
+
+    pub fn tcp_send_request<T: Serialize + MessageCommand>(&mut self, request: T) -> u32 {
         let encoded_request = serialize(&request);
         self.tcp_socket.write_all(&encoded_request).unwrap();
         request.get_command_message_id()
@@ -151,12 +147,25 @@ impl Network {
     ///
     /// # Arguments
     /// * `command_id` - Expected command ID of the Response.
-    pub fn tcp_blocking_receive_response<T: DeserializeOwned + Debug + 'static>(
+    pub fn tcp_blocking_receive_response<T: DeserializeOwned + 'static>(
         &mut self,
         command_id: u32,
     ) -> T {
         let response_bytes = self.wait_for_response_to_arrive(&command_id);
         deserialize(&response_bytes)
+    }
+    /// Blocks until a Response message with the given command ID has been received and returns this
+    /// response.
+    ///
+    /// # Arguments
+    /// * `command_id` - Expected command ID of the Response.
+    pub fn tcp_blocking_receive_status<T: DeserializeOwned + 'static>(
+        &mut self,
+        command_id: u32,
+    ) -> T {
+        let response_bytes = self.wait_for_response_to_arrive(&command_id);
+        let (_, out): (Data::CommandHeader, T) = deserialize(&response_bytes);
+        out
     }
     /// Blocks until a LoadModelLibraryResponse message with the given command ID has been received
     /// and returns this LoadModelLibraryResponse.
@@ -173,11 +182,13 @@ impl Network {
         &mut self,
         command_id: u32,
         buffer: &mut Vec<u8>,
-    ) -> FrankaResult<LoadModelLibraryResponse> {
+    ) -> FrankaResult<LoadModelLibraryStatus> {
         let response_bytes = self.wait_for_response_to_arrive(&command_id);
-        let lib_response: LoadModelLibraryResponse =
-            deserialize(&response_bytes[0..size_of::<LoadModelLibraryResponse>()]);
-        match lib_response.status {
+        let (header, status): (Data::CommandHeader, LoadModelLibraryStatus) = deserialize(
+            &response_bytes
+                [0..size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()],
+        );
+        match status {
             LoadModelLibraryStatus::Success => {}
             LoadModelLibraryStatus::Error => {
                 return Err(FrankaException::ModelException {
@@ -187,13 +198,14 @@ impl Network {
             }
         }
         assert_ne!(
-            lib_response.header.size as usize,
-            size_of::<LoadModelLibraryResponse>()
+            header.get_size() as usize,
+            size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()
         );
         buffer.append(&mut Vec::from(
-            &response_bytes[size_of::<LoadModelLibraryResponse>()..],
+            &response_bytes
+                [size_of::<LoadModelLibraryStatus>() + size_of::<Data::CommandHeader>()..],
         ));
-        Ok(lib_response)
+        Ok(status)
     }
     /// Tries to receive a Response message with the given command ID (non-blocking).
     ///
@@ -214,18 +226,18 @@ impl Network {
     ) -> Result<bool, FrankaException>
     where
         F: FnOnce(T) -> Result<(), FrankaException>,
-        T: DeserializeOwned + Debug + 'static,
+        T: DeserializeOwned + 'static,
     {
         self.tcp_read_from_buffer(Duration::from_micros(0));
         let message = self.received_responses.get(&command_id);
         if message.is_none() {
             return Ok(false);
         }
-        if message.unwrap().len() != size_of::<T>() {
+        if message.unwrap().len() != size_of::<T>() + size_of::<Data::CommandHeader>() {
             panic!("libfranka-rs: Incorrect TCP message size.");
         }
-        let message: T = deserialize(message.unwrap());
-        let result = handler(message);
+        let message: (Data::CommandHeader, T) = deserialize(message.unwrap());
+        let result = handler(message.1);
         match result {
             Ok(_) => {
                 self.received_responses.remove(&command_id);
@@ -237,7 +249,7 @@ impl Network {
 
     fn wait_for_response_to_arrive(&mut self, command_id: &u32) -> Vec<u8> {
         let mut response_bytes: Option<Vec<u8>> = None;
-        while response_bytes == None {
+        while response_bytes.is_none() {
             {
                 self.tcp_read_from_buffer(Duration::from_millis(10));
                 response_bytes = self.received_responses.remove(command_id);
@@ -323,7 +335,7 @@ impl Network {
             match event.token() {
                 CLIENT => {
                     if event.is_readable() {
-                        let mut buffer = [0_u8; 70000];
+                        let mut buffer = [0_u8; 150000];
                         let available_bytes = self.tcp_socket.peek(&mut buffer);
                         let available_bytes = match available_bytes {
                             Ok(a) => a,
@@ -334,39 +346,27 @@ impl Network {
                         };
 
                         if self.pending_response.is_empty() {
-                            let header_mem_size = match self.network_type {
-                                NetworkType::Gripper => size_of::<CommandHeader>(),
-                                NetworkType::Robot => size_of::<RobotCommandHeader>(),
-                            };
+                            let header_mem_size = size_of::<Data::CommandHeader>();
                             if available_bytes >= header_mem_size {
                                 let mut header_bytes: Vec<u8> = vec![0; header_mem_size];
                                 self.tcp_socket.read_exact(&mut header_bytes).unwrap();
                                 self.pending_response.append(&mut header_bytes.clone());
-                                self.pending_response_offset = header_mem_size as usize;
-                                match self.network_type {
-                                    NetworkType::Gripper => {
-                                        let header: CommandHeader = deserialize(&header_bytes);
-                                        self.pending_response_len = header.size as usize;
-                                        self.pending_command_id = header.command_id;
-                                    }
-                                    NetworkType::Robot => {
-                                        let header: RobotCommandHeader = deserialize(&header_bytes);
-                                        self.pending_response_len = header.size as usize;
-                                        self.pending_command_id = header.command_id;
-                                    }
-                                };
+                                self.pending_response_offset = header_mem_size;
+                                let header: Data::CommandHeader = deserialize(&header_bytes);
+                                self.pending_response_len = header.get_size() as usize;
+                                self.pending_command_id = header.get_command_id();
                             }
                         }
                         if !self.pending_response.is_empty() && available_bytes > 0 {
                             let number_of_bytes_to_read = usize::min(
                                 available_bytes,
-                                self.pending_response_len - self.pending_response_offset as usize,
+                                self.pending_response_len - self.pending_response_offset,
                             );
                             let mut response_buffer: Vec<u8> = vec![0; number_of_bytes_to_read];
                             self.tcp_socket.read_exact(&mut response_buffer).unwrap();
                             self.pending_response.append(&mut response_buffer);
                             self.pending_response_offset += number_of_bytes_to_read;
-                            if self.pending_response_offset == self.pending_response_len as usize {
+                            if self.pending_response_offset == self.pending_response_len {
                                 self.received_responses
                                     .insert(self.pending_command_id, self.pending_response.clone());
                                 self.pending_response.clear();
@@ -393,19 +393,19 @@ fn serialize<T: Serialize>(s: &T) -> Vec<u8> {
     bincode::serialize(s).unwrap()
 }
 
-fn deserialize<T: Debug + DeserializeOwned + 'static>(encoded: &[u8]) -> T {
+fn deserialize<T: DeserializeOwned + 'static>(encoded: &[u8]) -> T {
     bincode::deserialize(encoded).unwrap()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::network::{deserialize, serialize};
-    use crate::robot::types::RobotStateIntern;
+    use crate::robot::types::PandaStateIntern;
 
     #[test]
     fn can_serialize_and_deserialize() {
-        let state = RobotStateIntern::dummy();
-        let state2: RobotStateIntern = deserialize(&serialize(&state));
+        let state = PandaStateIntern::dummy();
+        let state2: PandaStateIntern = deserialize(&serialize(&state));
         assert_eq!(state, state2);
     }
 }

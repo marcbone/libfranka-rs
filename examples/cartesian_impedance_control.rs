@@ -1,15 +1,15 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-use clap::Parser;
-use franka::Frame;
-use franka::FrankaResult;
-use franka::Robot;
-use franka::RobotState;
-use franka::Torques;
-use franka::{array_to_isometry, Matrix6x7, Vector7};
-use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3, U1, U3};
 use std::time::Duration;
+
+use clap::Parser;
+use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3};
+
+use franka::{
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Model, Panda, Robot, RobotState,
+    Torques, Vector7,
+};
 
 /// An example showing a simple cartesian impedance controller without inertia shaping
 /// that renders a spring damper system where the equilibrium is the initial configuration.
@@ -21,31 +21,46 @@ use std::time::Duration;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
 fn main() -> FrankaResult<()> {
     let args = CommandLineArguments::parse();
+    match args.panda {
+        true => {
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
+}
+
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
+    let model = robot.load_model(false)?;
     let translational_stiffness = 150.;
     let rotational_stiffness = 10.;
 
     let mut stiffness: Matrix6<f64> = Matrix6::zeros();
     let mut damping: Matrix6<f64> = Matrix6::zeros();
     {
-        let mut top_left_corner = stiffness.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = stiffness.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(Matrix3::identity() * translational_stiffness));
-        let mut top_left_corner = damping.fixed_slice_mut::<U3, U3>(0, 0);
+        let mut top_left_corner = damping.fixed_view_mut::<3, 3>(0, 0);
         top_left_corner.copy_from(&(2. * f64::sqrt(translational_stiffness) * Matrix3::identity()));
     }
     {
-        let mut bottom_right_corner = stiffness.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = stiffness.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner.copy_from(&(Matrix3::identity() * rotational_stiffness));
-        let mut bottom_right_corner = damping.fixed_slice_mut::<U3, U3>(3, 3);
+        let mut bottom_right_corner = damping.fixed_view_mut::<3, 3>(3, 3);
         bottom_right_corner
             .copy_from(&(2. * f64::sqrt(rotational_stiffness) * Matrix3::identity()));
     }
-    let mut robot = Robot::new(args.franka_ip.as_str(), None, None)?;
-    let model = robot.load_model(true)?;
-
     // Set additional parameters always before the control loop, NEVER in the control loop!
     // Set collision behavior.
     robot.set_collision_behavior(
@@ -67,8 +82,8 @@ fn main() -> FrankaResult<()> {
     std::io::stdin().read_line(&mut String::new()).unwrap();
     let result = robot.control_torques(
         |state: &RobotState, _step: &Duration| -> Torques {
-            let coriolis: Vector7 = model.coriolis_from_state(&state).into();
-            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, &state);
+            let coriolis: Vector7 = model.coriolis_from_state(state).into();
+            let jacobian_array = model.zero_jacobian_from_state(&Frame::EndEffector, state);
             let jacobian = Matrix6x7::from_column_slice(&jacobian_array);
             let _q = Vector7::from_column_slice(&state.q);
             let dq = Vector7::from_column_slice(&state.dq);
@@ -78,7 +93,7 @@ fn main() -> FrankaResult<()> {
 
             let mut error: Matrix6x1<f64> = Matrix6x1::<f64>::zeros();
             {
-                let mut error_head = error.fixed_slice_mut::<U3, U1>(0, 0);
+                let mut error_head = error.fixed_view_mut::<3, 1>(0, 0);
                 error_head.set_column(0, &(position - position_d));
             }
 
@@ -88,7 +103,7 @@ fn main() -> FrankaResult<()> {
             let orientation = UnitQuaternion::new_normalize(orientation);
             let error_quaternion: UnitQuaternion<f64> = orientation.inverse() * orientation_d;
             {
-                let mut error_tail = error.fixed_slice_mut::<U3, U1>(3, 0);
+                let mut error_tail = error.fixed_view_mut::<3, 1>(3, 0);
                 error_tail.copy_from(
                     &-(transform.rotation.to_rotation_matrix()
                         * Vector3::new(error_quaternion.i, error_quaternion.j, error_quaternion.k)),
@@ -98,7 +113,7 @@ fn main() -> FrankaResult<()> {
                 jacobian.transpose() * (-stiffness * error - damping * (jacobian * dq));
             let tau_d: Vector7 = tau_task + coriolis;
 
-            tau_d.into()
+            Torques::new(tau_d.into())
         },
         None,
         None,

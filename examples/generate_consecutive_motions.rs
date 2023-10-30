@@ -1,11 +1,13 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-use clap::Parser;
-use franka::exception::FrankaException;
-use franka::{FrankaResult, JointVelocities, MotionFinished, Robot, RobotState};
 use std::f64::consts::PI;
 use std::time::Duration;
+
+use clap::Parser;
+
+use franka::exception::FrankaException;
+use franka::{Fr3, FrankaResult, JointVelocities, MotionFinished, Panda, Robot, RobotState};
 
 /// An example showing how to execute consecutive motions with error recovery.
 ///
@@ -16,11 +18,26 @@ use std::time::Duration;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
 fn main() -> FrankaResult<()> {
-    let address = CommandLineArguments::parse();
-    let mut robot = Robot::new(address.franka_ip.as_str(), None, None)?;
+    let args = CommandLineArguments::parse();
+    match args.panda {
+        true => {
+            let robot = Panda::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = Fr3::new(args.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
+}
+
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     robot.set_default_behavior()?;
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");
     println!("Press Enter to continue...");

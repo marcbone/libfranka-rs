@@ -8,14 +8,15 @@ use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::network::MessageCommand;
+use serde::de::DeserializeOwned;
 use std::time::Duration;
 
-pub static VERSION: u16 = 3;
+pub static GRIPPER_VERSION: u16 = 3;
 pub static COMMAND_PORT: u16 = 1338;
 
 #[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u16)]
-pub enum Command {
+pub enum GripperCommandEnum {
     Connect,
     Homing,
     Grasp,
@@ -23,7 +24,7 @@ pub enum Command {
     Stop,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone)]
 #[repr(u16)]
 pub enum Status {
     Success,
@@ -47,18 +48,33 @@ impl GripperStateIntern {
         Duration::from_millis(self.message_id as u64)
     }
 }
+// TODO is static a problem?
+pub trait CommandHeader: Serialize + MessageCommand + Debug + DeserializeOwned + 'static {
+    fn get_command_id(&self) -> u32;
+    fn get_size(&self) -> u32;
+}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
-pub struct CommandHeader {
-    pub command: Command,
+pub struct GripperCommandHeader {
+    pub command: GripperCommandEnum,
     pub command_id: u32,
     pub size: u32,
 }
 
-impl CommandHeader {
-    pub fn new(command: Command, command_id: u32, size: u32) -> CommandHeader {
-        CommandHeader {
+impl CommandHeader for GripperCommandHeader {
+    fn get_command_id(&self) -> u32 {
+        self.command_id
+    }
+
+    fn get_size(&self) -> u32 {
+        self.size
+    }
+}
+
+impl GripperCommandHeader {
+    pub fn new(command: GripperCommandEnum, command_id: u32, size: u32) -> GripperCommandHeader {
+        GripperCommandHeader {
             command,
             command_id,
             size,
@@ -98,7 +114,7 @@ pub struct GraspRequest {
 impl ConnectRequest {
     pub fn new(udp_port: u16) -> Self {
         ConnectRequest {
-            version: VERSION,
+            version: GRIPPER_VERSION,
             udp_port,
         }
     }
@@ -127,28 +143,25 @@ impl GraspRequest {
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct ConnectRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: ConnectRequest,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct MoveRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: MoveRequest,
 }
-
-pub type HomingRequestWithHeader = CommandHeader;
-pub type StopRequestWithHeader = CommandHeader;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[repr(packed)]
 pub struct GraspRequestWithHeader {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub request: GraspRequest,
 }
 
-impl MessageCommand for CommandHeader {
+impl MessageCommand for GripperCommandHeader {
     fn get_command_message_id(&self) -> u32 {
         self.command_id
     }
@@ -174,17 +187,7 @@ impl MessageCommand for GraspRequestWithHeader {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ConnectResponse {
-    pub header: CommandHeader,
+    pub header: GripperCommandHeader,
     pub status: Status,
     pub version: u16,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MoveResponse {
-    pub header: CommandHeader,
-    pub status: Status,
-}
-
-pub type GraspResponse = MoveResponse;
-pub type HomingResponse = MoveResponse;
-pub type StopResponse = HomingResponse;

@@ -13,12 +13,9 @@ use crate::robot::low_pass_filter::{
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
 use crate::robot::rate_limiting::{
     limit_rate_cartesian_pose, limit_rate_cartesian_velocity, limit_rate_joint_positions,
-    limit_rate_joint_velocities, limit_rate_position, DELTA_T, MAX_ELBOW_ACCELERATION,
-    MAX_ELBOW_JERK, MAX_ELBOW_VELOCITY, MAX_JOINT_ACCELERATION, MAX_JOINT_JERK, MAX_JOINT_VELOCITY,
-    MAX_ROTATIONAL_ACCELERATION, MAX_ROTATIONAL_JERK, MAX_ROTATIONAL_VELOCITY,
-    MAX_TRANSLATIONAL_ACCELERATION, MAX_TRANSLATIONAL_JERK, MAX_TRANSLATIONAL_VELOCITY,
+    limit_rate_joint_velocities, limit_rate_position, RateLimiter, DELTA_T,
 };
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::{AbstractRobotState, RobotState};
 use crate::robot::service_types::MoveMotionGeneratorMode;
 use crate::robot::types::MotionGeneratorCommand;
 use crate::utils::Vector7;
@@ -31,11 +28,24 @@ pub enum ControllerMode {
 }
 
 /// Used to decide whether to enforce realtime mode for a control loop thread.
-/// see [`Robot`](`crate::Robot`)
+/// See constructors of [Fr3](crate::Fr3::new) and [Panda](crate::Panda::new).
 #[derive(Copy, Clone, PartialEq)]
 pub enum RealtimeConfig {
+    /// Use real-time scheduling and priority
     Enforce,
+    /// Dont change scheduling and priority
     Ignore,
+}
+
+pub(crate) trait ConvertMotion<State: AbstractRobotState> {
+    /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
+    fn convert_motion<Params: RateLimiter>(
+        &self,
+        robot_state: &State,
+        command: &mut MotionGeneratorCommand,
+        cutoff_frequency: f64,
+        limit_rate: bool,
+    );
 }
 
 /// Helper type for control and motion generation loops.
@@ -46,14 +56,6 @@ pub trait Finishable {
     fn is_finished(&self) -> bool;
     /// Sets the attribute which decide if the currently running motion should be finished
     fn set_motion_finished(&mut self, finished: bool);
-    /// converts the motion type to a MotionGeneratorCommand and applies rate limiting and filtering
-    fn convert_motion(
-        &self,
-        robot_state: &RobotState,
-        command: &mut MotionGeneratorCommand,
-        cutoff_frequency: f64,
-        limit_rate: bool,
-    );
 }
 
 /// A trait for a Finshable control type to finish the motion
@@ -62,7 +64,7 @@ pub trait MotionFinished {
     fn motion_finished(self) -> Self;
 }
 
-impl<T: Finishable + Copy> MotionFinished for T {
+impl<T: Finishable> MotionFinished for T {
     fn motion_finished(mut self) -> Self {
         self.set_motion_finished(true);
         self
@@ -103,17 +105,6 @@ impl Finishable for Torques {
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
-    #[allow(unused_variables)]
-    //todo pull  convert motion out of the Finishable trait
-    fn convert_motion(
-        &self,
-        robot_state: &RobotState,
-        command: &mut MotionGeneratorCommand,
-        cutoff_frequency: f64,
-        limit_rate: bool,
-    ) {
-        unimplemented!()
-    }
 }
 
 /// Stores values for joint position motion generation.
@@ -142,7 +133,6 @@ impl JointPositions {
         }
     }
 }
-
 impl Finishable for JointPositions {
     fn is_finished(&self) -> bool {
         self.motion_finished
@@ -150,8 +140,9 @@ impl Finishable for JointPositions {
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
-
-    fn convert_motion(
+}
+impl ConvertMotion<RobotState> for JointPositions {
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -171,9 +162,10 @@ impl Finishable for JointPositions {
         }
         if limit_rate {
             command.q_c = limit_rate_joint_positions(
-                &MAX_JOINT_VELOCITY,
-                &MAX_JOINT_ACCELERATION,
-                &MAX_JOINT_JERK,
+                &Params::compute_upper_limits_joint_velocity(&robot_state.q_d),
+                &Params::compute_lower_limits_joint_velocity(&robot_state.q_d),
+                &Params::MAX_JOINT_ACCELERATION,
+                &Params::MAX_JOINT_JERK,
                 &command.q_c,
                 &robot_state.q_d,
                 &robot_state.dq_d,
@@ -216,7 +208,6 @@ impl JointVelocities {
         }
     }
 }
-
 impl Finishable for JointVelocities {
     fn is_finished(&self) -> bool {
         self.motion_finished
@@ -224,8 +215,9 @@ impl Finishable for JointVelocities {
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
-
-    fn convert_motion(
+}
+impl ConvertMotion<RobotState> for JointVelocities {
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -245,9 +237,10 @@ impl Finishable for JointVelocities {
         }
         if limit_rate {
             command.dq_c = limit_rate_joint_velocities(
-                &MAX_JOINT_VELOCITY,
-                &MAX_JOINT_ACCELERATION,
-                &MAX_JOINT_JERK,
+                &Params::compute_upper_limits_joint_velocity(&robot_state.q_d),
+                &Params::compute_lower_limits_joint_velocity(&robot_state.q_d),
+                &Params::MAX_JOINT_ACCELERATION,
+                &Params::MAX_JOINT_JERK,
                 &command.dq_c,
                 &robot_state.dq_d,
                 &robot_state.ddq_d,
@@ -337,8 +330,10 @@ impl Finishable for CartesianPose {
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
+}
 
-    fn convert_motion(
+impl ConvertMotion<RobotState> for CartesianPose {
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -357,12 +352,12 @@ impl Finishable for CartesianPose {
 
         if limit_rate {
             command.O_T_EE_c = limit_rate_cartesian_pose(
-                MAX_TRANSLATIONAL_VELOCITY,
-                MAX_TRANSLATIONAL_ACCELERATION,
-                MAX_TRANSLATIONAL_JERK,
-                MAX_ROTATIONAL_VELOCITY,
-                MAX_ROTATIONAL_ACCELERATION,
-                MAX_ROTATIONAL_JERK,
+                Params::MAX_TRANSLATIONAL_VELOCITY,
+                Params::MAX_TRANSLATIONAL_ACCELERATION,
+                Params::MAX_TRANSLATIONAL_JERK,
+                Params::MAX_ROTATIONAL_VELOCITY,
+                Params::MAX_ROTATIONAL_ACCELERATION,
+                Params::MAX_ROTATIONAL_JERK,
                 &command.O_T_EE_c,
                 &robot_state.O_T_EE_c,
                 &robot_state.O_dP_EE_c,
@@ -384,9 +379,10 @@ impl Finishable for CartesianPose {
             }
             if limit_rate {
                 command.elbow_c[0] = limit_rate_position(
-                    MAX_ELBOW_VELOCITY,
-                    MAX_ELBOW_ACCELERATION,
-                    MAX_ELBOW_JERK,
+                    Params::MAX_ELBOW_VELOCITY,
+                    -Params::MAX_ELBOW_VELOCITY,
+                    Params::MAX_ELBOW_ACCELERATION,
+                    Params::MAX_ELBOW_JERK,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     robot_state.delbow_c[0],
@@ -450,7 +446,6 @@ impl CartesianVelocities {
         self.elbow.is_some()
     }
 }
-
 impl Finishable for CartesianVelocities {
     fn is_finished(&self) -> bool {
         self.motion_finished
@@ -458,8 +453,9 @@ impl Finishable for CartesianVelocities {
     fn set_motion_finished(&mut self, finished: bool) {
         self.motion_finished = finished;
     }
-
-    fn convert_motion(
+}
+impl ConvertMotion<RobotState> for CartesianVelocities {
+    fn convert_motion<Params: RateLimiter>(
         &self,
         robot_state: &RobotState,
         command: &mut MotionGeneratorCommand,
@@ -479,12 +475,12 @@ impl Finishable for CartesianVelocities {
         }
         if limit_rate {
             command.O_dP_EE_c = limit_rate_cartesian_velocity(
-                MAX_TRANSLATIONAL_VELOCITY,
-                MAX_TRANSLATIONAL_ACCELERATION,
-                MAX_TRANSLATIONAL_JERK,
-                MAX_ROTATIONAL_VELOCITY,
-                MAX_ROTATIONAL_ACCELERATION,
-                MAX_ROTATIONAL_JERK,
+                Params::MAX_TRANSLATIONAL_VELOCITY,
+                Params::MAX_TRANSLATIONAL_ACCELERATION,
+                Params::MAX_TRANSLATIONAL_JERK,
+                Params::MAX_ROTATIONAL_VELOCITY,
+                Params::MAX_ROTATIONAL_ACCELERATION,
+                Params::MAX_ROTATIONAL_JERK,
                 &command.O_dP_EE_c,
                 &robot_state.O_dP_EE_c,
                 &robot_state.O_ddP_EE_c,
@@ -508,9 +504,10 @@ impl Finishable for CartesianVelocities {
             }
             if limit_rate {
                 command.elbow_c[0] = limit_rate_position(
-                    MAX_ELBOW_VELOCITY,
-                    MAX_ELBOW_ACCELERATION,
-                    MAX_ELBOW_JERK,
+                    Params::MAX_ELBOW_VELOCITY,
+                    -Params::MAX_ELBOW_VELOCITY,
+                    Params::MAX_ELBOW_ACCELERATION,
+                    Params::MAX_ELBOW_JERK,
                     command.elbow_c[0],
                     robot_state.elbow_c[0],
                     robot_state.delbow_c[0],

@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 use crate::exception::FrankaException;
 use crate::exception::FrankaException::ModelException;
 use crate::FrankaResult;
@@ -10,7 +11,7 @@ use libloading::os::unix::Symbol;
 use std::path::Path;
 
 #[allow(non_snake_case, dead_code)]
-pub struct ModelLibrary {
+pub(crate) struct ModelLibrary {
     libm: Library,
     lib_model: Library,
     M_NE: Symbol<

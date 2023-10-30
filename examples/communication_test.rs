@@ -1,12 +1,11 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
-use clap::Parser;
-use franka::FrankaResult;
-use franka::Robot;
-use franka::RobotState;
-use franka::{MotionFinished, Torques};
 use std::f64::consts::PI;
 use std::time::Duration;
+
+use clap::Parser;
+
+use franka::{Fr3, FrankaResult, MotionFinished, Panda, Robot, RobotState, Torques};
 
 /// An example indicating the network performance.
 ///
@@ -16,11 +15,26 @@ use std::time::Duration;
 struct CommandLineArguments {
     /// IP-Address or hostname of the robot
     pub franka_ip: String,
+    /// Use this option to run the example on a Panda
+    #[clap(short, long, action)]
+    pub panda: bool,
 }
 
 fn main() -> FrankaResult<()> {
-    let args = CommandLineArguments::parse();
-    let mut robot = Robot::new(args.franka_ip.as_str(), None, None)?;
+    let address = CommandLineArguments::parse();
+    match address.panda {
+        true => {
+            let robot = Panda::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+        false => {
+            let robot = Fr3::new(address.franka_ip.as_str(), None, None)?;
+            generate_motion(robot)
+        }
+    }
+}
+
+fn generate_motion<R: Robot>(mut robot: R) -> FrankaResult<()> {
     let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 
     println!("WARNING: This example will move the robot! Please make sure to have the user stop button at hand!");

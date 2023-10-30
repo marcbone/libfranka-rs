@@ -5,9 +5,10 @@
 use crate::robot::control_types::{
     CartesianPose, CartesianVelocities, JointPositions, JointVelocities, Torques,
 };
-use crate::robot::robot_state::RobotState;
+use crate::robot::robot_state::AbstractRobotState;
 use crate::robot::types::RobotCommand;
 use std::collections::VecDeque;
+use std::fmt::Debug;
 
 /// Command sent to the robot. Structure used only for logging purposes.
 #[derive(Debug, Copy, Clone)]
@@ -32,29 +33,29 @@ pub struct RobotCommandLog {
 /// corresponding robot state of timestamp n+1.
 /// Provided by the [`ControlException`](`crate::exception::FrankaException::ControlException`).
 #[derive(Debug, Clone)]
-pub struct Record {
+pub struct Record<State: Debug> {
     /// Robot state of timestamp n+1.
-    pub state: RobotState,
+    pub state: State,
     /// Robot command of timestamp n, after rate limiting (if activated).
     pub command: RobotCommandLog,
 }
 
-impl Record {
+impl<State: Debug> Record<State> {
     /// creates a string representation based on the debug formatter
     pub fn log(&self) -> String {
-        format!("{:?}", self.clone())
+        format!("{:?}", self)
     }
 }
 
-pub(crate) struct Logger {
-    states: VecDeque<RobotState>,
+pub(crate) struct Logger<State: AbstractRobotState> {
+    states: VecDeque<State>,
     commands: VecDeque<RobotCommand>,
     ring_front: usize,
     ring_size: usize,
     log_size: usize,
 }
 
-impl Logger {
+impl<State: AbstractRobotState> Logger<State> {
     pub fn new(log_size: usize) -> Self {
         Logger {
             states: VecDeque::with_capacity(log_size),
@@ -64,7 +65,7 @@ impl Logger {
             log_size,
         }
     }
-    pub fn log(&mut self, state: &RobotState, command: &RobotCommand) {
+    pub fn log(&mut self, state: &State, command: &RobotCommand) {
         self.states.push_back(state.clone());
         self.commands.push_back(*command);
         self.ring_front = (self.ring_front + 1) % self.log_size;
@@ -74,8 +75,8 @@ impl Logger {
         }
         self.ring_size = usize::min(self.log_size, self.ring_size + 1);
     }
-    pub fn flush(&mut self) -> Vec<Record> {
-        let mut out: Vec<Record> = Vec::new();
+    pub fn flush(&mut self) -> Vec<Record<State>> {
+        let mut out: Vec<Record<State>> = Vec::new();
         for i in 0..self.ring_size {
             let index = (self.ring_front + i) % self.ring_size;
             let cmd = self.commands.get(index).unwrap();

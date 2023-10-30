@@ -1,29 +1,46 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-//! Contains model library types.
+//! Types for accessing the robots mass matrix, gravity torques and more.
+//!
+//! [RobotModel] is the Model for the FR3 and for the Panda.
+//! It is a wrapper around a shared object that is received from the robot.
+//! The shared object contains methods to calculate jacobians, mass matrix  etc. for the robot.
+//! [RobotModel] implements the [Model] trait that
+//! contains the methods to get the needed info from the Model.
 use nalgebra::Matrix4;
 
 use crate::model::model_library::ModelLibrary;
 use crate::robot::robot_state::RobotState;
 use crate::FrankaResult;
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) mod library_downloader;
 mod model_library;
 
 /// Enumerates the seven joints, the flange, and the end effector of a robot.
 pub enum Frame {
+    /// First joint
     Joint1,
+    /// Second joint
     Joint2,
+    /// Third joint
     Joint3,
+    /// Fourth joint
     Joint4,
+    /// Fifth joint
     Joint5,
+    /// Sixth joint
     Joint6,
+    /// Seventh joint
     Joint7,
+    /// Connector between Robot and Gripper
     Flange,
+    /// End-effector frame that is used for the [cartesian pose interface](crate::Robot::control_cartesian_pose)
+    /// and inverse kinematics. Can be changed with [`set_EE`](crate::Robot::set_EE)
     EndEffector,
+    /// End-effector frame that is used for measuring cartesian forces. Can be changed with [`set_K`](crate::Robot::set_K)
     Stiffness,
 }
 
@@ -64,17 +81,13 @@ impl fmt::Display for Frame {
     }
 }
 
-/// Calculates poses of joints and dynamic properties of the robot.
-pub struct Model {
-    library: ModelLibrary,
-}
-
-#[allow(non_snake_case)]
-impl Model {
+/// Provides jacobians, mass matrix, coriolis torques, gravity torques and forward kinematics of
+/// a robot.
+pub trait Model {
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
-    /// [`Robot::load_model`](`crate::Robot::load_model`).
+    /// [`Robot::load_model`](crate::Robot::load_model).
     ///
     /// If you do not have the model you can use the download_model example to download the model
     /// # Arguments
@@ -99,14 +112,13 @@ impl Model {
     /// Why do we need it? - Because the model is not self contained and relies on some functions from libm
     ///
     /// How does the libfranka embed libm? They are not including <math.h> - Apparently it gets somehow included when using \<array> ¯\_(ツ)_/¯
-    pub fn new<S: AsRef<Path>>(
-        model_filename: S,
-        libm_filename: Option<&Path>,
-    ) -> FrankaResult<Self> {
-        Ok(Model {
-            library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
-        })
-    }
+    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self>
+    where
+        Self: Sized;
+
+    /// Returns the path where model is stored if it exists.
+    fn get_model_path(&self) -> Option<PathBuf>;
+
     /// Gets the 4x4 pose matrix for the given frame in base frame.
     ///
     /// The pose is represented as a 4x4 matrix in column-major format.
@@ -117,7 +129,194 @@ impl Model {
     /// * `EE_T_K` - Stiffness frame K in the end effector frame.
     /// # Return
     /// Vectorized 4x4 pose matrix, column-major.
-    pub fn pose(
+    #[allow(non_snake_case)]
+    fn pose(
+        &self,
+        frame: &Frame,
+        q: &[f64; 7],
+        F_T_EE: &[f64; 16],
+        EE_T_K: &[f64; 16],
+    ) -> [f64; 16];
+
+    /// Gets the 4x4 pose matrix for the given frame in base frame.
+    ///
+    /// The pose is represented as a 4x4 matrix in column-major format.
+    /// # Arguments
+    /// * `frame` - The desired frame.
+    /// * `robot_state` - State from which the pose should be calculated.
+    /// # Return
+    /// Vectorized 4x4 pose matrix, column-major.
+    fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16];
+
+    /// Gets the 6x7 Jacobian for the given frame, relative to that frame.
+    ///
+    /// The Jacobian is represented as a 6x7 matrix in column-major format.
+    /// # Arguments
+    /// * `frame` - The desired frame.
+    /// * `q` - Joint position.
+    /// * `F_T_EE` - End effector in flange frame.
+    /// * `EE_T_K` - Stiffness frame K in the end effector frame.
+    /// # Return
+    /// Vectorized 6x7 Jacobian, column-major.
+    #[allow(non_snake_case)]
+    fn body_jacobian(
+        &self,
+        frame: &Frame,
+        q: &[f64; 7],
+        F_T_EE: &[f64; 16],
+        EE_T_K: &[f64; 16],
+    ) -> [f64; 42];
+
+    /// Gets the 6x7 Jacobian for the given frame, relative to that frame.
+    ///
+    /// The Jacobian is represented as a 6x7 matrix in column-major format.
+    /// # Arguments
+    /// * `frame` - The desired frame.
+    /// * `robot_state` - State from which the pose should be calculated.
+    /// # Return
+    /// Vectorized 6x7 Jacobian, column-major.
+    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42];
+
+    /// Gets the 6x7 Jacobian for the given joint relative to the base frame.
+    ///
+    /// The Jacobian is represented as a 6x7 matrix in column-major format.
+    /// # Arguments
+    /// * `frame` - The desired frame.
+    /// * `q` - Joint position.
+    /// * `F_T_EE` - End effector in flange frame.
+    /// * `EE_T_K` - Stiffness frame K in the end effector frame.
+    /// # Return
+    /// Vectorized 6x7 Jacobian, column-major.
+    #[allow(non_snake_case)]
+    fn zero_jacobian(
+        &self,
+        frame: &Frame,
+        q: &[f64; 7],
+        F_T_EE: &[f64; 16],
+        EE_T_K: &[f64; 16],
+    ) -> [f64; 42];
+
+    /// Gets the 6x7 Jacobian for the given joint relative to the base frame.
+    ///
+    /// The Jacobian is represented as a 6x7 matrix in column-major format.
+    /// # Arguments
+    /// * `frame` - The desired frame.
+    /// * `robot_state` - State from which the pose should be calculated.
+    /// # Return
+    /// Vectorized 6x7 Jacobian, column-major.
+    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42];
+
+    /// Calculates the 7x7 mass matrix. Unit: [kg \times m^2].
+    /// # Arguments
+    /// * `q` - Joint position.
+    /// * `I_total` - Inertia of the attached total load including end effector, relative to
+    /// center of mass, given as vectorized 3x3 column-major matrix. Unit: [kg * m^2].
+    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
+    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
+    /// # Return
+    /// Vectorized 7x7 mass matrix, column-major.
+    #[allow(non_snake_case)]
+    fn mass(
+        &self,
+        q: &[f64; 7],
+        I_total: &[f64; 9],
+        m_total: f64,
+        F_x_Ctotal: &[f64; 3],
+    ) -> [f64; 49];
+
+    /// Calculates the 7x7 mass matrix. Unit: [kg \times m^2].
+    /// # Arguments
+    /// * `robot_state` - State from which the mass matrix should be calculated.
+    /// # Return
+    /// Vectorized 7x7 mass matrix, column-major.
+    fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49];
+
+    /// Calculates the Coriolis force vector (state-space equation):
+    /// ![c= C \times dq](https://latex.codecogs.com/png.latex?c=&space;C&space;\times&space;dq), in \[Nm\].
+    /// # Arguments
+    /// * `q` - Joint position.
+    /// * `dq` - Joint velocity.
+    /// * `I_total` - Inertia of the attached total load including end effector, relative to
+    /// center of mass, given as vectorized 3x3 column-major matrix. Unit: [kg * m^2].
+    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
+    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
+    /// # Return
+    /// Coriolis force vector.
+    #[allow(non_snake_case)]
+    fn coriolis(
+        &self,
+        q: &[f64; 7],
+        dq: &[f64; 7],
+        I_total: &[f64; 9],
+        m_total: f64,
+        F_x_Ctotal: &[f64; 3],
+    ) -> [f64; 7];
+
+    /// Calculates the Coriolis force vector (state-space equation):
+    /// ![c= C \times dq](https://latex.codecogs.com/png.latex?c=&space;C&space;\times&space;dq), in \[Nm\].
+    /// # Arguments
+    /// * `robot_state` - State from which the Coriolis force vector should be calculated.
+    /// # Return
+    /// Coriolis force vector.
+    fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7];
+
+    ///  Calculates the gravity vector. Unit: \[Nm\].
+    /// # Arguments
+    /// * `q` - Joint position.
+    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
+    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
+    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2]
+    /// Default to [0.0, 0.0, -9.81].
+    /// # Return
+    /// Gravity vector.
+    #[allow(non_snake_case)]
+    fn gravity<'a, Grav: Into<Option<&'a [f64; 3]>>>(
+        &self,
+        q: &[f64; 7],
+        m_total: f64,
+        F_x_Ctotal: &[f64; 3],
+        gravity_earth: Grav,
+    ) -> [f64; 7];
+
+    ///  Calculates the gravity vector. Unit: \[Nm\].
+    /// # Arguments
+    /// * `robot_state` - State from which the gravity vector should be calculated.
+    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2].
+    /// By default `gravity_earth` will be calculated from [`RobotState::O_ddP_O`](`crate::RobotState::O_ddP_O`).
+    /// # Return
+    /// Gravity vector.
+    #[allow(non_snake_case)]
+    fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
+        &self,
+        robot_state: &RobotState,
+        gravity_earth: Grav,
+    ) -> [f64; 7];
+}
+
+/// Calculates poses of joints and dynamic properties of a robot.
+pub struct RobotModel {
+    library: ModelLibrary,
+    model_file: PathBuf,
+}
+
+#[allow(non_snake_case)]
+impl Model for RobotModel {
+    fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> {
+        Ok(RobotModel {
+            library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
+            model_file: model_filename.as_ref().to_path_buf(),
+        })
+    }
+
+    fn get_model_path(&self) -> Option<PathBuf> {
+        if self.model_file.exists() {
+            Some(self.model_file.to_owned())
+        } else {
+            None
+        }
+    }
+
+    fn pose(
         &self,
         frame: &Frame,
         q: &[f64; 7],
@@ -147,15 +346,8 @@ impl Model {
         }
         output
     }
-    /// Gets the 4x4 pose matrix for the given frame in base frame.
-    ///
-    /// The pose is represented as a 4x4 matrix in column-major format.
-    /// # Arguments
-    /// * `frame` - The desired frame.
-    /// * `robot_state` - State from which the pose should be calculated.
-    /// # Return
-    /// Vectorized 4x4 pose matrix, column-major.
-    pub fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16] {
+
+    fn pose_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 16] {
         self.pose(
             frame,
             &robot_state.q,
@@ -163,17 +355,8 @@ impl Model {
             &robot_state.EE_T_K,
         )
     }
-    /// Gets the 6x7 Jacobian for the given frame, relative to that frame.
-    ///
-    /// The Jacobian is represented as a 6x7 matrix in column-major format.
-    /// # Arguments
-    /// * `frame` - The desired frame.
-    /// * `q` - Joint position.
-    /// * `F_T_EE` - End effector in flange frame.
-    /// * `EE_T_K` - Stiffness frame K in the end effector frame.
-    /// # Return
-    /// Vectorized 6x7 Jacobian, column-major.
-    pub fn body_jacobian(
+
+    fn body_jacobian(
         &self,
         frame: &Frame,
         q: &[f64; 7],
@@ -205,15 +388,7 @@ impl Model {
         output
     }
 
-    /// Gets the 6x7 Jacobian for the given frame, relative to that frame.
-    ///
-    /// The Jacobian is represented as a 6x7 matrix in column-major format.
-    /// # Arguments
-    /// * `frame` - The desired frame.
-    /// * `robot_state` - State from which the pose should be calculated.
-    /// # Return
-    /// Vectorized 6x7 Jacobian, column-major.
-    pub fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
+    fn body_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.body_jacobian(
             frame,
             &robot_state.q,
@@ -221,17 +396,8 @@ impl Model {
             &robot_state.EE_T_K,
         )
     }
-    /// Gets the 6x7 Jacobian for the given joint relative to the base frame.
-    ///
-    /// The Jacobian is represented as a 6x7 matrix in column-major format.
-    /// # Arguments
-    /// * `frame` - The desired frame.
-    /// * `q` - Joint position.
-    /// * `F_T_EE` - End effector in flange frame.
-    /// * `EE_T_K` - Stiffness frame K in the end effector frame.
-    /// # Return
-    /// Vectorized 6x7 Jacobian, column-major.
-    pub fn zero_jacobian(
+
+    fn zero_jacobian(
         &self,
         frame: &Frame,
         q: &[f64; 7],
@@ -262,15 +428,8 @@ impl Model {
         }
         output
     }
-    /// Gets the 6x7 Jacobian for the given joint relative to the base frame.
-    ///
-    /// The Jacobian is represented as a 6x7 matrix in column-major format.
-    /// # Arguments
-    /// * `frame` - The desired frame.
-    /// * `robot_state` - State from which the pose should be calculated.
-    /// # Return
-    /// Vectorized 6x7 Jacobian, column-major.
-    pub fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
+
+    fn zero_jacobian_from_state(&self, frame: &Frame, robot_state: &RobotState) -> [f64; 42] {
         self.zero_jacobian(
             frame,
             &robot_state.q,
@@ -278,16 +437,8 @@ impl Model {
             &robot_state.EE_T_K,
         )
     }
-    /// Calculates the 7x7 mass matrix. Unit: [kg \times m^2].
-    /// # Arguments
-    /// * `q` - Joint position.
-    /// * `I_total` - Inertia of the attached total load including end effector, relative to
-    /// center of mass, given as vectorized 3x3 column-major matrix. Unit: [kg * m^2].
-    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
-    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
-    /// # Return
-    /// Vectorized 7x7 mass matrix, column-major.
-    pub fn mass(
+
+    fn mass(
         &self,
         q: &[f64; 7],
         I_total: &[f64; 9],
@@ -299,12 +450,8 @@ impl Model {
             .mass(q, I_total, &m_total, F_x_Ctotal, &mut output);
         output
     }
-    /// Calculates the 7x7 mass matrix. Unit: [kg \times m^2].
-    /// # Arguments
-    /// * `robot_state` - State from which the mass matrix should be calculated.
-    /// # Return
-    /// Vectorized 7x7 mass matrix, column-major.
-    pub fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49] {
+
+    fn mass_from_state(&self, robot_state: &RobotState) -> [f64; 49] {
         self.mass(
             &robot_state.q,
             &robot_state.I_total,
@@ -312,18 +459,8 @@ impl Model {
             &robot_state.F_x_Ctotal,
         )
     }
-    /// Calculates the Coriolis force vector (state-space equation):
-    /// ![c= C \times dq](https://latex.codecogs.com/png.latex?c=&space;C&space;\times&space;dq), in \[Nm\].
-    /// # Arguments
-    /// * `q` - Joint position.
-    /// * `dq` - Joint velocity.
-    /// * `I_total` - Inertia of the attached total load including end effector, relative to
-    /// center of mass, given as vectorized 3x3 column-major matrix. Unit: [kg * m^2].
-    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
-    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
-    /// # Return
-    /// Coriolis force vector.
-    pub fn coriolis(
+
+    fn coriolis(
         &self,
         q: &[f64; 7],
         dq: &[f64; 7],
@@ -337,13 +474,7 @@ impl Model {
         output
     }
 
-    /// Calculates the Coriolis force vector (state-space equation):
-    /// ![c= C \times dq](https://latex.codecogs.com/png.latex?c=&space;C&space;\times&space;dq), in \[Nm\].
-    /// # Arguments
-    /// * `robot_state` - State from which the Coriolis force vector should be calculated.
-    /// # Return
-    /// Coriolis force vector.
-    pub fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7] {
+    fn coriolis_from_state(&self, robot_state: &RobotState) -> [f64; 7] {
         self.coriolis(
             &robot_state.q,
             &robot_state.dq,
@@ -352,16 +483,8 @@ impl Model {
             &robot_state.F_x_Ctotal,
         )
     }
-    ///  Calculates the gravity vector. Unit: \[Nm\].
-    /// # Arguments
-    /// * `q` - Joint position.
-    /// * `m_total` - Weight of the attached total load including end effector. Unit: \[kg\].
-    /// * `F_x_Ctotal` - Translation from flange to center of mass of the attached total load. Unit: \[m\].
-    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2]
-    /// Default to [0.0, 0.0, -9.81].
-    /// # Return
-    /// Gravity vector.
-    pub fn gravity<'a, Grav: Into<Option<&'a [f64; 3]>>>(
+
+    fn gravity<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
         q: &[f64; 7],
         m_total: f64,
@@ -374,14 +497,8 @@ impl Model {
             .gravity(q, gravity_earth, &m_total, F_x_Ctotal, &mut output);
         output
     }
-    ///  Calculates the gravity vector. Unit: \[Nm\].
-    /// # Arguments
-    /// * `robot_state` - State from which the gravity vector should be calculated.
-    /// * `gravity_earth` - Earth's gravity vector. Unit: [m / s^2].
-    /// By default `gravity_earth` will be calculated from [`RobotState::O_ddP_O`](`crate::RobotState::O_ddP_O`).
-    /// # Return
-    /// Gravity vector.
-    pub fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
+
+    fn gravity_from_state<'a, Grav: Into<Option<&'a [f64; 3]>>>(
         &self,
         robot_state: &RobotState,
         gravity_earth: Grav,

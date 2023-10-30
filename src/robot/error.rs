@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 //! Defines the errors that can occur while controlling the robot.
 use std::fmt::{Debug, Display, Formatter, Result};
 

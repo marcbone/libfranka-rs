@@ -23,9 +23,9 @@
 //!```no_run
 //! use std::time::Duration;
 //! use std::f64::consts::PI;
-//! use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! use franka::{JointPositions, MotionFinished, Robot, RobotState, Fr3, FrankaResult};
 //! fn main() -> FrankaResult<()> {
-//! let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//!     let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //!     robot.set_default_behavior()?;
 //!     robot.set_collision_behavior([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
 //!                                  [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0], [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
@@ -57,12 +57,12 @@
 //! The main function returns a FrankaResult<()> which means that it returns either Ok(())
 //! or an Error of type FrankaException which correspond to the C++ exceptions in libfranka.
 //!
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -77,12 +77,12 @@
 //! ```
 //! this specifies the default collision behavior, joint impedance and Cartesian impedance
 //!
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, MotionFinished, RobotState, Fr3, Robot, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! let q_goal = [0., -PI / 4., 0., -3. * PI / 4., 0., PI / 2., PI / 4.];
 //! robot.joint_motion(0.5, &q_goal)?;
 //! # Ok(())
@@ -124,12 +124,12 @@
 //! to the robot, therefore we use a cosine function. Without it we would get a CommandException
 //! while running.
 //!
-//! ```no_run
-//! # use franka::{JointPositions, MotionFinished};
+//!```no_run
+//! # use franka::{MotionFinished, JointPositions};
 //! # fn joint_positions() -> JointPositions {
 //! # let time = 0.;
 //! # let mut out = JointPositions::new([0.;7]);
-//!
+//! #
 //! if time >= 5.0 {
 //!     return out.motion_finished();
 //! }
@@ -150,12 +150,12 @@
 //! and returns JointPositions.
 //!
 //! With this callback we can now control the joint positions of the robot:
-//! ```no_run
+//!```no_run
 //! # use std::time::Duration;
 //! # use std::f64::consts::PI;
-//! # use franka::{JointPositions, MotionFinished, RobotState, Robot, FrankaResult};
+//! # use franka::{JointPositions, Fr3, Robot, RobotState, FrankaResult};
 //! # fn main() -> FrankaResult<()> {
-//! # let mut robot = Robot::new("robotik-bs.de", None, None)?;
+//! # let mut robot = Fr3::new("robotik-bs.de", None, None)?;
 //! # let callback = |state: &RobotState, time_step: &Duration| -> JointPositions {JointPositions::new([0.;7])};
 //! robot.control_joint_positions(callback, None, None, None)
 //! # }
@@ -168,17 +168,21 @@ pub mod gripper;
 mod network;
 pub mod robot;
 
+mod device_data;
 pub mod model;
 pub mod utils;
 
 pub use exception::FrankaResult;
-pub use gripper::gripper_state::GripperState;
 pub use gripper::Gripper;
+pub use gripper::GripperState;
 pub use model::Frame;
 pub use model::Model;
+pub use model::RobotModel;
 pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
-pub use robot::robot_state::RobotState;
+pub use robot::Fr3;
+pub use robot::Panda;
 pub use robot::Robot;
+pub use robot::RobotState;
 pub use utils::*;

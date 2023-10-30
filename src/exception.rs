@@ -3,6 +3,7 @@
 
 //! Contains exception and Result definitions
 use crate::robot::logger::Record;
+use crate::RobotState;
 use thiserror::Error;
 
 /// Represents all kind of errors which correspond to the franka::Exception in the C++ version of
@@ -15,7 +16,7 @@ pub enum FrankaException {
     #[error("{error}")]
     ControlException {
         /// Vector of states and commands logged just before the exception occurred.
-        log: Option<Vec<Record>>,
+        log: Option<Vec<Record<RobotState>>>,
         /// Explanatory string.
         error: String,
     },
@@ -66,15 +67,3 @@ pub(crate) fn create_command_exception(message: &'static str) -> FrankaException
 
 /// Result type which can have FrankaException as Error
 pub type FrankaResult<T> = Result<T, FrankaException>;
-// wait for https://github.com/rust-lang/rust/issues/43301 to be closed
-// impl Termination for FrankaResult<()> {
-//     fn report(self) -> i32 {
-//        return match self {
-//            Ok(_) => {ExitCode::SUCCESS.report();}
-//            Err(e) => {
-//                eprintln!("{}",e);
-//                ExitCode::FAILURE.report();
-//            }
-//        }
-//     }
-// }

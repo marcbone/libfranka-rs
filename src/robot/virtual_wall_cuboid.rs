@@ -17,7 +17,7 @@ pub struct VirtualWallCuboid {
 }
 
 impl VirtualWallCuboid {
-    pub fn new(id: i32, response: GetCartesianLimitResponse) -> Self {
+    pub(crate) fn new(id: i32, response: GetCartesianLimitResponse) -> Self {
         VirtualWallCuboid {
             id,
             object_world_size: response.object_world_size,

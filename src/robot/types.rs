@@ -1,8 +1,8 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 use std::fmt::Debug;
 
-use crate::robot::types::RobotMode::Other;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -26,9 +26,10 @@ pub enum ControllerMode {
     Other,
 }
 /// Describes the robot's current mode.
-#[derive(Serialize_repr, Deserialize_repr, Debug, Copy, Clone, PartialEq)]
+#[derive(Serialize_repr, Deserialize_repr, Debug, Default, Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum RobotMode {
+    #[default]
     Other,
     Idle,
     Move,
@@ -37,16 +38,11 @@ pub enum RobotMode {
     UserStopped,
     AutomaticErrorRecovery,
 }
-impl Default for RobotMode {
-    fn default() -> Self {
-        Other
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 #[allow(non_snake_case)]
 #[repr(packed)]
-pub struct RobotStateIntern {
+pub struct PandaStateIntern {
     pub message_id: u64,
     pub O_T_EE: [f64; 16],
     pub O_T_EE_d: [f64; 16],
@@ -96,9 +92,31 @@ pub struct RobotStateIntern {
     pub control_command_success_rate: f64,
 }
 
-impl RobotStateIntern {
+pub type Fr3StateIntern = PandaStateIntern;
+
+pub trait AbstractRobotStateIntern: Copy + Clone + PartialEq {
+    fn get_message_id(&self) -> u64;
+    fn get_motion_generator_mode(&self) -> MotionGeneratorMode;
+    fn get_controller_mode(&self) -> ControllerMode;
+}
+
+impl AbstractRobotStateIntern for PandaStateIntern {
+    fn get_message_id(&self) -> u64 {
+        self.message_id
+    }
+
+    fn get_motion_generator_mode(&self) -> MotionGeneratorMode {
+        self.motion_generator_mode
+    }
+
+    fn get_controller_mode(&self) -> ControllerMode {
+        self.controller_mode
+    }
+}
+
+impl PandaStateIntern {
     pub fn dummy() -> Self {
-        RobotStateIntern {
+        PandaStateIntern {
             message_id: 0,
             O_T_EE: [0.; 16],
             O_T_EE_d: [0.; 16],
@@ -280,3 +298,5 @@ pub struct RobotCommand {
     pub motion: MotionGeneratorCommandPacked,
     pub control: ControllerCommandPacked,
 }
+
+pub trait ConvertMotion {}
