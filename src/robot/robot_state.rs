@@ -18,7 +18,7 @@ pub trait AbstractRobotState: Clone + Debug {
     fn get_q_d(&self) -> [f64; 7];
 }
 
-/// Describes the robot state.
+/// Describes the state of the robot at a given time.
 #[derive(Debug, Clone, Default)]
 #[allow(non_snake_case)]
 pub struct RobotState {

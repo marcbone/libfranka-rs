@@ -21,15 +21,26 @@ mod model_library;
 
 /// Enumerates the seven joints, the flange, and the end effector of a robot.
 pub enum Frame {
+    /// First joint
     Joint1,
+    /// Second joint
     Joint2,
+    /// Third joint
     Joint3,
+    /// Fourth joint
     Joint4,
+    /// Fifth joint
     Joint5,
+    /// Sixth joint
     Joint6,
+    /// Seventh joint
     Joint7,
+    /// Connector between Robot and Gripper
     Flange,
+    /// End-effector frame that is used for the [cartesian pose interface](crate::Robot::control_cartesian_pose)
+    /// and inverse kinematics. Can be changed with [`set_EE`](crate::Robot::set_EE)
     EndEffector,
+    /// End-effector frame that is used for measuring cartesian forces. Can be changed with [`set_K`](crate::Robot::set_K)
     Stiffness,
 }
 

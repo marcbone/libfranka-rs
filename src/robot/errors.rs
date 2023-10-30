@@ -15,7 +15,7 @@ pub struct FrankaErrors {
     pub franka_errors: Vec<FrankaError>,
 }
 
-pub enum FrankaErrorKind {
+pub(crate) enum FrankaErrorKind {
     Error,
     ReflexReason,
 }

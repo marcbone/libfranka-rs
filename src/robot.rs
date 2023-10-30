@@ -1,12 +1,12 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
 
-//! Contains the franka::Robot type.
+//! Contains the Robot trait and all modules that are necessary to use a robot.
 
 use crate::exception::create_command_exception;
 use crate::robot::private_robot::PrivateRobot;
 use crate::robot::robot_control::RobotControl;
-use crate::robot::robot_data::{PrivateRobotData, RobotData};
+pub(crate) use crate::robot::robot_data::PrivateRobotData;
 use crate::robot::robot_impl::RobotImplementation;
 use crate::robot::service_types::{
     SetCartesianImpedanceRequest, SetCollisionBehaviorRequest, SetEeToKRequest,
@@ -15,7 +15,7 @@ use crate::robot::service_types::{
 };
 use crate::{
     CartesianPose, CartesianVelocities, ControllerMode, FrankaResult, JointPositions,
-    JointVelocities, MotionGenerator, RobotModel, RobotState, Torques, MAX_CUTOFF_FREQUENCY,
+    JointVelocities, MotionGenerator, RobotModel, Torques, MAX_CUTOFF_FREQUENCY,
 };
 use std::time::Duration;
 
@@ -24,20 +24,25 @@ mod control_tools;
 pub mod control_types;
 pub mod error;
 pub mod errors;
-pub mod fr3;
+mod fr3;
 pub mod logger;
 pub mod low_pass_filter;
 mod motion_generator_traits;
-pub mod panda;
+mod panda;
 mod private_robot;
 pub mod rate_limiting;
 mod robot_control;
-pub mod robot_data;
+mod robot_data;
 mod robot_impl;
-pub mod robot_state;
+pub(crate) mod robot_state;
 pub(crate) mod service_types;
 pub(crate) mod types;
 pub mod virtual_wall_cuboid;
+
+pub use fr3::Fr3;
+pub use panda::Panda;
+pub use robot_data::RobotData;
+pub use robot_state::RobotState;
 
 /// Contains all methods that are available for all robots.
 /// # Nominal end effector frame NE
@@ -93,6 +98,7 @@ pub mod virtual_wall_cuboid;
 /// These functions should therefore not be called from within control or motion generator loops.
 ///
 pub trait Robot {
+    /// Dynamic model of the robot.
     type Model: RobotModel;
 
     /// Waits for a robot state update and returns it.

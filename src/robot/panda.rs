@@ -27,7 +27,7 @@ use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
 use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
 use std::mem::size_of;
 
-/// Maintains a network connection to the robot, provides the current robot state, gives access to
+/// Maintains a network connection to the  Panda robot, provides the current robot state, gives access to
 /// the model library and allows to control the robot. See the [`Robot`](crate::Robot) trait for
 /// methods to control the robot.
 ///

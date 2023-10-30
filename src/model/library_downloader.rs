@@ -7,11 +7,11 @@ use std::path::Path;
 
 use crate::exception::FrankaException::ModelException;
 use crate::network::Network;
-use crate::robot::robot_data::PrivateRobotData;
 use crate::robot::service_types::{
     LoadModelLibraryArchitecture, LoadModelLibraryRequest, LoadModelLibraryStatus,
     LoadModelLibrarySystem,
 };
+use crate::robot::PrivateRobotData;
 use crate::FrankaResult;
 
 pub(crate) trait LibraryDownloader {

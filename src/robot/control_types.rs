@@ -28,10 +28,12 @@ pub enum ControllerMode {
 }
 
 /// Used to decide whether to enforce realtime mode for a control loop thread.
-/// see [`Robot`](`crate::Robot`)
+/// See constructors of [Fr3](crate::Fr3::new) and [Panda](crate::Panda::new).
 #[derive(Copy, Clone, PartialEq)]
 pub enum RealtimeConfig {
+    /// Use real-time scheduling and priority
     Enforce,
+    /// Dont change scheduling and priority
     Ignore,
 }
 
