@@ -71,14 +71,14 @@ pub use robot_state::RobotState;
 /// a 1 kHz frequency, the callback functions have to compute their result in a short time frame
 /// in order to be accepted. Callback functions take two parameters:
 ///
-/// * A &franka::RobotState showing the current robot state.
-/// * A &std::time::Duration to indicate the time since the last callback invocation. Thus, the
+/// * A &[RobotState] showing the current robot state.
+/// * A &[Duration] to indicate the time since the last callback invocation. Thus, the
 ///   duration is zero on the first invocation of the callback function!
 ///
 /// The following incomplete example shows the general structure of a callback function:
 ///
 /// ```no_run
-/// use franka::robot::robot_state::RobotState;
+/// use franka::RobotState;
 /// use franka::robot::control_types::{JointPositions, MotionFinished};
 /// use std::time::Duration;
 /// # fn your_function_which_generates_joint_positions(time:f64) -> JointPositions {JointPositions::new([0.;7])}
