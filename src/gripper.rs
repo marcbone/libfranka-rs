@@ -3,11 +3,12 @@
 
 //!  Contains the franka::Gripper type.
 
-use crate::device_data::DeviceData;
 use std::mem::size_of;
 
+pub use gripper_state::GripperState;
+
+use crate::device_data::DeviceData;
 use crate::exception::{create_command_exception, FrankaException, FrankaResult};
-use crate::gripper::gripper_state::GripperState;
 use crate::gripper::types::{
     ConnectRequest, ConnectRequestWithHeader, ConnectResponse, GraspRequest,
     GraspRequestWithHeader, GripperCommandEnum, GripperCommandHeader, GripperStateIntern,
@@ -15,7 +16,7 @@ use crate::gripper::types::{
 };
 use crate::network::Network;
 
-pub mod gripper_state;
+mod gripper_state;
 pub(crate) mod types;
 
 /// Maintains a network connection to the gripper, provides the current gripper state,
@@ -196,29 +197,30 @@ fn handle_response_status(status: &Status) -> FrankaResult<bool> {
 
 #[cfg(test)]
 mod tests {
-    use crate::gripper::types::{
-        ConnectRequestWithHeader, ConnectResponse, GraspRequest, GraspRequestWithHeader,
-        GripperCommandEnum, GripperCommandHeader, GripperStateIntern, MoveRequest,
-        MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
-    };
-    use crate::gripper::Gripper;
-    use crate::FrankaResult;
-    use bincode::{deserialize, serialize, serialized_size};
-    use mio::net::UdpSocket;
-    use mockall::{automock, predicate::*};
     use std::io::{Read, Write};
+    use std::iter::FromIterator;
+    use std::mem::size_of;
     use std::net::TcpListener;
     use std::net::ToSocketAddrs;
     use std::rc::Rc;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
 
+    use bincode::{deserialize, serialize, serialized_size};
+    use mio::net::UdpSocket;
+    use mockall::{automock, predicate::*};
+    use serde::{Deserialize, Serialize};
+
     use crate::exception::FrankaException;
     use crate::gripper::types::Status::{Fail, Success};
+    use crate::gripper::types::{
+        ConnectRequestWithHeader, ConnectResponse, GraspRequest, GraspRequestWithHeader,
+        GripperCommandEnum, GripperCommandHeader, GripperStateIntern, MoveRequest,
+        MoveRequestWithHeader, Status, COMMAND_PORT, GRIPPER_VERSION,
+    };
+    use crate::gripper::Gripper;
     use crate::network::MessageCommand;
-    use serde::{Deserialize, Serialize};
-    use std::iter::FromIterator;
-    use std::mem::size_of;
+    use crate::FrankaResult;
 
     #[derive(Serialize, Deserialize, Clone, Copy)]
     #[repr(packed)]
