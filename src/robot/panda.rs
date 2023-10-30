@@ -1,3 +1,6 @@
+// Copyright (c) 2023 Marco Boneberger
+// Licensed under the EUPL-1.2-or-later
+
 use crate::device_data::DeviceData;
 use crate::exception::{create_command_exception, FrankaException};
 use crate::network::Network;

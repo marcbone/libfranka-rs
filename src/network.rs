@@ -1,5 +1,6 @@
 // Copyright (c) 2021 Marco Boneberger
 // Licensed under the EUPL-1.2-or-later
+
 #![allow(dead_code)]
 
 extern crate libc;

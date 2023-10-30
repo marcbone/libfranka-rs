@@ -1,3 +1,6 @@
+// Copyright (c) 2023 Marco Boneberger
+// Licensed under the EUPL-1.2-or-later
+
 use crate::network::Network;
 use crate::robot::control_loop::ControlLoop;
 use crate::robot::motion_generator_traits::MotionGeneratorTrait;
