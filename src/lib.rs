@@ -173,16 +173,16 @@ pub mod model;
 pub mod utils;
 
 pub use exception::FrankaResult;
-pub use gripper::GripperState;
 pub use gripper::Gripper;
+pub use gripper::GripperState;
 pub use model::Frame;
 pub use model::Model;
 pub use model::RobotModel;
 pub use robot::control_types::*;
 pub use robot::low_pass_filter::DEFAULT_CUTOFF_FREQUENCY;
 pub use robot::low_pass_filter::MAX_CUTOFF_FREQUENCY;
-pub use robot::RobotState;
 pub use robot::Fr3;
 pub use robot::Panda;
 pub use robot::Robot;
+pub use robot::RobotState;
 pub use utils::*;
