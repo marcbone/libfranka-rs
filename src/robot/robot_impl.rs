@@ -19,7 +19,7 @@ use crate::robot::types::{
     AbstractRobotStateIntern, ControllerCommand, ControllerMode, MotionGeneratorCommand,
     MotionGeneratorMode, RobotCommand,
 };
-use crate::RobotModel;
+use crate::Model;
 use std::fs::remove_file;
 use std::path::Path;
 

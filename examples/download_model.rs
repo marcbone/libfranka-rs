@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use franka::exception::FrankaException::ModelException;
-use franka::{Fr3, FrankaResult, Panda, RealtimeConfig, Robot, RobotModel};
+use franka::{Fr3, FrankaResult, Model, Panda, RealtimeConfig, Robot};
 
 /// Downloads the model for offline usage
 #[derive(Parser, Debug)]

@@ -20,7 +20,7 @@ use crate::robot::service_types::{
     SetLoadRequestWithFr3Header, SetNeToEeRequestWithFr3Header, StopMoveStatusFr3, FR3_VERSION,
 };
 use crate::robot::types::Fr3StateIntern;
-use crate::{Fr3Model, FrankaResult, RealtimeConfig, RobotState};
+use crate::{FrankaResult, RealtimeConfig, RobotModel, RobotState};
 use std::mem::size_of;
 
 /// Maintains a network connection to the FR3 robot, provides the current robot state, gives access to
@@ -35,7 +35,7 @@ use std::mem::size_of;
 pub struct Fr3(RobotImplGeneric<Self>);
 
 impl RobotData for Fr3 {
-    type Model = Fr3Model;
+    type Model = RobotModel;
     type StateIntern = Fr3StateIntern;
     type State = RobotState;
 }
@@ -49,7 +49,6 @@ impl PrivateRobot for Fr3 {
     fn get_rob(&self) -> &Self::Rob {
         &self.0
     }
-
     fn get_net(&mut self) -> &mut Network<Self> {
         &mut self.0.network
     }

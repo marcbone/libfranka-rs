@@ -14,7 +14,7 @@ use crate::robot::service_types::{
     SetGuidingModeRequest, SetJointImpedanceRequest, SetLoadRequest, SetNeToEeRequest,
 };
 use crate::robot::types::AbstractRobotStateIntern;
-use crate::{FrankaResult, RobotModel, RobotState};
+use crate::{FrankaResult, Model, RobotModel, RobotState};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -22,7 +22,7 @@ use std::fmt::Debug;
 /// Contains the types that defines how the data of a robot looks like.
 pub trait RobotData: RateLimiter {
     /// Dynamic model of the robot.
-    type Model: RobotModel;
+    type Model: Model + Into<RobotModel>;
     /// Internal state that comes from the Robot over UDP.
     type StateIntern: Debug + DeserializeOwned + Serialize + AbstractRobotStateIntern + 'static;
     /// State that the user will interact with.

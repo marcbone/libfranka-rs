@@ -24,7 +24,7 @@ use crate::robot::service_types::{
 };
 use crate::robot::types::PandaStateIntern;
 use crate::robot::virtual_wall_cuboid::VirtualWallCuboid;
-use crate::{FrankaResult, PandaModel, RealtimeConfig, RobotState};
+use crate::{FrankaResult, RealtimeConfig, RobotModel, RobotState};
 use std::mem::size_of;
 
 /// Maintains a network connection to the  Panda robot, provides the current robot state, gives access to
@@ -167,7 +167,6 @@ impl PrivateRobot for Panda {
     fn get_rob(&self) -> &Self::Rob {
         &self.0
     }
-
     fn get_net(&mut self) -> &mut Network<Self> {
         &mut self.0.network
     }
@@ -192,7 +191,7 @@ impl DeviceData for Panda {
 }
 
 impl RobotData for Panda {
-    type Model = PandaModel;
+    type Model = RobotModel;
     type StateIntern = PandaStateIntern;
     type State = RobotState;
 }

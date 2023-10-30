@@ -3,10 +3,10 @@
 
 //! Types for accessing the robots mass matrix, gravity torques and more.
 //!
-//! [Fr3Model] is the Model for the FR3 and [PandaModel] is the Model for the Panda.
-//! They are wrappers around a shared object that is received from the robot.
+//! [RobotModel] is the Model for the FR3 and for the Panda.
+//! It is a wrapper around a shared object that is received from the robot.
 //! The shared object contains methods to calculate jacobians, mass matrix  etc. for the robot.
-//! Both [Fr3Model] and [PandaModel] implement the [RobotModel] trait that
+//! [RobotModel] implements the [Model] trait that
 //! contains the methods to get the needed info from the Model.
 use nalgebra::Matrix4;
 
@@ -83,7 +83,7 @@ impl fmt::Display for Frame {
 
 /// Provides jacobians, mass matrix, coriolis torques, gravity torques and forward kinematics of
 /// a robot.
-pub trait RobotModel {
+pub trait Model {
     /// Creates a new Model instance from the shared object of the Model for offline usage.
     ///
     /// If you just want to use the model to control the Robot you should use
@@ -293,16 +293,16 @@ pub trait RobotModel {
     ) -> [f64; 7];
 }
 
-/// Calculates poses of joints and dynamic properties of a [Fr3](crate::Fr3).
-pub struct Fr3Model {
+/// Calculates poses of joints and dynamic properties of a robot.
+pub struct RobotModel {
     library: ModelLibrary,
     model_file: PathBuf,
 }
 
 #[allow(non_snake_case)]
-impl RobotModel for Fr3Model {
+impl Model for RobotModel {
     fn new<S: AsRef<Path>>(model_filename: S, libm_filename: Option<&Path>) -> FrankaResult<Self> {
-        Ok(Fr3Model {
+        Ok(RobotModel {
             library: ModelLibrary::new(model_filename.as_ref(), libm_filename)?,
             model_file: model_filename.as_ref().to_path_buf(),
         })
@@ -511,6 +511,3 @@ impl RobotModel for Fr3Model {
         )
     }
 }
-
-/// Calculates poses of joints and dynamic properties of a [Panda](crate::Panda).
-pub type PandaModel = Fr3Model;

@@ -7,7 +7,7 @@ use clap::Parser;
 use nalgebra::{Matrix3, Matrix6, Matrix6x1, UnitQuaternion, Vector3};
 
 use franka::{
-    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Panda, Robot, RobotModel, RobotState,
+    array_to_isometry, Fr3, Frame, FrankaResult, Matrix6x7, Model, Panda, Robot, RobotState,
     Torques, Vector7,
 };
 

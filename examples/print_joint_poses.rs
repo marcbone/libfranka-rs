@@ -3,7 +3,7 @@
 use clap::Parser;
 use nalgebra::Matrix4;
 
-use franka::{Fr3, Frame, FrankaResult, Panda, Robot, RobotModel};
+use franka::{Fr3, Frame, FrankaResult, Model, Panda, Robot};
 
 /// An example showing how to use the model library that prints the transformation
 /// matrix of each joint with respect to the base frame.

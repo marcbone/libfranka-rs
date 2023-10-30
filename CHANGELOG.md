@@ -20,7 +20,7 @@ Requires Panda system version >= 4.2.1
 ### Changed
 
 - The Robot struct became a trait that is implemented by the `Panda` and `Fr3` structs
-- The Model struct became a trait (`RobotModel`) that is implemented by the `PandaModel` and `Fr3Model` structs
+- The Model struct became a trait that is implemented by the `RobotModel` struct
 - Examples now default to FR3 unless `--panda` is passed as argument
 - Rate limiter is disabled by default for FR3
 - FR3 does not have get_virtual_wall and set_filters methods

@@ -98,9 +98,6 @@ pub use robot_state::RobotState;
 /// These functions should therefore not be called from within control or motion generator loops.
 ///
 pub trait Robot {
-    /// Dynamic model of the robot.
-    type Model: RobotModel;
-
     /// Waits for a robot state update and returns it.
     ///
     /// # Return
@@ -482,7 +479,7 @@ pub trait Robot {
     /// # Errors
     /// * [`ModelException`](`crate::exception::FrankaException::ModelException`) if the model library cannot be loaded.
     /// * [`NetworkException`](`crate::exception::FrankaException::NetworkException`) if the connection is lost, e.g. after a timeout.
-    fn load_model(&mut self, persistent: bool) -> FrankaResult<Self::Model>;
+    fn load_model(&mut self, persistent: bool) -> FrankaResult<RobotModel>;
 
     /// Changes the collision behavior.
     ///
@@ -655,8 +652,6 @@ where
     JointPositions: crate::ConvertMotion<<R as RobotData>::State>,
     CartesianVelocities: crate::ConvertMotion<<R as RobotData>::State>,
 {
-    type Model = <R as RobotData>::Model;
-
     fn read_once(&mut self) -> FrankaResult<RobotState> {
         match <Self as PrivateRobot>::get_rob_mut(self).read_once() {
             Ok(state) => Ok(state.into()),
@@ -908,8 +903,10 @@ where
         )
     }
 
-    fn load_model(&mut self, persistent: bool) -> FrankaResult<Self::Model> {
-        <Self as PrivateRobot>::get_rob_mut(self).load_model(persistent)
+    fn load_model(&mut self, persistent: bool) -> FrankaResult<RobotModel> {
+        <Self as PrivateRobot>::get_rob_mut(self)
+            .load_model(persistent)
+            .map(|model| model.into())
     }
 
     #[allow(clippy::too_many_arguments)]
